@@ -49,7 +49,7 @@ def query(
     while True:
         resp = aws.table().query(**kwargs)
         items.extend(json.loads(i["data"]) for i in resp.get("Items", []))
-        if "LastEvaluatedKey" not in resp:
+        if not resp.get("LastEvaluatedKey"):  # absent or {} both mean last page
             return items
         kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 

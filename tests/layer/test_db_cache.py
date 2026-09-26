@@ -99,7 +99,7 @@ def test_query_without_limit_reads_every_page(aws, monkeypatch):
 
     pages = [
         {"Items": [{"data": _json.dumps({"n": 1})}], "LastEvaluatedKey": {"pk": "p", "sk": "a"}},
-        {"Items": [{"data": _json.dumps({"n": 2})}]},
+        {"Items": [{"data": _json.dumps({"n": 2})}], "LastEvaluatedKey": {}},  # empty key = last page
     ]
     calls = []
 
