@@ -32,6 +32,11 @@ Resources:
   #     --client-id-list sts.amazonaws.com
   DeployRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - W3037
     Properties:
       RoleName: !Sub '${AppStackName}-gha-deploy'
       MaxSessionDuration: 3600
@@ -152,9 +157,11 @@ Resources:
                   - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${AppStackName}-*'
               # HTTP API. API Gateway ARNs carry no name, so this can't be scoped by
               # prefix; it is limited to the apis/tags paths in this region.
-              # No apigateway:TagResource — API Gateway's control plane has no
-              # named IAM actions; tagging goes through PUT /tags/{arn}, already
-              # covered by apigateway:PUT against the /tags/* resource below.
+              # apigateway:TagResource/UntagResource ARE real, required IAM actions —
+              # ApiGatewayV2's Stage resource handler calls them directly on create/
+              # update/delete (separately from the apigateway:PUT-on-/tags/* path).
+              # cfn-lint's action database is stale and doesn't know about them
+              # (flags as W3037); that's a lint gap, not evidence the action is fake.
               - Sid: AppHttpApi
                 Effect: Allow
                 Action:
@@ -163,6 +170,8 @@ Resources:
                   - apigateway:PUT
                   - apigateway:PATCH
                   - apigateway:DELETE
+                  - apigateway:TagResource
+                  - apigateway:UntagResource
                 Resource:
                   - !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/apis'
                   - !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/apis/*'

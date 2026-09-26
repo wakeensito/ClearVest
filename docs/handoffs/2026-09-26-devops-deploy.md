@@ -78,8 +78,9 @@ scripts/smoke.sh <ApiUrl>
   new statement in `cicd-role.yaml`, scoped the same way, never a bare `*` Resource.
 - If a deploy fails with `AccessDenied` on a `Describe*`/`Get*` call, it's a handler read-back the role
   doesn't have yet — add that one action to the matching statement (same scope) and re-run the bootstrap
-  deploy; don't widen the Resource. `apigateway:TagResource` is not a real IAM action (cfn-lint rejects it);
-  tagging goes through `apigateway:PUT` on `/tags/*`.
+  deploy; don't widen the Resource. `apigateway:TagResource`/`UntagResource` ARE real, required IAM
+  actions — the ApiGatewayV2 Stage handler calls them directly; cfn-lint's action database is just stale
+  (flags them as W3037), suppressed per-resource in `cicd-role.yaml`.
 - `scripts/smoke.sh` needs `python3` on `PATH` only to generate a UUID for `X-User-Id`; it has no other
   dependency beyond `curl`.
 - Re-running `cloudformation deploy` on `infra/cicd-role.yaml` after editing its policies is safe and
