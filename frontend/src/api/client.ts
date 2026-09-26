@@ -14,6 +14,8 @@ export type Macro = Schemas['Macro']
 export type ChatReply = Schemas['ChatReply']
 export type HistorySeries = Schemas['HistorySeries']
 export type HistoryRange = components['parameters']['Range']
+export type Company = Schemas['Company']
+export type Companies = Schemas['Companies']
 export type UploadUrl = Schemas['UploadUrl']
 export type VoiceTurn = Schemas['VoiceTurn']
 export type Speech = Schemas['Speech']
@@ -61,6 +63,9 @@ export const api = {
   getMacro: () => unwrap(client.GET('/market/macro', { params: user() })),
   getHistory: (symbol: string, range: HistoryRange) =>
     unwrap(client.GET('/market/history', { params: { ...user(), query: { symbols: symbol, range } } })),
+  /** 2 to 4 tickers; the API rejects other counts with a 400. Validate with `lib/compare.ts` first. */
+  compareCompanies: (symbols: readonly string[]) =>
+    unwrap(client.GET('/market/compare-companies', { params: { ...user(), query: { symbols: symbols.join(',') } } })),
 
   chat: (message: string) => unwrap(client.POST('/advisor/chat', { params: user(), body: { message } })),
   clearChatHistory: () => unwrap(client.DELETE('/advisor/history', { params: user() })),

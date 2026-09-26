@@ -1,6 +1,7 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type Profile, type HistoryRange } from './client'
 import { isApiError } from './errors'
+import { symbolsError } from '../lib/compare'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,5 +53,13 @@ export function useOnLinked() {
 export const useHistory = (symbol: string, range: HistoryRange) => useQuery({
   queryKey: ['history', symbol, range],
   queryFn: () => api.getHistory(symbol, range),
+  staleTime: 15 * 60_000,
+})
+
+/** Pass normalized tickers (lib/compare.ts). Disabled outside 2–4 symbols, so an incomplete set never hits the API. */
+export const useCompareCompanies = (symbols: readonly string[]) => useQuery({
+  queryKey: ['compare', ...symbols],
+  queryFn: () => api.compareCompanies(symbols),
+  enabled: symbolsError(symbols) === null,
   staleTime: 15 * 60_000,
 })
