@@ -1,0 +1,34 @@
+[
+  {
+    "id": "traditional-401k",
+    "name": "Traditional 401(k)",
+    "taxTreatment": "Pre-tax contributions, taxed on withdrawal.",
+    "contributionLimit": "$24,500 employee deferral (2026); $8,000 catch-up at 50+",
+    "bestFor": "Higher earners now who expect a lower tax rate in retirement.",
+    "source": "https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-401k-and-profit-sharing-plan-contribution-limits"
+  },
+  {
+    "id": "roth-401k",
+    "name": "Roth 401(k)",
+    "taxTreatment": "After-tax contributions, qualified withdrawals tax-free.",
+    "contributionLimit": "$24,500 employee deferral (2026); $8,000 catch-up at 50+",
+    "bestFor": "Early-career earners who expect higher taxes later.",
+    "source": "https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-401k-and-profit-sharing-plan-contribution-limits"
+  },
+  {
+    "id": "roth-ira",
+    "name": "Roth IRA",
+    "taxTreatment": "After-tax contributions, qualified withdrawals tax-free.",
+    "contributionLimit": "$7,500 (2026); $1,100 catch-up at 50+; income limits apply",
+    "bestFor": "Anyone under the income limit who wants tax-free growth and flexible access to contributions.",
+    "source": "https://www.irs.gov/retirement-plans/roth-iras"
+  },
+  {
+    "id": "tsp",
+    "name": "Thrift Savings Plan (TSP)",
+    "taxTreatment": "Federal employees and uniformed services; traditional or Roth; very low fees.",
+    "contributionLimit": "$24,500 employee deferral (2026); $8,000 catch-up at 50+",
+    "bestFor": "Federal employees and service members seeking low-cost retirement savings.",
+    "source": "https://www.tsp.gov/making-contributions/contribution-limits/"
+  }
+]
