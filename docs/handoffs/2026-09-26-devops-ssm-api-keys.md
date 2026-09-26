@@ -10,9 +10,11 @@
 
 ## What changed
 
-- Added three API keys to AWS Systems Manager Parameter Store in `us-east-1`
-  as `SecureString`, Standard tier, default KMS key (`alias/aws/ssm`):
+- Added three API keys to AWS Systems Manager Parameter Store in the **team AWS
+  account** (the one that already holds `clearvest-fmp`), `us-east-1`,
+  `SecureString`, Standard tier, default KMS key (`alias/aws/ssm`):
   `clearvest-alphavantage`, `clearvest-plaid-client-id`, `clearvest-plaid-secret`.
+  Every `clearvest-*` key now lives in that one account.
 - Settled the naming question left open in the backend spec handoff: every key is
   **flat, lowercase, `clearvest-` prefixed** (no leading slash, no path hierarchy),
   matching the first key `clearvest-fmp`. Names are case-sensitive.
@@ -33,6 +35,10 @@ Parameter names now expected in SSM (names only, never values):
 ## How to run / verify it
 
 ```bash
+# First: are you in the team account? The output must be the team account's
+# identity, not a personal one. See Gotchas.
+aws sts get-caller-identity
+
 # Names, types and versions only. Never print the values.
 aws ssm get-parameters --region us-east-1 \
   --names clearvest-alphavantage clearvest-plaid-client-id clearvest-plaid-secret \
@@ -77,22 +83,21 @@ Expected output of the first command: three rows, each `SecureString`, version `
 - **Plaid keys are sandbox credentials.** They only work against the Plaid
   sandbox environment. Production Plaid keys, if ever needed, get new parameter
   values (a new version of the same names), not new names.
-- **Keys were created by hand with the CLI, not by the SAM template.** The stack
-  must deploy with zero keys present (spec §6), and CloudFormation cannot create
-  a SecureString parameter anyway. Hand-created keys also survive stack deletes.
+- **Keys were created by hand (CloudShell in the team account's console), not by
+  the SAM template.** The stack must deploy with zero keys present (spec §6), and
+  CloudFormation cannot create a SecureString parameter anyway. Hand-created keys
+  also survive stack deletes. CloudShell is the safest way to add one: it runs
+  as the console session you are logged into, so it cannot land in the wrong
+  account the way a local profile can.
 
 ## Gotchas
 
-- **The account question is not settled.** These three parameters were created
-  with the `default` AWS profile on @MaxCadet's machine. `clearvest-fmp` was
-  created by @wakeensito with *their* `default` profile, and it does **not**
-  show up in the account where the three new keys live, so the two sets are in
-  different AWS accounts. The deploy pipeline is still the OIDC stub
-  (`AWS_DEPLOY_ROLE_ARN` is unset), so nothing in the repo yet says which
-  account is the ClearVest deploy account. Whichever account the SAM stack
-  deploys into must hold **all** the keys. Re-running the `put-parameter`
-  commands in that account takes a minute; the values live in the team's
-  password manager, never in this repo.
+- **Local `default` AWS profiles may point to personal accounts.** The first
+  copy of these three keys was created from a laptop whose `default` profile
+  resolved to a personal account, not the team's, and had to be deleted and
+  re-created in the team account. Run `aws sts get-caller-identity` before any
+  SSM work and confirm the identity is the team account's. If in doubt, use
+  CloudShell in the team account's console instead of a local profile.
 - `put-parameter` without `--no-overwrite` silently bumps the version and
   replaces the value. Always pass `--no-overwrite` when adding a key.
 - `get-parameter` on a SecureString returns the ciphertext unless you pass
@@ -114,9 +119,8 @@ Expected output of the first command: three rows, each `SecureString`, version `
    `put-parameter` command above once the ElevenLabs key exists.
 3. **Data:** add `clearvest-sec-user-agent` as a plain `String` (it is a
    contact string, not a secret) so the Lambdas stop depending on `.env`.
-4. **Devops:** decide the ClearVest deploy account, wire `infra/cicd-role.yaml`
-   and `AWS_DEPLOY_ROLE_ARN`, then make sure every `clearvest-*` name above
-   exists in that account (re-create the missing ones there).
+4. **Devops:** wire `infra/cicd-role.yaml` and `AWS_DEPLOY_ROLE_ARN` in the team
+   account so the SAM stack deploys next to the keys.
 5. **Backend:** Plaid stays sandbox-only for the demo. Point the Plaid client
    at the sandbox host and do not request production access.
 
@@ -127,6 +131,3 @@ Expected output of the first command: three rows, each `SecureString`, version `
   `https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIES_ID>`. If you would
   rather keep a key path for later, say so and we will add `clearvest-fred`
   then, but nobody on the team could register for one today.
-- @wakeensito: which AWS account is the deploy account? `clearvest-fmp` and the
-  three keys from this handoff currently sit in two different accounts (see
-  Gotchas). Once decided, the other side re-creates their keys there.
