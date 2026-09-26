@@ -5,8 +5,10 @@ from pathlib import Path
 
 import responses
 from clearvest import db
+from clearvest.errors import NotLinked
 from clearvest.providers import plaid
 from portfolio.app import handler
+from portfolio.routes.holdings import load_holdings
 
 from tests.contract import assert_matches
 from tests.helpers import USER, call
@@ -94,3 +96,32 @@ def test_plaid_down_with_snapshot_serves_stale(aws, monkeypatch):
     responses.post(f"{BASE}/investments/holdings/get", status=500)
     status, body = call(handler, "GET", "/portfolio/holdings")
     assert status == 200 and body["stale"] is True
+
+
+@responses.activate
+def test_link_keeps_old_snapshot_as_stale_fallback_when_holdings_fetch_fails(aws):
+    # A snapshot already exists (e.g. from a previously linked item).
+    db.put(db.user_pk(USER), "HOLDINGS", {"asOf": "x", "totalValue": 42.0, "holdings": [], "fetchedAt": 9e12})
+    responses.post(f"{BASE}/sandbox/public_token/create", json={"public_token": "public-1"})
+    responses.post(f"{BASE}/item/public_token/exchange", json={"item_id": "item-1", "access_token": "access-1"})
+    responses.post(f"{BASE}/investments/holdings/get", status=500)
+
+    assert call(handler, "POST", "/plaid/sandbox-link") == (200, {"itemId": "item-1"})
+
+    status, body = call(handler, "GET", "/portfolio/holdings")
+    assert status == 200 and body["totalValue"] == 42.0 and body["stale"] is True
+
+
+def test_load_holdings_queries_plaid_items_with_consistent_read(aws, monkeypatch):
+    captured = {}
+
+    def fake_query(pk, prefix, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(db, "query", fake_query)
+    try:
+        load_holdings(USER)
+    except NotLinked:
+        pass
+    assert captured.get("consistent") is True

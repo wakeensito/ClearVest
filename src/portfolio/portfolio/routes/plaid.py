@@ -14,9 +14,13 @@ router = Router()
 def _store(user_id: str, item_id: str, access_token: str) -> None:
     pk = db.user_pk(user_id)
     db.put(pk, f"PLAID#{item_id}", {"itemId": item_id, "accessToken": access_token})
-    # The old snapshot doesn't include the new item; drop it and refetch now so the advisor
-    # (which only reads the snapshot) sees these holdings on the very next question.
-    db.delete(pk, "HOLDINGS")
+    # The old snapshot doesn't include the new item, so it's marked stale (fetchedAt: 0) and a
+    # refetch is triggered now, so the advisor (which only reads the snapshot) sees these
+    # holdings on the very next question. The stale row is kept, not dropped, so it still serves
+    # as the fallback if the refetch below (or a later one) fails.
+    snapshot = db.get(pk, "HOLDINGS")
+    if snapshot:
+        db.put(pk, "HOLDINGS", {**snapshot, "fetchedAt": 0})
     try:
         load_holdings(user_id)
     except UpstreamError:

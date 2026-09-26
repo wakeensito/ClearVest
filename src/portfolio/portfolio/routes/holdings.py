@@ -14,7 +14,7 @@ FRESH_SECONDS = 3600
 
 def load_holdings(user_id: str) -> dict:
     pk = db.user_pk(user_id)
-    items = db.query(pk, "PLAID#")
+    items = db.query(pk, "PLAID#", consistent=True)
     if not items:
         raise NotLinked("Link an account first")
     snapshot = db.get(pk, "HOLDINGS")
