@@ -1,0 +1,34 @@
+.page {
+  display: grid;
+  gap: 48px;
+}
+
+.body {
+  display: grid;
+  gap: 24px;
+  justify-items: start;
+  max-width: 640px;
+}
+
+.items {
+  display: grid;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items li {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: baseline;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--cv-border);
+}
+
+.index {
+  font-family: var(--cv-font-serif);
+  font-size: 20px;
+  color: var(--cv-text-tertiary);
+  font-variant-numeric: lining-nums;
+}

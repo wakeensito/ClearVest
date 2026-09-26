@@ -1,0 +1,114 @@
+.field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  color: var(--cv-text-secondary);
+  padding: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+legend.label {
+  margin-bottom: 8px;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cv-loss);
+}
+
+.input {
+  height: 40px;
+  width: 100%;
+  padding: 0 12px;
+  background: var(--cv-surface);
+  border: 1px solid var(--cv-border-input);
+  font-size: 15px;
+  font-variant-numeric: lining-nums tabular-nums;
+  transition: border-color var(--cv-motion-fast) var(--cv-ease);
+}
+
+
+.input:hover {
+  border-color: var(--cv-text-secondary);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 0;
+  border-color: var(--cv-accent);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--cv-loss);
+}
+
+.radioCards {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: 8px;
+}
+
+.radioCard {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-content: start;
+  column-gap: 10px;
+  row-gap: 4px;
+  min-height: 48px;
+  padding: 12px;
+  background: var(--cv-surface);
+  border: 1px solid var(--cv-border-input);
+  cursor: pointer;
+  transition:
+    border-color var(--cv-motion-fast) var(--cv-ease),
+    background-color var(--cv-motion-fast) var(--cv-ease);
+}
+
+.radioCard:hover {
+  border-color: var(--cv-text-secondary);
+}
+
+.radioCard[data-checked] {
+  border-color: var(--cv-accent);
+  background: var(--cv-accent-subtle);
+  box-shadow: inset 0 0 0 1px var(--cv-accent);
+}
+
+.radioCard:has(:focus-visible) {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 639px) {
+  .radioCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radioControl {
+  appearance: auto;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--cv-accent);
+  cursor: pointer;
+}
+
+.radioLabel {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.radioDescription {
+  grid-column: 2;
+}

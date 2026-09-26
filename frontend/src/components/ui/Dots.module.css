@@ -1,0 +1,19 @@
+.dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.dots span {
+  width: 4px;
+  height: 4px;
+  background: currentColor;
+  animation: pulse 1.1s var(--cv-ease) infinite;
+}
+.dots span:nth-child(2) { animation-delay: 150ms; }
+.dots span:nth-child(3) { animation-delay: 300ms; }
+
+@keyframes pulse {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}

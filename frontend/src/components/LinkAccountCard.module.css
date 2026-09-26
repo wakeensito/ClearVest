@@ -1,0 +1,53 @@
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  padding: 32px;
+  background: var(--cv-surface);
+  border: 1px solid var(--cv-border);
+  border-top: 2px solid var(--cv-accent);
+}
+
+.compact {
+  padding: 24px;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--cv-accent-subtle);
+  color: var(--cv-accent);
+}
+
+.body {
+  display: grid;
+  gap: 12px;
+  max-width: 60ch;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  margin-top: 8px;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.error {
+  color: var(--cv-loss);
+}
+
+@media (max-width: 639px) {
+  .card {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+}

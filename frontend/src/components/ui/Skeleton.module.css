@@ -1,0 +1,26 @@
+.skeleton {
+  display: block;
+  background: var(--cv-surface-sunken);
+  animation:
+    appear 0s linear 300ms both,
+    pulse 1.6s var(--cv-ease) 300ms infinite;
+}
+
+.block {
+  display: grid;
+  gap: 12px;
+}
+
+.slow {
+  animation: appear 0s linear 8s both;
+}
+
+@keyframes appear {
+  from { visibility: hidden; }
+  to   { visibility: visible; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}

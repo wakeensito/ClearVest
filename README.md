@@ -119,11 +119,22 @@ scripts/smoke.sh <ApiUrl> --allow-upstream   # 502s are warnings (keys not in SS
 
 `<ApiUrl>` is the stack's `ApiUrl` output. Run smoke after every deploy and again at freeze.
 
-### Frontend
+## Frontend
 
-The API contract, mock server instructions and error envelope are in [`docs/api/README.md`](docs/api/README.md).
-Build against the mock (`npx @stoplight/prism-cli mock docs/api/openapi.yaml`); switch to the real backend by
-changing one base URL to the deployed `ApiUrl`.
+React + TypeScript + Vite in [`frontend/`](frontend/), wired into CI through the root npm workspace
+(`package.json`). The look, tokens and UI rules are in [`DESIGN.md`](DESIGN.md); read it before building a screen.
+The API contract, mock server and error envelope are in [`docs/api/README.md`](docs/api/README.md).
+
+```bash
+npm ci                 # Node 22; installs the workspace from the root lockfile
+npm run mock           # terminal 1: Prism mock of docs/api/openapi.yaml on :4010
+npm run dev            # terminal 2: http://localhost:5173
+npm run lint && npm run typecheck && npm test && npm run build   # what CI runs
+```
+
+`npm run typecheck` regenerates `frontend/src/api/schema.d.ts` from the contract first, so a contract change that
+breaks the UI fails CI. To use the real backend, copy `frontend/.env.example` to `frontend/.env.local` and set
+`VITE_API_BASE_URL` to the deployed `ApiUrl`.
 
 ## Handoffs
 

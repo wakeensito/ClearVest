@@ -1,0 +1,33 @@
+.dialog {
+  width: min(480px, calc(100vw - 32px));
+  padding: 28px;
+  background: var(--cv-surface-raised);
+  color: var(--cv-text);
+  border: 1px solid var(--cv-border-strong);
+  border-top: 2px solid var(--cv-text);
+  box-shadow: var(--cv-shadow-overlay);
+}
+
+.dialog[open] {
+  animation: enter var(--cv-motion-slow) var(--cv-ease);
+}
+
+.dialog::backdrop {
+  background: rgb(14 17 22 / 0.4);
+}
+
+.body {
+  margin-top: 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}

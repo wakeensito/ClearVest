@@ -1,0 +1,18 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.neutral { background: var(--cv-surface-sunken); color: var(--cv-text-secondary); }
+.stale   { background: var(--cv-warning-subtle); color: var(--cv-warning); }
+.sandbox { background: var(--cv-accent-subtle); color: var(--cv-accent); }
+.gain    { background: var(--cv-gain-subtle); color: var(--cv-gain); }
+.loss    { background: var(--cv-loss-subtle); color: var(--cv-loss); }

@@ -1,0 +1,25 @@
+.rows {
+  display: grid;
+}
+
+.rows div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--cv-border);
+}
+
+.rows div:first-child {
+  padding-top: 0;
+}
+
+.rows div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.rows dd {
+  margin: 0;
+}

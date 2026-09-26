@@ -1,0 +1,38 @@
+.page { display: grid; gap: 24px; }
+.pageHeader { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 4px; }
+.pageHeader h1 { margin-bottom: 4px; }
+.summary { background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); padding: 28px 28px 0; overflow: hidden; }
+.heroInner { display: grid; grid-template-columns: minmax(280px, 1fr) 1.6fr; align-items: center; gap: 40px; }
+.heroMain { display: grid; gap: 8px; }
+.heroHead { display: flex; align-items: center; gap: 12px; }
+.value { font-size: 48px; line-height: 60px; }
+.cents { font-size: 0.68em; color: var(--cv-text-secondary); }
+.figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+.figures > div { padding: 4px 24px; border-left: 1px solid var(--cv-border); }
+.figures dt { color: var(--cv-text-secondary); font-size: 13px; margin-bottom: 8px; }
+.figures dd { font-size: 26px; line-height: 36px; font-weight: 500; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; }
+.figures .detail { margin-top: 4px; font-size: 12px; line-height: 18px; font-weight: 400; letter-spacing: 0; color: var(--cv-text-tertiary); }
+.summaryFoot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; margin-top: 24px; padding: 12px 0; border-top: 1px solid var(--cv-border); color: var(--cv-text-tertiary); font-size: 12px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 336px; gap: 24px; align-items: start; }
+.main, .rail { display: grid; gap: 24px; min-width: 0; }
+.holdings { min-width: 0; border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); background: var(--cv-surface); overflow: hidden; }
+.holdingsHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px; }
+.holdingsHeader h2 { margin-bottom: 4px; }
+.filter { display: flex; align-items: center; gap: 8px; padding-left: 12px; border: 1px solid var(--cv-border-input); border-radius: var(--cv-radius); color: var(--cv-text-tertiary); width: 200px; }
+.filter input { width: 100%; min-width: 0; border: 0; background: transparent; padding: 10px 8px 10px 0; height: 44px; font-size: 13px; }
+.empty { padding: 24px; color: var(--cv-text-secondary); }
+.allocationIntro { font-size: 13px; line-height: 20px; color: var(--cv-text-secondary); margin-bottom: 20px; }
+.askCard { background: var(--cv-accent-subtle); border-radius: var(--cv-radius-panel); padding: 24px; }
+.askCard h2 { margin-bottom: 8px; }
+.asks { display: grid; margin: 16px 0 !important; }
+.ask { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--cv-border); text-decoration: none; font-size: 13px; line-height: 20px; }
+.ask svg { flex-shrink: 0; }
+.asks li:last-child .ask { border-bottom: 0; }
+@media (max-width: 1199px) { .heroInner { gap: 24px; grid-template-columns: 1fr 1.8fr; } .figures > div { padding-inline: 16px; } .grid { grid-template-columns: minmax(0, 1fr) 300px; } }
+@media (max-width: 1023px) { .grid { grid-template-columns: minmax(0, 1fr); } .rail { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } .heroInner { grid-template-columns: 1fr; } .figures > div:first-child { border-left: 0; padding-left: 0; } }
+@media (max-width: 639px) { .pageHeader { align-items: start; flex-direction: column; gap: 16px; } .pageHeader > a { min-height: 44px; } .summary { padding: 20px 16px 0; } .value { font-size: 40px; line-height: 50px; } .figures > div { padding: 0 10px; } .figures dd { font-size: 20px; line-height: 28px; } .figures dt { font-size: 12px; } .rail { grid-template-columns: minmax(0, 1fr); } .holdingsHeader { align-items: stretch; flex-direction: column; padding: 16px; } .filter { width: 100%; } .grid, .main, .rail { gap: 20px; } }
+
+.headerActions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.privacy { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: var(--cv-text-secondary); font-size: 13px; }
+.privacy:hover { color: var(--cv-accent); background: var(--cv-accent-subtle); }
+@media (max-width: 639px) { .headerActions { gap: 8px; width: 100%; } .headerActions a { padding-inline: 12px; font-size: 13px; } .privacy { padding-inline: 0; } }
