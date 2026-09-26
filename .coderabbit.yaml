@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit — https://docs.coderabbit.ai/getting-started/yaml-configuration
+language: en
+reviews:
+  profile: chill
+  review_status: false
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+  path_instructions:
+    - path: ".github/workflows/**"
+      instructions: >
+        Flag any introduction of static AWS credentials (access key IDs, secret
+        access keys) — deploys must use OIDC role assumption via
+        aws-actions/configure-aws-credentials with role-to-assume. Flag
+        third-party actions pinned to @master or @main instead of a version.
+    - path: "infra/**"
+      instructions: >
+        Never hardcode AWS account IDs or ARNs. Flag overly broad IAM wildcards
+        without justification.
+
+chat:
+  auto_reply: false

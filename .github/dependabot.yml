@@ -1,0 +1,53 @@
+# Dependabot version updates — https://docs.github.com/en/code-security/dependabot
+#
+# Weekly, with minor + patch bumps grouped into one PR so updates don't turn
+# into a firehose. Major bumps arrive as their own PR — those deserve
+# individual review.
+#
+# NOTE: an ecosystem listed here WITHOUT a manifest in the repo produces a
+# red "Dependabot Updates" run every week (verified — it is not silently
+# inert). Only github-actions is active from day zero; uncomment the npm or
+# pip block when the matching manifest lands (the seeded "Scaffold app
+# skeleton" issue covers this).
+version: 2
+updates:
+  # Uncomment when a package.json lands:
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   groups:
+  #     minor-and-patch:
+  #       applies-to: version-updates
+  #       update-types:
+  #         - "minor"
+  #         - "patch"
+  #   open-pull-requests-limit: 5
+
+  # Uncomment when a pyproject.toml / requirements.txt lands:
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   groups:
+  #     minor-and-patch:
+  #       applies-to: version-updates
+  #       update-types:
+  #         - "minor"
+  #         - "patch"
+  #   open-pull-requests-limit: 5
+
+  # The workflow files themselves (actions/checkout, setup-node,
+  # configure-aws-credentials). All bumps grouped, majors included — action
+  # majors are routine runtime updates, and CI proves them on the PR.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      actions:
+        patterns:
+          - "*"

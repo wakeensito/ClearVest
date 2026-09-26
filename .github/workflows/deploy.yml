@@ -1,0 +1,66 @@
+# Deploy — OIDC-ready stub. Silent no-op on merges until wired, so an
+# unwired repo never shows red X's on main.
+#
+# To wire it up (full steps live in the seeded issue "Wire up deploy pipeline"):
+#   1. aws cloudformation deploy --template-file infra/cicd-role.yaml \
+#        --stack-name <repo>-cicd --capabilities CAPABILITY_NAMED_IAM
+#   2. gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn output>"
+#   3. Replace the TODO step below with real build+deploy commands
+#   4. gh variable set DEPLOY_ENABLED --body true
+#   5. gh workflow run deploy.yml    # dispatch once to verify
+#
+# Role ARN and targets are repo *variables* (vars.*), not secrets — they are
+# not sensitive, and vars are visible/diffable in the UI. Never static AWS
+# keys; OIDC role assumption only.
+name: Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write # required for OIDC token exchange
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false # never kill a deploy mid-flight
+
+jobs:
+  deploy:
+    # Merges no-op until DEPLOY_ENABLED=true; manual dispatch always runs
+    # (and fails loudly at the TODO) so wiring can be tested on purpose.
+    if: vars.DEPLOY_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC — never static keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy
+        run: |
+          echo "TODO: replace with real build+deploy commands for the chosen stack."
+          echo "See the seeded issue: 'Wire up deploy pipeline (OIDC, us-east-1)'."
+          #
+          # Static frontend to S3 + CloudFront — use this exact cache split:
+          #   (hashed assets are immutable; index.html must never be cached, or
+          #    users keep loading a stale bundle after deploys)
+          #
+          #   aws s3 sync dist/ "s3://${{ vars.S3_BUCKET_NAME }}" --delete \
+          #     --cache-control "public, max-age=31536000, immutable" \
+          #     --exclude "index.html"
+          #   aws s3 cp dist/index.html "s3://${{ vars.S3_BUCKET_NAME }}/index.html" \
+          #     --cache-control "no-cache, no-store, must-revalidate"
+          #   aws cloudfront create-invalidation \
+          #     --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+          #     --paths "/index.html"
+          #
+          # SAM backend:
+          #   sam build && sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+          exit 1

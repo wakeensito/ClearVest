@@ -1,0 +1,40 @@
+# Node
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Env & secrets — never commit credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.aws/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!example.tfvars
+
+# SAM
+.aws-sam/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
