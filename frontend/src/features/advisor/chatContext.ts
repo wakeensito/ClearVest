@@ -15,6 +15,8 @@ export interface ChatState {
   pending: boolean
   error: unknown
   send: (text: string) => void
+  /** A finished exchange from another channel (voice): both sides land at once, no request made. */
+  addTurn: (userText: string, reply: string, disclaimer?: string) => void
   retry: (id: string) => void
   clear: () => Promise<void>
 }
