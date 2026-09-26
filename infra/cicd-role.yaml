@@ -56,10 +56,14 @@ Resources:
                 # "repo:owner@id/name@id:..." — accounts with the newer
                 # format never match the classic pattern alone, and the
                 # failure is an opaque "Not authorized" at assume time.
+                # Both are pinned to main: PR/feature branches can no longer
+                # assume this role, so CD runs only from main (a push, or
+                # `gh workflow run deploy.yml --ref main`). StringLike stays
+                # for the @* wildcards in the ID-stamped shape.
                 token.actions.githubusercontent.com:sub:
-                  - !Sub 'repo:${GitHubRepo}:*'
+                  - !Sub 'repo:${GitHubRepo}:ref:refs/heads/main'
                   - !Sub
-                    - 'repo:${Owner}@*/${Name}@*:*'
+                    - 'repo:${Owner}@*/${Name}@*:ref:refs/heads/main'
                     - Owner: !Select [0, !Split ['/', !Ref GitHubRepo]]
                       Name: !Select [1, !Split ['/', !Ref GitHubRepo]]
       Policies:

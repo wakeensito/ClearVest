@@ -35,8 +35,9 @@ aws cloudformation deploy --template-file infra/cicd-role.yaml \
 gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn output>"
 gh variable set DEPLOY_ENABLED --body true
 
-# Every merge to main now deploys. To deploy a branch without merging:
-gh workflow run deploy.yml --ref <branch>
+# Every merge to main now deploys. Deploys run ONLY from main (the role's trust is pinned to
+# refs/heads/main). To redeploy main without a new merge:
+gh workflow run deploy.yml --ref main
 
 # Local emergency deploy still works:
 sam build && sam deploy
@@ -53,10 +54,15 @@ scripts/smoke.sh <ApiUrl>
   fix), but the intended path after bootstrap is merge-to-`main`.
 - **OIDC role assumption only, never static AWS keys** — GitHub's federated identity assumes
   `ClearVest-gha-deploy` per run; no long-lived credentials live in repo secrets.
-- **The trust policy matches both GitHub subject shapes** (`repo:owner/name:*` and the newer ID-stamped
-  `repo:owner@id/name@id:*`) — accounts provisioned under the newer format never match the classic pattern
+- **The trust policy matches both GitHub subject shapes** (`repo:owner/name:ref:refs/heads/main` and the
+  newer ID-stamped `repo:owner@id/name@id:ref:refs/heads/main`) — accounts provisioned under the newer format never match the classic pattern
   alone, and the failure mode is an opaque "not authorized" at `AssumeRoleWithWebIdentity` time with no
   useful CloudTrail hint. Both `StringLike` conditions are present so this never has to be debugged live.
+- **CD deploys only from `main`.** Both subject patterns end in `:ref:refs/heads/main` (they used to end in
+  `:*`, which let any branch, including a PR branch, assume the deploy role). PR branches can no longer
+  deploy; CD runs on a push to `main` or `gh workflow run deploy.yml --ref main`. `StringLike` stays because
+  of the `@*` wildcards in the ID-stamped shape. **The role stack must be redeployed once for this to take
+  effect:** `aws cloudformation deploy --template-file infra/cicd-role.yaml --stack-name ClearVest-cicd --capabilities CAPABILITY_NAMED_IAM`.
 - **The CD role deliberately cannot delete the stack.** Its CloudFormation permissions don't include
   `DeleteStack`/`Update*` beyond what a changeset execute needs, and it has no broad `iam:*`/`s3:*`. Teardown
   is a manual, owner-run action — CI should never be able to destroy the demo.
@@ -90,9 +96,10 @@ scripts/smoke.sh <ApiUrl>
 
 1. Owner runs the one-time bootstrap (above) and sets the two repo variables.
 2. Plug provider keys into SSM (see README **Plugging in keys**).
-3. `gh workflow run deploy.yml --ref feat/backend-iac` (or merge to `main`) for the first real deploy, then
-   `scripts/smoke.sh <ApiUrl>`.
-4. Frontend switches its base URL to the deployed `ApiUrl` (`docs/api/README.md`).
+3. Redeploy the role stack once so the main-only trust applies (`aws cloudformation deploy --template-file infra/cicd-role.yaml --stack-name ClearVest-cicd --capabilities CAPABILITY_NAMED_IAM`).
+4. Merge to `main` (or `gh workflow run deploy.yml --ref main`) for the next deploy, then
+   `scripts/smoke.sh <ApiUrl>`. Branches can no longer deploy through CD.
+5. Frontend switches its base URL to the deployed `ApiUrl` (`docs/api/README.md`).
 
 ## Open questions / blockers
 

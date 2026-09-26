@@ -81,3 +81,12 @@ def test_fred_is_keyless():
 
 def test_portfolio_fn_has_room_for_slow_plaid_sandbox():
     assert load()["Resources"]["PortfolioFn"]["Properties"]["Timeout"] == 29
+
+
+def test_cd_role_trusts_main_only():
+    doc = yaml.load(Path("infra/cicd-role.yaml").read_text(), Loader=_CfnLoader)
+    role = next(r for r in doc["Resources"].values() if r["Type"] == "AWS::IAM::Role")
+    cond = role["Properties"]["AssumeRolePolicyDocument"]["Statement"][0]["Condition"]
+    subs = cond["StringLike"]["token.actions.githubusercontent.com:sub"]
+    patterns = [s if isinstance(s, str) else s[0] for s in subs]
+    assert patterns == ["repo:${GitHubRepo}:ref:refs/heads/main", "repo:${Owner}@*/${Name}@*:ref:refs/heads/main"]
