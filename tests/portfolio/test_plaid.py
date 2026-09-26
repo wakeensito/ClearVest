@@ -56,6 +56,27 @@ def test_sandbox_link_then_holdings(aws):
 
 
 @responses.activate
+def test_link_refreshes_holdings_snapshot(aws):
+    # A stale snapshot from before the new item must not survive the link.
+    db.put(db.user_pk(USER), "HOLDINGS", {"asOf": "x", "totalValue": 1.0, "holdings": [], "fetchedAt": 9e12})
+    responses.post(f"{BASE}/sandbox/public_token/create", json={"public_token": "public-1"})
+    responses.post(f"{BASE}/item/public_token/exchange", json={"item_id": "item-1", "access_token": "access-1"})
+    responses.post(f"{BASE}/investments/holdings/get", json=RAW)
+    assert call(handler, "POST", "/plaid/sandbox-link") == (200, {"itemId": "item-1"})
+    assert db.get(db.user_pk(USER), "HOLDINGS")["totalValue"] == 5000.0
+
+
+@responses.activate
+def test_link_succeeds_even_if_holdings_fetch_fails(aws):
+    responses.post(f"{BASE}/sandbox/public_token/create", json={"public_token": "public-1"})
+    responses.post(f"{BASE}/item/public_token/exchange", json={"item_id": "item-1", "access_token": "access-1"})
+    responses.post(f"{BASE}/investments/holdings/get", status=500)
+    assert call(handler, "POST", "/plaid/sandbox-link") == (200, {"itemId": "item-1"})
+    assert db.get(db.user_pk(USER), "PLAID#item-1")["accessToken"] == "access-1"
+    assert db.get(db.user_pk(USER), "HOLDINGS") is None
+
+
+@responses.activate
 def test_exchange_validates_body(aws):
     status, _ = call(handler, "POST", "/plaid/exchange", {})
     assert status == 400

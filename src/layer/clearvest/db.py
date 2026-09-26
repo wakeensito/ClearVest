@@ -37,6 +37,10 @@ def query(pk: str, sk_prefix: str, limit: int = 50, newest_first: bool = False) 
     return [json.loads(i["data"]) for i in resp.get("Items", [])]
 
 
+def delete(pk: str, sk: str) -> None:
+    aws.table().delete_item(Key={"pk": pk, "sk": sk})
+
+
 def delete_prefix(pk: str, sk_prefix: str) -> int:
     resp = aws.table().query(
         KeyConditionExpression=Key("pk").eq(pk) & Key("sk").begins_with(sk_prefix),

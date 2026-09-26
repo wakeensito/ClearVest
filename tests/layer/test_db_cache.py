@@ -18,6 +18,15 @@ def test_put_get_query_delete(aws):
     assert db.query(pk, "CHAT#") == []
 
 
+def test_delete_single_item(aws):
+    db.put("USER#1", "HOLDINGS", {"a": 1})
+    db.put("USER#1", "HOLDINGS#old", {"b": 2})
+    db.delete("USER#1", "HOLDINGS")
+    db.delete("USER#1", "missing")  # deleting an absent key is a no-op
+    assert db.get("USER#1", "HOLDINGS") is None
+    assert db.get("USER#1", "HOLDINGS#old") == {"b": 2}
+
+
 def test_cache_fetches_then_serves_fresh(aws):
     calls = []
     fetch = lambda: calls.append(1) or {"v": 1}

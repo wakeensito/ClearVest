@@ -2,15 +2,25 @@
 
 from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, db
+from clearvest.errors import UpstreamError
 from clearvest.providers import plaid
 
 from portfolio.models import ExchangeRequest
+from portfolio.routes.holdings import load_holdings
 
 router = Router()
 
 
 def _store(user_id: str, item_id: str, access_token: str) -> None:
-    db.put(db.user_pk(user_id), f"PLAID#{item_id}", {"itemId": item_id, "accessToken": access_token})
+    pk = db.user_pk(user_id)
+    db.put(pk, f"PLAID#{item_id}", {"itemId": item_id, "accessToken": access_token})
+    # The old snapshot doesn't include the new item; drop it and refetch now so the advisor
+    # (which only reads the snapshot) sees these holdings on the very next question.
+    db.delete(pk, "HOLDINGS")
+    try:
+        load_holdings(user_id)
+    except UpstreamError:
+        pass  # the link itself succeeded; GET /portfolio/holdings retries the fetch
 
 
 @router.post("/plaid/link-token")
