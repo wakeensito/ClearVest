@@ -1,9 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { BookOpen, ChartLine, CircleUser, Search, MessageSquareText, Wallet } from 'lucide-react'
+import { House, BookOpen, ChartLine, CircleUser, Search, MessageSquareText, Wallet } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router'
-import { hasCode } from '../api/errors'
-import { useProfile } from '../api/queries'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { useChat } from '../features/advisor/chatContext'
 import { resetUserId } from '../lib/userId'
 import styles from './AppShell.module.css'
@@ -11,6 +9,7 @@ import { Badge } from './ui/Badge'
 import { ConfirmDialog } from './ui/ConfirmDialog'
 
 const NAV = [
+  { to: '/', label: 'Home', icon: House },
   { to: '/portfolio', label: 'Portfolio', icon: Wallet },
   { to: '/advisor', label: 'Advisor', icon: MessageSquareText },
   { to: '/markets', label: 'Markets', icon: ChartLine },
@@ -19,7 +18,7 @@ const NAV = [
 
 export function Wordmark() {
   return (
-    <Link to="/portfolio" className={`t-wordmark ${styles.wordmark}`} aria-label="ClearVest home">
+    <Link to="/" className={`t-wordmark ${styles.wordmark}`} aria-label="ClearVest home">
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden><path d="M23 6H8L4 14l4 8h15" stroke="currentColor" strokeWidth="3" /><path d="m12 13 4 4 8-11" stroke="currentColor" strokeWidth="2.5" /></svg>
       ClearVest
     </Link>
@@ -27,11 +26,10 @@ export function Wordmark() {
 }
 
 export function AppShell() {
-  const profile = useProfile()
   const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }) }, [pathname])
 
-  // GET /profile 404 means a new user: onboarding, not an error (DESIGN.md §11).
-  if (hasCode(profile.error, 'NOT_FOUND') && !['/markets', '/learn'].includes(pathname)) return <Navigate to="/welcome" replace />
+  // Learning, research and general advisor questions work without a saved profile.
 
   return (
     <div className={styles.shell}>
@@ -43,7 +41,7 @@ export function AppShell() {
           <Wordmark />
           <nav aria-label="Primary" className={styles.nav}>
             {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} className={styles.navLink}>
+              <NavLink key={n.to} to={n.to} end={n.to === '/'} className={styles.navLink}>
                 {n.label}
               </NavLink>
             ))}
@@ -56,7 +54,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <div className={styles.workspaceBar}><span>Your investing workspace</span><span>Read-only account access</span></div>
+      <div className={styles.workspaceBar}><span>Learn a little. Explore at your pace.</span><span>No trading in ClearVest</span></div>
 
       <main id="main" className={styles.main} key={pathname}>
         <Outlet />
@@ -80,7 +78,7 @@ export function AppShell() {
 
       <nav aria-label="Primary" className={styles.tabbar}>
         {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to} className={styles.tab}>
+          <NavLink key={n.to} to={n.to} end={n.to === '/'} className={styles.tab}>
             <n.icon size={20} aria-hidden />
             <span>{n.label}</span>
           </NavLink>
@@ -124,7 +122,7 @@ function ProfileMenu() {
         resetUserId()
         qc.clear()
         // A full reload so every cache and the chat thread start clean under the new id.
-        window.location.assign('/welcome')
+        window.location.assign('/')
         return
       }
       setConfirm(null)

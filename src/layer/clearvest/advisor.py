@@ -14,7 +14,7 @@ from clearvest.providers import bedrock
 
 DISCLAIMER = ("ClearVest provides educational information, not financial advice. "
               "Consider a licensed professional before making investment decisions.")
-FALLBACK_REPLY = "I couldn't reach my reasoning engine just now. Please try again in a moment."
+FALLBACK_REPLY = "The advisor is unavailable right now. Try again in a moment. You can still explore the company guides and Learn."
 HISTORY_TURNS = 10
 CHAT_TTL = 7 * 24 * 3600
 CHAT_MAX_TOKENS = 450
@@ -42,6 +42,11 @@ def build_context(user_id: str) -> dict:
 def system_prompt(ctx: dict, mode: str = "chat") -> str:
     lines = [
         "You are ClearVest, a friendly investing guide for beginners. Explain in plain language, short paragraphs, no jargon.",
+        "Teach at a reading level a 13-year-old new to investing can follow, without talking down to the user.",
+        "Answer the question first. Start with one main idea in two short paragraphs unless more detail is requested.",
+        "Define an unfamiliar term the first time you use it. Use an everyday analogy, then at most one optional follow-up question.",
+        "Do not flood the learner with ratios, account types or tasks. Never make profile setup or account linking a condition of learning.",
+        "Celebrate understanding, not trading activity, risk-taking or portfolio returns.",
         "This is educational, not financial advice; never promise returns or tell the user to buy or sell a specific security.",
         "Use only the numbers provided below. If a number isn't provided, say you don't have it; never estimate or invent figures.",
         "Tailor guidance to the user's age, time horizon and goals.",
@@ -86,7 +91,7 @@ def system_prompt(ctx: dict, mode: str = "chat") -> str:
             + json.dumps(p["goals"])
         )
     else:
-        lines.append("User profile: no profile yet (ask for age, horizon and goals).")
+        lines.append("User profile: no profile yet. Explain general investing concepts without asking for personal details unless needed for the question.")
     h = ctx["holdings"]
     if h:
         top = "; ".join(f"{x['symbol']} ({x['type']}) {x['weight']:.0%}" for x in h["holdings"][:10])

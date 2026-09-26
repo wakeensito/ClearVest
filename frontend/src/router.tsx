@@ -1,9 +1,11 @@
-import { createBrowserRouter, Navigate } from 'react-router'
+import { createBrowserRouter } from 'react-router'
 import { AppShell } from './components/AppShell'
 import { AdvisorPage } from './features/advisor/AdvisorPage'
+import { LessonPage } from './features/learn/LessonPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { MarketsPage } from './pages/MarketsPage'
 import { PortfolioPage } from './pages/PortfolioPage'
+import { HomePage } from './pages/HomePage'
 import { LearnPage } from './pages/LearnPage'
 import { WelcomePage } from './pages/WelcomePage'
 
@@ -13,11 +15,12 @@ export const router = createBrowserRouter([
   {
     element: <AppShell />,
     children: [
-      { index: true, element: <Navigate to="/portfolio" replace /> },
+      { index: true, element: <HomePage /> },
       { path: '/portfolio', element: <PortfolioPage /> },
       { path: '/advisor', element: <AdvisorPage /> },
       { path: '/markets', element: <MarketsPage /> },
       { path: '/learn', element: <LearnPage /> },
+      { path: '/learn/:lessonId', element: <LessonPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

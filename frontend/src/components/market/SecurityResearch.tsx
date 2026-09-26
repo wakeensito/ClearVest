@@ -4,20 +4,24 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'rea
 import { Link } from 'react-router'
 import type { HistoryRange, HistorySeries } from '../../api/client'
 import { useHistory } from '../../api/queries'
-import { marketPrice, date, percentFromFraction } from '../../lib/format'
+import { marketPrice, date, percentFromFraction, quantity } from '../../lib/format'
 import { historyPoints } from '../../lib/history'
 import { QueryView } from '../QueryView'
 import { Badge } from '../ui/Badge'
 import { SegmentedControl } from '../ui/SegmentedControl'
+import { CompanyNameSearch } from './CompanyNameSearch'
+import { ContextHelp } from '../education/ContextHelp'
+import { CompanyLogo } from './CompanyLogo'
 import styles from './SecurityResearch.module.css'
 
-export function SecurityResearch({ initialSymbol = 'VOO' }: { initialSymbol?: string }) {
+export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange }: { initialSymbol?: string; compact?: boolean; title?: string; onSymbolChange?: (symbol: string) => void }) {
   const [symbol, setSymbol] = useState(initialSymbol)
   const [input, setInput] = useState(initialSymbol)
   const [range, setRange] = useState<HistoryRange>('1y')
   const [error, setError] = useState('')
   const query = useHistory(symbol, range)
   const inputId = useId()
+  const select = (next: string) => { setError(''); setSymbol(next); setInput(next); onSymbolChange?.(next) }
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const next = input.trim().toUpperCase()
@@ -25,14 +29,12 @@ export function SecurityResearch({ initialSymbol = 'VOO' }: { initialSymbol?: st
       setError('Enter one ticker symbol, such as VOO or BRK-B.')
       return
     }
-    setError('')
-    setSymbol(next)
-    setInput(next)
+    select(next)
   }
   return (
-    <section className={styles.panel} aria-label="Security research">
+    <section className={`${styles.panel} ${compact ? styles.compact : ''}`} aria-label={title}>
       <div className={styles.heading}>
-        <div><h2 className="t-h2">Security research</h2><p className="t-body-sm c-secondary">Explore an investment’s price history.</p></div>
+        <div className={styles.securityHeading}>{symbol && <CompanyLogo symbol={symbol} />}<div><h2 className="t-h2">{title}</h2><p className="t-body-sm c-secondary">{symbol ? `${symbol} · Explore price history and risk.` : 'Choose a second stock to compare.'}</p></div></div>
         {query.data?.stale && <Badge tone="stale">Cached data</Badge>}
       </div>
       <div className={styles.toolbar}>
@@ -44,21 +46,23 @@ export function SecurityResearch({ initialSymbol = 'VOO' }: { initialSymbol?: st
         <SegmentedControl label="History range" value={range} onChange={setRange} options={[{ value: '1y', label: '1Y' }, { value: '5y', label: '5Y' }, { value: '10y', label: '10Y' }]} />
       </div>
       {error && <p id={`${inputId}-error`} role="alert" className="t-body-sm c-loss">{error}</p>}
-      <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
+      {!symbol ? <div className={styles.empty}>Enter a ticker above to load its chart and key figures.</div> : <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
         {(data) => {
           const series = data.series.find((item) => item.symbol.toUpperCase() === symbol)
-          return series ? <PriceHistory key={`${symbol}:${range}:${query.dataUpdatedAt}`} series={series} /> : <p className={styles.empty}>No price history was returned for {symbol}. Try another ticker.</p>
+          return series ? <PriceHistory key={`${symbol}:${range}:${query.dataUpdatedAt}`} series={series} compact={compact} /> : <p className={styles.empty}>No price history was returned for {symbol}. Try another ticker.</p>
         }}
-      </QueryView>
+      </QueryView>}
+      <CompanyNameSearch onSelect={select} />
+      <ContextHelp title="How do I read this chart?"><p>The line shows the price of one share over time. Choose 1Y, 5Y or 10Y to change the period. A rising line means the share price increased during that period; it does not tell you what happens next.</p><p>Price return is the percentage change between the first and last available prices. Volatility describes how much prices moved around. Neither tells you whether a company earns a profit.</p></ContextHelp>
       <div className={styles.footer}>
         <span>Prices are in the security’s quote currency. This is not your account’s performance.</span>
-        <Link to={`/advisor?q=${encodeURIComponent(`Explain ${symbol} and the risks of holding it in a portfolio.`)}`}>Ask about {symbol}</Link>
+        {symbol && <Link to={`/advisor?q=${encodeURIComponent(`Explain ${symbol} and the risks of holding it in a portfolio.`)}`}>Ask about {symbol}</Link>}
       </div>
     </section>
   )
 }
 
-function PriceHistory({ series }: { series: HistorySeries }) {
+function PriceHistory({ series, compact }: { series: HistorySeries; compact: boolean }) {
   const points = useMemo(() => historyPoints(series.points), [series.points])
   const [selected, setSelected] = useState<number | null>(null)
   const [table, setTable] = useState(false)
@@ -75,7 +79,7 @@ function PriceHistory({ series }: { series: HistorySeries }) {
     const css = getComputedStyle(document.documentElement)
     const token = (name: string) => css.getPropertyValue(`--cv-${name}`).trim()
     const instance = createChart(host.current, {
-      autoSize: true, height: 280,
+      autoSize: true, height: compact ? 200 : 280,
       layout: { background: { type: ColorType.Solid, color: token('surface') }, textColor: token('text-tertiary'), fontFamily: css.getPropertyValue('--cv-font-sans'), fontSize: 12, attributionLogo: false },
       grid: { vertLines: { visible: false }, horzLines: { color: token('border') } },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: token('accent'), labelBackgroundColor: token('text') }, horzLine: { color: token('border-input'), labelBackgroundColor: token('text') } },
@@ -104,7 +108,7 @@ function PriceHistory({ series }: { series: HistorySeries }) {
       if (chart.current === instance) instance.applyOptions({ layout: { fontFamily: css.getPropertyValue('--cv-font-sans') } })
     }).catch(() => { /* Keep the system font if a font request fails. */ })
     return () => { chart.current = null; area.current = null; instance.remove() }
-  }, [points, table])
+  }, [points, table, compact])
 
   const move = (direction: number) => {
     const index = Math.max(0, Math.min(points.length - 1, (selected ?? points.length - 1) + direction))
@@ -129,6 +133,7 @@ function PriceHistory({ series }: { series: HistorySeries }) {
       ) : (
         <div ref={host} className={styles.chart} role="group" aria-label={`${series.symbol} interactive price chart`} aria-describedby={summaryId} tabIndex={0} onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); move(event.key === 'ArrowLeft' ? -1 : 1) } }} />
       )}
+      <div className={styles.historyFacts}><span>Annualized volatility <strong>{percentFromFraction(series.volatility, { digits: 2 })}</strong></span><span>Available observations <strong>{quantity(points.length)}</strong></span></div>
       <div className={styles.chartTools}>
         <span className="t-caption c-tertiary">{date(first.time)} – {date(last.time)} · Market data</span>
         <div className={styles.chartButtons}>

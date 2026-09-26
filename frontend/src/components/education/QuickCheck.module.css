@@ -1,0 +1,9 @@
+.check { padding: 20px; background: var(--cv-accent-subtle); border-radius: var(--cv-radius-panel); }
+.check h3 { font-size: 16px; line-height: 24px; font-weight: 600; }
+.options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.options button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--cv-border-input); border-radius: var(--cv-radius); background: var(--cv-surface); color: var(--cv-text); text-align: left; }
+.options button[aria-pressed='true'] { border-color: var(--cv-accent); box-shadow: inset 0 0 0 1px var(--cv-accent); }
+.feedback { margin-top: 12px; font-size: 14px; line-height: 22px; max-width: 70ch; }
+.feedback:empty { margin: 0; }
+.saved { display: block; margin-top: 4px; color: var(--cv-accent); }
+@media (max-width: 480px) { .check { padding: 16px; } .options { display: grid; } }

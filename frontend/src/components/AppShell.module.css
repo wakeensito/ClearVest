@@ -281,7 +281,7 @@
     inset: auto 0 0;
     z-index: 10;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     height: 64px;
     padding-bottom: env(safe-area-inset-bottom);
     background: var(--cv-surface);
@@ -316,3 +316,6 @@
 @media (max-width: 380px) { .topbarInner { gap: 8px; } .tools { gap: 0; } .wordmark { gap: 6px; font-size: 20px; } }
 
 @media (min-width: 768px) and (max-width: 1023px) { .footerInner { padding-inline: 24px; } }
+
+@media (min-width: 768px) and (max-width: 1120px) { .tools > span { display: none; } .topbarInner { gap: 24px; } .nav { gap: 20px; } }
+@media (max-width: 360px) { .tab { font-size: 11px; } }

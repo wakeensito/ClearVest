@@ -23,6 +23,13 @@ export function currency(n: Num): string {
   return isNum(n) ? trueMinus(usd.format(n)) : MISSING
 }
 
+const usdWhole = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+
+/** `$10,000`, rounded to whole dollars. For illustrations, not account balances. */
+export function currencyWhole(n: Num): string {
+  return isNum(n) ? trueMinus(usdWhole.format(n)) : MISSING
+}
+
 /** `$1.23M` at or above $1M, otherwise full currency. */
 export function currencyCompact(n: Num): string {
   if (!isNum(n)) return MISSING

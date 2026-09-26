@@ -1,6 +1,7 @@
 import { ArrowRight, Search, SlidersHorizontal, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { ContextHelp } from '../components/education/ContextHelp'
 import { WelcomeBanner } from '../components/WelcomeBanner'
 import { read, write } from '../lib/storage'
 import type { Holdings } from '../api/client'
@@ -34,6 +35,7 @@ export function PortfolioPage() {
         <div className={styles.headerActions}><button type="button" className={styles.privacy} aria-pressed={hidden} onClick={() => { setHidden(!hidden); write('cv-hide-balances', String(!hidden)) }}>{hidden ? <Eye size={16} aria-hidden /> : <EyeOff size={16} aria-hidden />}{hidden ? 'Show portfolio values' : 'Hide portfolio values'}</button>
         <ButtonLink to="/welcome?edit=1" state={{ returnTo: '/portfolio' }} variant="secondary" icon={<SlidersHorizontal size={16} aria-hidden />}>Investment profile</ButtonLink></div>
       </header>
+      <ContextHelp title="What is a portfolio?"><p>A portfolio is your collection of investments. A holding is one investment in that collection. Your total account value is a snapshot of what it is worth, not how much profit you have made.</p><p>Your portfolio mix shows how that money is spread out. Owning several investments can spread risk, but similar investments may still move together.</p><Link to="/learn">Build the basics in Learn</Link></ContextHelp>
       <section className={styles.summary} aria-label="Account summary">
         {notLinked ? <LinkAccountCard /> : <QueryView query={holdings} label="Loading portfolio" noun="Your portfolio" skeleton={<HeroSkeleton />}>
           {(data) => <Hero data={data} hidden={hidden} />}
@@ -44,7 +46,7 @@ export function PortfolioPage() {
           <SecurityResearch />
           {!notLinked && <section className={styles.holdings} aria-labelledby="holdings-heading">
             <div className={styles.holdingsHeader}>
-              <div><h2 id="holdings-heading" className="t-h2">Holdings</h2><p className="t-body-sm c-secondary">Select a symbol to research it.</p></div>
+              <div><h2 id="holdings-heading" className="t-h2">Holdings</h2><p className="t-body-sm c-secondary">Holdings are investments you own. Select a symbol to learn about it.</p></div>
               <label className={styles.filter}><Search size={16} aria-hidden /><span className="sr-only">Filter holdings</span><input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Find a holding" /></label>
             </div>
             <QueryView query={holdings} label="Loading holdings" noun="Your holdings">

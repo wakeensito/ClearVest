@@ -33,19 +33,19 @@ export function AdvisorPage() {
   // A prompt handed over from the dashboard pre-fills the composer; it's never sent automatically.
   useEffect(() => {
     if (params.has('q')) {
-      setParams({}, { replace: true })
       inputRef.current?.focus()
     }
-  }, [params, setParams])
+  }, [params])
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+    if (chat.messages.length || thinking) endRef.current?.scrollIntoView({ block: 'end', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
   }, [chat.messages.length, thinking])
 
   const submit = (e?: FormEvent) => {
     e?.preventDefault()
     if (!draft.trim() || busy) return
     chat.send(draft)
+    setParams({}, { replace: true })
     setDraft('')
   }
 
@@ -86,8 +86,7 @@ export function AdvisorPage() {
               <div className={styles.empty}>
                 <p className="t-h2">What would you like to understand?</p>
                 <p className="t-body c-secondary">
-                  Answers use your linked holdings, your profile and current economic data. Numbers are calculated by
-                  ClearVest, not guessed by the model.
+                  Start with any investing question. No profile or linked account needed for the basics. If you add them later, the advisor can use that context too.
                 </p>
                 <div className={styles.prompts}>
                   {SUGGESTED_PROMPTS.map((p) => (
@@ -128,7 +127,7 @@ export function AdvisorPage() {
                 <p className={`t-body c-secondary ${styles.pending}`}>
                   <Dots />
                   <span className={styles.pendingText}>
-                    <span className={styles.pendingNow}>Reviewing your portfolio</span>
+                    <span className={styles.pendingNow}>Working through your question</span>
                     <span className={styles.pendingSlow}>Still working. This can take up to 30 seconds.</span>
                   </span>
                 </p>
@@ -150,7 +149,7 @@ export function AdvisorPage() {
                 onKeyDown={onKeyDown}
                 rows={1}
                 maxLength={MAX}
-                placeholder="Ask about your portfolio, risk or retirement accounts"
+                placeholder="Try: Explain a stock as if this is my first day learning"
                 className={styles.input}
               />
               <VoiceButton voice={voice} disabled={chat.pending} />

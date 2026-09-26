@@ -13,6 +13,9 @@ export type Risk = Schemas['Risk']
 export type Macro = Schemas['Macro']
 export type ChatReply = Schemas['ChatReply']
 export type HistorySeries = Schemas['HistorySeries']
+export type CompanyResearch = Schemas['CompanyResearch']
+export type AnnualIncome = Schemas['AnnualIncome']
+export type MarketCategory = Schemas['MarketMovers']['category']
 export type HistoryRange = components['parameters']['Range']
 export type Company = Schemas['Company']
 export type Companies = Schemas['Companies']
@@ -59,6 +62,18 @@ export const api = {
 
   getHoldings: () => unwrap(client.GET('/portfolio/holdings', { params: user() })),
   getRisk: () => unwrap(client.GET('/portfolio/risk', { params: user() })),
+
+  getCompanyResearch: (symbol: string) =>
+    unwrap(client.GET('/market/company-research', { params: { ...user(), query: { symbol } } })),
+
+  searchCompanies: (query: string) =>
+    unwrap(client.GET('/market/search', { params: { ...user(), query: { query } } })),
+
+  getMarketNews: (symbols: string[]) =>
+    unwrap(client.GET('/market/news', { params: { ...user(), query: symbols.length ? { symbols: symbols.join(',') } : {} } })),
+
+  getMarketMovers: (category: MarketCategory) =>
+    unwrap(client.GET('/market/movers', { params: { ...user(), query: { category } } })),
 
   getMacro: () => unwrap(client.GET('/market/macro', { params: user() })),
   getHistory: (symbol: string, range: HistoryRange) =>

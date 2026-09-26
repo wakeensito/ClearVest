@@ -1,0 +1,4 @@
+.help { border-left: 3px solid var(--cv-accent); background: var(--cv-accent-subtle); padding: 0 16px; border-radius: 0 var(--cv-radius) var(--cv-radius) 0; }
+.help summary { min-height: 44px; padding-block: 10px; color: var(--cv-text); font-size: 14px; cursor: pointer; }
+.help > div { max-width: 72ch; font-size: 14px; line-height: 23px; padding-bottom: 16px; }
+.help p + p { margin-top: 8px; }

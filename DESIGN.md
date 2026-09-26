@@ -110,7 +110,104 @@ scrolling available to the page. Enable pointer/touch inspection, left/right key
 previous/next observation buttons and a scrollable table alternative. Remove the chart on unmount.
 Disable the in-chart TradingView logo with `attributionLogo: false`. Keep the NOTICE credit and TradingView link in the application footer, as permitted by the library’s attribution option.
 
-### 4.8 Advisor replies
+### 4.8 Visual company comparison
+
+Markets comparison starts with removable company chips, an add-ticker field and optional industry
+pairs. Accept 2–4 distinct tickers; adding/removing a chip does not request data. Compare and the
+explicit pair buttons fetch the selected set. Keep the selected draft separate from the displayed
+response, and explain when results belong to an earlier selection.
+
+Default to a visual comparison grouped into Valuation, Growth & profitability, and Financial
+strength. Give each company a consistent color from `viz-1` through `viz-4`, always paired with its
+ticker and exact value. Each metric uses a separate zero-based scale; if any value is negative,
+center the zero and draw negative values to its left. Missing values have no bar, and all-zero values
+have zero length. Bar length is not a rating. Preserve a Data table view for all seven metrics.
+
+Use the existing `/market/compare-companies` contract and nullable metrics. Margin and growth are
+fractions, multiples are ratios, and per-share figures follow §10. Reporting periods and per-field
+sources are absent; retain source notes and local retrieval time in a compact expandable explanation.
+
+Downloads are a small header disclosure with CSV and JSON actions, not a separate work surface.
+Export the displayed response even if the draft has changed, disabling export during fetching or
+without a successful nonempty result. Preserve raw precision, explicit units, source notes and
+retrieval time; fractions stay fractions in files. CSV missing cells are blank and JSON nulls remain
+null. Escape and neutralize formula-like CSV strings. Export happens entirely in the browser.
+
+### 4.9 Compact market lists and research workspace
+
+Market overview and Compare companies use clearly bordered, filled buttons. Overview starts with two
+compact surfaces side by side. Top 10 most active has ten ranked rows in a 300px scroll region, showing
+five 60px rows at once. The second surface switches between Top gainers and Top losers in place; only
+the selected list loads. Both support keyboard scrolling, signed daily moves and cached/empty/error
+states. Company symbols have FMP logo images, falling back to labelled initials when unavailable.
+
+The user chose trading activity as the Top 10 definition, not a best-investment score. Active order
+comes from FMP; gainers/losers sort by daily percentage change. `/market/movers` caches each list for
+one hour. Retain retrieval time and delayed-data context. Do not invent volume or quote timestamps.
+
+The primary Security research surface spans the full width below the compact lists. Board ticker
+selection scrolls to it and focuses its search. Show closing price, available-history return,
+annualized volatility, actual observation count, chart/table inspection and supported time ranges.
+
+Compare securities opens a native full-screen dialog with two independent research panels. The
+second starts empty until a ticker is submitted. Each has its own query, input, time range and local
+error/retry state. A 280ms inward transition fills the workspace with the two panels; disable it for
+reduced motion. Below 850px the panels stack. Use native modal focus containment, Escape/Exit
+comparison, restore trigger focus and lock background scrolling. Keep Exit available in a sticky
+header. Explain that the chart scales and available periods can differ.
+
+### 4.10 Related market news
+
+Place a prominent Market news surface below research, both on the overview and in the comparison
+dialog. A lead story and supporting headlines link directly to their publishers, with publication
+dates, publisher attribution and optional provider images. Never synthesize headlines or claim that
+an article caused a price movement. Missing images have a neutral newspaper fallback.
+
+`/market/news` returns up to six cached headlines, optionally filtered to one or two researched
+symbols. Related news follows submitted tickers, not input drafts. The Market-wide control requests
+broader stock headlines; an empty related response automatically falls back to that feed with an
+explicit explanation. Preserve loading, stale, empty and retry states. Render only web URLs validated
+by the backend; do not render publisher HTML. The provider timestamp has no guaranteed timezone, so
+show its calendar date and distinguish that from our retrieval time. News is cached for one hour.
+
+### 4.11 Guided company research and beginner home
+
+The default route is a small interactive explanation of a share, using a clearly fictional business
+with 100 equal shares. It offers an optional knowledge check and paths into Learn, research and
+portfolio context. Three research milestones track understanding on this browser, scoped to the demo
+user ID. They award no points for trades, investment returns or daily streaks. This does not replace
+the course progression. Home resumes the first unfinished lesson once a lesson has been completed.
+
+`guided=1` on Markets hides movers and introduces a company through three explicit steps: its
+business, annual sales/profit, and valuation. The chart opens on request. The normal market overview
+retains the compact lists and chart, followed by the financial guide and related news. Full-screen
+comparison gives each selected security its own chart and independent financial guide.
+
+Annual statements contain up to five fiscal years of revenue, direct costs, gross profit, operating
+income, net income and diluted EPS. Dates and reported currency appear alongside values. Revenue
+growth requires consecutive fiscal years in the same known currency and positive prior revenue.
+Chart bars share a zero baseline and scale; losses extend below zero. Tables scroll within their own
+labelled region on small screens, with full amounts and per-share labels. Missing values are not zero.
+
+P/E uses the provider's trailing ratio, never a current price divided by a mismatched annual EPS.
+Zero/negative earnings or P/E are not shown as meaningful valuation. Historical context is the median
+of at least three positive annual observations; show sample count and dates and explain exclusions.
+It is neither an industry average nor a target. Funds get a separate explanation because operating
+company statements are not a suitable way to explain fund holdings. Comparisons no longer assume USD
+when the original comparison contract omits currency.
+
+`/market/company-research` caches profile, income, current ratios and historical ratios independently
+for one day. A section failure preserves other sections and exposes a retry. Each source keeps its
+original retrieval timestamp through a stale fallback. `/market/search` supports names and tickers;
+lookup is submitted explicitly. Browser demonstrations use contract fixtures, not live entitlement.
+
+Explanations use everyday language, disclose details only when needed, and include local feedback on
+sales versus profit and on interpreting P/E. Contextual disclosures also explain charts, portfolios,
+comparisons and headlines. Advisor instructions answer one idea first and define unfamiliar terms.
+General questions remain useful without asking for age or brokerage details. Linked questions remain
+in the URL until submitted so optional profile editing can return to them.
+
+### 4.12 Advisor replies
 
 Replies render a small markdown subset as React nodes, never `innerHTML` (`features/advisor/parseMarkdown.ts`,
 `Markdown.tsx`): paragraphs, `-`/`*`/`•` and numbered lists, `**bold**`, headings and comparison tables.
@@ -138,15 +235,19 @@ three columns and six rows.
 Desktop: 76px navigation, slim workspace information row, centered content up to 1440px with 40px
 side padding. Portfolio has an account summary above an expanding main column and a 336px context
 column. Under 1024px, context stacks below; under 640px, all content uses a single column.
-Mobile keeps four bottom navigation items with safe-area spacing.
+Mobile keeps five bottom navigation items with safe-area spacing: Home, Portfolio, Advisor, Markets and Learn.
 
 | Route | Task |
 |---|---|
+| `/` | An interactive first idea, links into Learn/research, and research milestones; no setup required |
 | `/portfolio` | Account summary, security research, searchable holdings, allocation and risk |
-| `/markets?symbol=VOO` | Research a selected security and inspect available closes |
-| `/advisor` | Ask about holdings, with the existing profile/portfolio context |
+| `/markets?symbol=VOO` | Compact discovery lists, full-width research, dual-chart comparison and related news |
+| `/markets?view=companies` | Build a visual company comparison, inspect exact values and export |
+| `/markets?symbol=AAPL&guided=1` | Guided company research, with optional price chart and company-name lookup |
+| `/advisor` | General questions without setup; optional saved profile/holdings provide more context |
 | `/welcome` | Profile and Plaid account linking; light introduction panel |
-| `/learn` | Searchable plain-language glossary and three learning paths with source links |
+| `/learn` | Beginner starter path (units and lessons), common questions, growth illustration, glossary with flashcards |
+| `/learn/:lessonId` | One short lesson: idea cards, a two-question quick check, completion and next step |
 
 No sidebar full of nonfunctional trading tools. No buy/sell controls or fabricated market-open status.
 
@@ -206,18 +307,31 @@ states without claiming a failed request means an account is not linked.
 ### 6.2 Inclusive product behavior
 
 Offer “Understand my holdings”, “Explore investments” and “Learn the basics” as labelled actions.
-No assumptions about wealth, gender, family structure, goals or expertise. Markets and Learn are
-available before profile creation; portfolio and advisor setup requirements still apply. Onboarding
-includes “Explore first”.
+No assumptions about wealth, gender, family structure, goals or expertise. All main routes are available
+before profile creation. General advisor questions do not require a profile or linked account. Onboarding
+is optional and includes “Explore first”, returning to the beginner home.
 
 “Hide portfolio values” replaces account totals, position amounts and quantities, allocation values,
 and account-specific risk text. It persists on the device; it is a portfolio-view convenience, not an
 access-control boundary or a promise to hide already-existing advisor conversations. Public security
 prices, ownership symbols and percentages remain visible.
 
-Learn includes short starting paths and a searchable eight-term glossary with native disclosure
-controls and Investor.gov references. No learning content depends on a connected account. Links to
-the advisor prefill questions and never submit them automatically.
+Learn is written for people who have never invested. It has a four-unit starter path of short
+lessons (three idea cards, then a two-question quick check with immediate right/wrong feedback and
+an explanation), “Questions beginners ask” as native disclosures, a hypothetical compound-growth
+illustration, and a searchable glossary with a flashcard mode. Lessons are never locked; the next
+unfinished one is marked “Up next”. Completed lessons are stored in this browser (`cv-learn-progress`), with a session fallback when
+storage is blocked. Reset requires a confirmation and leaves research milestones alone. Streak
+metadata stays compatible with earlier storage but is not shown; the interface celebrates completion
+at the learner’s pace. The growth illustration always states that its rate
+is hypothetical and constant, and that real returns vary and can be negative. Retirement limits
+match `src/advisor/advisor/data/retirement_accounts.json`. No learning content depends on a
+connected account. Links to the advisor prefill questions and never submit them automatically.
+
+The next unit is expanded initially; other units, extra FAQs and the growth illustration open on
+request. The glossary starts with six terms and offers all terms plus search and flashcards. Home
+resumes the next lesson; the stocks lesson links to guided company research and fund research links
+to the fund lesson. Keep long lesson actions wrapping at 320px and retain focus when changing cards.
 
 ## 7. Product principles
 
@@ -239,7 +353,7 @@ applies to native controls. All component colors read the shared tokens.
 
 ## 10. Data formatting
 
-Use one `format.ts` module for this, and never call `toFixed` directly in components. Use `Intl.NumberFormat` with the `en-US` locale.
+Use `format.ts` for shared display rules and `researchEducation.ts` for financial amounts with an explicit reported currency. Never call `toFixed` directly in components. Use `Intl.NumberFormat` with the `en-US` locale.
 
 | Kind | Rule | Example |
 |---|---|---|
@@ -261,9 +375,12 @@ Use one `format.ts` module for this, and never call `toFixed` directly in compon
 |---|---|---|
 | `Holding.weight`, `Template.allocations[].weight` | fraction (`0.5`) | ×100 → `50.0%` |
 | `HistorySeries.returnPct`, `.volatility` | fraction (`0.0494`) | ×100 → `+4.94%` |
+| `MarketStock.changePct` | fraction (`0.025`) | ×100 → `+2.50%` |
 | `Company.grossMargin`, `.revenueGrowth` | fraction (`0.532`) | ×100 → `53.2%` |
 | `Company.pe`, `.ps`, `.debtToEquity` | ratio | `95.1×`, `0.06×` |
-| `Company.epsTTM`, `.fcfPerShare` | dollars | `$1.90` |
+| `Company.epsTTM`, `.fcfPerShare` | per share; currency not supplied | `1.90`, never imply USD |
+| `AnnualIncome.revenue`, `.netIncome`, other statement totals | full amounts in `currency` | `USD 100M`; full amounts in tables |
+| `AnnualIncome.epsDiluted` | reported currency per diluted share | `USD 5.00` |
 | `Macro.fedFunds`, `cpiYoY`, `unemployment`, `wageGrowth`, `tenYear` | **already percent** (`4.33`) | **do not** ×100 → `4.33%` |
 | `Risk.score` | integer 0–100 | `58` with `/100` in `text-tertiary` |
 
@@ -276,7 +393,7 @@ Every data card handles all of these states. The API error envelope is `{error: 
 | Situation | Where | What the user sees |
 |---|---|---|
 | Loading | Card | Skeleton while loading. After 8s: "Still working. This can take up to 30 seconds." |
-| `404 NOT_FOUND` on `GET /profile` | App | Not an error: go to `/welcome` |
+| `404 NOT_FOUND` on `GET /profile` | App | No saved profile; continue learning, researching or asking general questions. Profile setup remains optional. |
 | `409 NOT_LINKED` | Card | The card is replaced by the Link account card (§4.14): "Link an account to see your holdings." |
 | `502 UPSTREAM_UNAVAILABLE` | Card | Warning banner: "Market data is temporarily unavailable." and a Retry button. Other cards are unaffected. |
 | `400 VALIDATION` | Field or form | Inline error under the field. Map the API `message` to the field when possible. |
