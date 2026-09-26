@@ -78,3 +78,43 @@ def test_unexpected_error_is_500_without_leaking():
 def test_unknown_route_is_404_envelope():
     status, body = call(handler, "GET", "/nope")
     assert status == 404 and body["error"]["code"] == "NOT_FOUND"
+
+
+class _TimedContext:
+    aws_request_id = "req-timed"
+    function_name = "test"
+    memory_limit_in_mb = 512
+    invoked_function_arn = "arn:aws:lambda:us-east-1:123456789012:function:test"
+
+    def get_remaining_time_in_millis(self):
+        return 12_500
+
+
+_seen = {}
+timed_router = Router()
+
+
+@timed_router.get("/remaining")
+def remaining():
+    _seen["remaining"] = api.remaining_seconds()
+    return {}
+
+
+timed_handler = api.make_handler(api.create_app(timed_router))
+
+
+def test_remaining_seconds_reads_current_invocation_context():
+    from tests.helpers import http_event
+
+    timed_handler(http_event("GET", "/remaining"), _TimedContext())
+    assert _seen["remaining"] == 12.5
+    assert api.remaining_seconds() == 60.0  # cleared once the invocation ends
+
+
+def test_remaining_seconds_defaults_without_context():
+    assert api.remaining_seconds() == 60.0  # tests, scripts: no Lambda context
+
+
+def test_remaining_seconds_defaults_with_context_lacking_timer():
+    call(timed_handler, "GET", "/remaining")  # helpers.FakeContext has no get_remaining_time_in_millis
+    assert _seen["remaining"] == 60.0

@@ -2,21 +2,31 @@
 
 import os
 
-from clearvest import config, http
+from clearvest import api, config, http
+from clearvest.errors import UpstreamError
 
 BASE_URLS = {"sandbox": "https://sandbox.plaid.com", "production": "https://production.plaid.com"}
 # Plaid's sandbox test institution that supports the investments product.
 SANDBOX_INSTITUTION = "ins_109508"
+MAX_TIMEOUT = 25  # sandbox item creation alone can take 10-20s
+DEADLINE_MARGIN = 2  # seconds kept back to write the response before the Lambda is killed
+MIN_TIMEOUT = 3  # below this a call is more likely to time out than finish
 
 
 def _post(path: str, body: dict) -> dict:
+    # Timeout follows the invocation's deadline, not a fixed number, so sequential calls (sandbox
+    # create -> exchange -> holdings) can't together outlive the Lambda. POSTs are never retried
+    # by clearvest.http (urllib3's default allowed_methods), so a slow call is never doubled.
+    timeout = min(MAX_TIMEOUT, api.remaining_seconds() - DEADLINE_MARGIN)
+    if timeout < MIN_TIMEOUT:
+        raise UpstreamError("plaid", "not enough time left in this request")
     base = BASE_URLS[os.environ.get("PLAID_ENV", "sandbox")]
     payload = {
         "client_id": config.get_secret("PLAID_CLIENT_ID_PARAM"),
         "secret": config.get_secret("PLAID_SECRET_PARAM"),
         **body,
     }
-    return http.request_json("POST", f"{base}{path}", provider="plaid", json=payload, timeout=10)
+    return http.request_json("POST", f"{base}{path}", provider="plaid", json=payload, timeout=timeout)
 
 
 def create_link_token(user_id: str) -> str:

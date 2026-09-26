@@ -77,3 +77,7 @@ def test_fred_is_keyless():
     text = TEMPLATE.read_text()
     assert "FredKeyParam" not in text
     assert "FRED_KEY_PARAM" not in text
+
+
+def test_portfolio_fn_has_room_for_slow_plaid_sandbox():
+    assert load()["Resources"]["PortfolioFn"]["Properties"]["Timeout"] == 29

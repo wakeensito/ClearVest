@@ -25,6 +25,8 @@
   fallback if the refetch fails. A Plaid failure during that refetch is swallowed: the link still returns
   `200 {itemId}` and `GET /portfolio/holdings` returns the old snapshot (with `stale: true`) until a later
   refetch succeeds.
+  The refetch is only attempted with more than 8s left in the invocation; otherwise it's skipped and the
+  next read refreshes.
 - `GET /portfolio/risk` → the deterministic 0–100 risk score (see the market/risk handoff for the scoring
   logic itself).
 
@@ -63,6 +65,10 @@ parameter names, not values).
   in `clearvest.api.user_id()` before any handler code runs.
 - Plaid's sandbox is rate-limited like the real API; `sandbox/public_token/create` + `exchange` are two
   calls, not one — don't try to collapse them.
+- Sandbox item creation can take 10–20s, so `PortfolioFn` runs with a 29s timeout and every Plaid call's
+  timeout is `min(25, remaining - 2)` from `clearvest.api.remaining_seconds()`; with under 3s usable it
+  fails fast with `502` instead of calling. Plaid POSTs are never retried by `clearvest.http` (urllib3's
+  default `allowed_methods`), so a slow call can't be doubled.
 
 ## Next steps
 

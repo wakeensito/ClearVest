@@ -106,6 +106,9 @@ Resources:
     Properties:
       CodeUri: src/portfolio
       Handler: portfolio.app.handler
+      # Plaid sandbox item creation can take 10-20s, and /plaid/sandbox-link makes three calls in a
+      # row; each Plaid call's timeout follows the remaining time. API Gateway stops waiting at 30s.
+      Timeout: 29
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: portfolio

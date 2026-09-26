@@ -15,8 +15,8 @@
   one private `AudioBucket` (SSE, 1-day lifecycle, presigned-URL-only access). Default throttling
   (20 req/s, burst 50) on the HTTP API, plus tighter per-route throttles on `ANY /voice/{proxy+}` and
   `ANY /advisor/{proxy+}` (2 req/s, burst 5) to cap Bedrock/ElevenLabs spend, since the API is
-  unauthenticated. Timeouts: 15s global, 29s on `MarketFn`, `AdvisorFn` and `VoiceFn` (API Gateway gives up
-  at 30s).
+  unauthenticated. Timeouts: 15s global, 29s on `PortfolioFn` (slow Plaid sandbox item creation), `MarketFn`,
+  `AdvisorFn` and `VoiceFn` (API Gateway gives up at 30s).
 - `src/layer/clearvest/`: shared runtime used by all four functions — `api.py` (Powertools resolver +
   error-to-response mapping), `aws.py` (boto3 clients, Bedrock client with configurable timeout/retries),
   `config.py` (SSM secret loader, cached per warm container), `db.py` (DynamoDB helpers), `cache.py`

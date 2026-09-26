@@ -20,6 +20,11 @@ from clearvest.errors import AppError, InvalidInput, UpstreamError
 
 logger = Logger()
 
+# The Lambda context of the invocation being handled (set per call by make_handler's handler), so
+# provider clients can size their timeouts to the time the function actually has left.
+_context = None
+NO_CONTEXT_SECONDS = 60.0
+
 
 def _error(app: APIGatewayHttpResolver, code: str, status: int, message: str) -> Response:
     request_id = getattr(app.lambda_context, "aws_request_id", None)
@@ -56,9 +61,21 @@ def create_app(*routers) -> APIGatewayHttpResolver:
 def make_handler(app: APIGatewayHttpResolver):
     @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_HTTP, clear_state=True)
     def handler(event, context):
-        return app.resolve(event, context)
+        global _context
+        _context = context
+        try:
+            return app.resolve(event, context)
+        finally:
+            _context = None
 
     return handler
+
+
+def remaining_seconds() -> float:
+    """Seconds left before this Lambda invocation times out; a generous default outside Lambda
+    (tests, scripts) or when the context has no timer."""
+    timer = getattr(_context, "get_remaining_time_in_millis", None)
+    return timer() / 1000 if timer else NO_CONTEXT_SECONDS
 
 
 def user_id(router) -> str:

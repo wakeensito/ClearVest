@@ -9,6 +9,8 @@ from portfolio.models import ExchangeRequest
 from portfolio.routes.holdings import load_holdings
 
 router = Router()
+# The post-link holdings refresh is best effort: only tried with enough time left for a Plaid call.
+REFRESH_MIN_SECONDS = 8
 
 
 def _store(user_id: str, item_id: str, access_token: str) -> None:
@@ -21,6 +23,8 @@ def _store(user_id: str, item_id: str, access_token: str) -> None:
     snapshot = db.get(pk, "HOLDINGS")
     if snapshot:
         db.put(pk, "HOLDINGS", {**snapshot, "fetchedAt": 0})
+    if api.remaining_seconds() <= REFRESH_MIN_SECONDS:
+        return  # snapshot is already stale, so the next GET /portfolio/holdings refreshes it
     try:
         load_holdings(user_id)
     except UpstreamError:
