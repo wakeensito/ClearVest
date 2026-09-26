@@ -1,0 +1,157 @@
+.scroller {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  padding: 0;
+  background: var(--cv-surface-sunken);
+  border-bottom: 1px solid var(--cv-border-strong);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table thead button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  background: none;
+  border: 0;
+  color: var(--cv-text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.table thead button:hover,
+.table thead button[data-active] {
+  color: var(--cv-text);
+}
+
+.table thead .numeric button {
+  justify-content: flex-end;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--cv-border);
+  transition: background-color var(--cv-motion-fast) var(--cv-ease);
+}
+
+.table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--cv-surface-sunken);
+}
+
+.table tbody th,
+.table tbody td {
+  height: 60px;
+  padding: 8px 16px;
+  font-size: 15px;
+  font-weight: 400;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.table .numeric {
+  text-align: right;
+}
+
+.value {
+  font-weight: 500 !important;
+}
+
+.ticker {
+  display: block;
+  color: var(--cv-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.name {
+  display: block;
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.type {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+}
+
+.weight {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.track {
+  display: block;
+  width: 48px;
+  height: 4px;
+  background: var(--cv-surface-sunken);
+}
+
+.track span {
+  display: block;
+  height: 100%;
+}
+
+.list {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .scroller {
+    display: none;
+  }
+
+  .list {
+    display: block;
+  }
+
+  .list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--cv-border);
+  }
+
+  .list li:last-child {
+    border-bottom: 0;
+  }
+
+  .listRight {
+    display: grid;
+    justify-items: end;
+    text-align: right;
+  }
+
+  .name {
+    max-width: 22ch;
+  }
+}
+
+.ticker:hover { text-decoration: underline; }
+@media (max-width: 767px) { .list > li > div:first-child { min-width: 0; } .name { max-width: min(22ch, 46vw); } .ticker { min-height: 28px; padding-top: 4px; } }

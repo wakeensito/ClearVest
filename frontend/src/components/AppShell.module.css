@@ -1,0 +1,318 @@
+.shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+}
+
+.skip {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  z-index: 20;
+  padding: 8px 12px;
+  background: var(--cv-text);
+  color: var(--cv-bg);
+}
+
+.skip:focus {
+  top: 8px;
+}
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--cv-surface);
+  border-bottom: 1px solid var(--cv-border);
+}
+
+.topbarInner {
+  display: flex;
+  align-items: stretch;
+  gap: 52px;
+  max-width: 1440px;
+  height: 76px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  color: var(--cv-text);
+  gap: 10px;
+  text-decoration: none;
+}
+
+.wordmark:hover {
+  color: var(--cv-text);
+}
+
+.nav {
+  display: flex;
+  gap: 32px;
+}
+
+.navLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  color: var(--cv-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--cv-motion-fast) var(--cv-ease);
+}
+
+.navLink:hover {
+  color: var(--cv-text);
+}
+
+.navLink::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--cv-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--cv-motion-base) var(--cv-ease);
+}
+
+.navLink:global(.active) {
+  color: var(--cv-text);
+}
+
+.navLink:global(.active)::after {
+  transform: none;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+/* ---------- Profile menu ---------- */
+
+.menuWrap {
+  position: relative;
+}
+
+.menuButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--cv-text-secondary);
+  transition:
+    border-color var(--cv-motion-fast) var(--cv-ease),
+    color var(--cv-motion-fast) var(--cv-ease);
+}
+
+.menuButton:hover,
+.menuButton[aria-expanded='true'] {
+  border-color: var(--cv-border-strong);
+  color: var(--cv-text);
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 260px;
+  display: grid;
+  padding: 8px 0;
+  background: var(--cv-surface-raised);
+  border: 1px solid var(--cv-border-strong);
+  box-shadow: var(--cv-shadow-overlay);
+  animation: menu var(--cv-motion-base) var(--cv-ease);
+}
+
+@keyframes menu {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: 0;
+  color: var(--cv-text);
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.menuItem:hover {
+  background: var(--cv-surface-sunken);
+  color: var(--cv-text);
+}
+
+.menuGroup {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  margin: 4px 0;
+  border-top: 1px solid var(--cv-border);
+  border-bottom: 1px solid var(--cv-border);
+}
+
+.danger,
+.danger:hover {
+  color: var(--cv-loss);
+}
+
+/* ---------- Main + footer ---------- */
+
+.main {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 32px 40px 48px;
+}
+
+.footer {
+  width: 100%;
+  background: var(--cv-text);
+  color: var(--cv-surface);
+}
+
+.footerInner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 40px 28px;
+}
+
+.footerBrand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  min-height: 148px;
+  padding-block: 32px;
+}
+
+.footer .wordmark {
+  color: var(--cv-surface);
+  font-size: 24px;
+}
+
+.footerTagline {
+  font-size: 30px;
+  line-height: 40px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-align: right;
+}
+
+.footerDetails {
+  display: grid;
+  gap: 8px;
+  padding-top: 20px;
+  border-top: 1px solid color-mix(in srgb, var(--cv-surface) 20%, transparent);
+  color: var(--cv-border);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.footerDetails p {
+  max-width: 110ch;
+}
+
+.footerDetails a {
+  color: var(--cv-surface);
+}
+
+.footer a:focus-visible {
+  outline-color: var(--cv-surface);
+}
+
+/* ---------- Mobile tab bar ---------- */
+
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .topbarInner {
+    height: 56px;
+    padding: 0 16px;
+    gap: 16px;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .main {
+    padding: 28px 16px 96px;
+  }
+
+  .footerInner {
+    padding: 0 16px calc(88px + env(safe-area-inset-bottom));
+  }
+
+  .footerBrand {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 20px;
+    padding-block: 32px;
+  }
+
+  .footerTagline {
+    font-size: 26px;
+    line-height: 34px;
+    text-align: left;
+  }
+
+  .tabbar {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    height: 64px;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--cv-surface);
+    border-top: 1px solid var(--cv-border);
+  }
+
+  .tab {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 4px;
+    color: var(--cv-text-tertiary);
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    border-top: 2px solid transparent;
+    margin-top: -1px;
+  }
+
+  .tab:global(.active) {
+    color: var(--cv-text);
+    border-top-color: var(--cv-accent);
+  }
+}
+
+.workspaceBar { display: flex; justify-content: space-between; padding: 9px max(40px, calc((100vw - 1360px) / 2)); border-bottom: 1px solid var(--cv-border); background: var(--cv-surface); color: var(--cv-text-tertiary); font-size: 12px; line-height: 20px; }
+.researchLink { display: flex; align-items: center; gap: 8px; color: var(--cv-text-secondary); font-size: 13px; text-decoration: none; }
+.menu { border-radius: var(--cv-radius-panel); }
+@media (max-width: 1023px) { .topbarInner { gap: 28px; padding-inline: 24px; } .nav { gap: 24px; } .main { padding-inline: 24px; } .researchLink { display: none; } }
+@media (max-width: 767px) { .topbarInner { padding-inline: 16px; } .workspaceBar { padding: 8px 16px; } .workspaceBar span:last-child { display: none; } .main { padding: 24px 16px 40px; } .tools { gap: 8px; } .tabbar { height: calc(64px + env(safe-area-inset-bottom)); } }
+
+@media (max-width: 380px) { .topbarInner { gap: 8px; } .tools { gap: 0; } .wordmark { gap: 6px; font-size: 20px; } }
+
+@media (min-width: 768px) and (max-width: 1023px) { .footerInner { padding-inline: 24px; } }

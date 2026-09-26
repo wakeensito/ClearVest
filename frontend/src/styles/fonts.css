@@ -1,0 +1,22 @@
+/* Bundled from SamsungInternet/web-code; provenance and license in public/fonts/samsungone. */
+@font-face {
+  font-family: 'SamsungOne';
+  src: url('/fonts/samsungone/SamsungOne-400.woff') format('woff');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'SamsungOne';
+  src: url('/fonts/samsungone/SamsungOne-600.woff') format('woff');
+  font-style: normal;
+  font-weight: 500 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'SamsungOne';
+  src: url('/fonts/samsungone/SamsungOne-700.woff') format('woff');
+  font-style: normal;
+  font-weight: 700 800;
+  font-display: swap;
+}

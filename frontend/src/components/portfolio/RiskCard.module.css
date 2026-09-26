@@ -1,0 +1,66 @@
+.risk {
+  display: grid;
+  gap: 20px;
+}
+
+.score {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.label {
+  margin-left: auto;
+}
+
+.scale {
+  position: relative;
+  padding-top: 4px;
+}
+
+.bands {
+  display: grid;
+  grid-template-columns: 34fr 33fr 34fr;
+  gap: 2px;
+  height: 6px;
+}
+
+.bands span:nth-child(1) { background: var(--cv-border); }
+.bands span:nth-child(2) { background: var(--cv-border-strong); }
+.bands span:nth-child(3) { background: var(--cv-text-tertiary); }
+
+.marker {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 20px;
+  margin-left: -1px;
+  background: var(--cv-accent);
+}
+
+@keyframes slide {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.bandLabels {
+  display: grid;
+  grid-template-columns: 34fr 33fr 34fr;
+  margin-top: 12px;
+}
+
+.bandLabels span:nth-child(2) { text-align: center; }
+.bandLabels span:nth-child(3) { text-align: right; }
+
+.factors {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cv-border);
+}
+
+.factors dd {
+  margin: 2px 0 0;
+}
+
+.details summary { cursor: pointer; color: var(--cv-accent); font-size: 13px; min-height: 44px; padding-block: 10px; }

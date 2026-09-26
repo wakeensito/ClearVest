@@ -1,0 +1,17 @@
+{
+  "name": "clearvest",
+  "private": true,
+  "description": "Root npm workspace so CI's Node job (which looks for ./package.json) builds the frontend.",
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w frontend",
+    "mock": "npm run mock -w frontend",
+    "gen:api": "npm run gen:api -w frontend",
+    "lint": "npm run lint -w frontend",
+    "typecheck": "npm run typecheck -w frontend",
+    "test": "npm test -w frontend",
+    "build": "npm run build -w frontend"
+  }
+}

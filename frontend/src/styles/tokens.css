@@ -1,0 +1,37 @@
+/* Copied from DESIGN.md section 13. DESIGN.md wins if these disagree; change both in the same PR. */
+:root {
+  /* neutrals */
+  --cv-bg: #F5F7FA;            --cv-surface: #FFFFFF;
+  --cv-surface-raised: #FFFFFF; --cv-surface-sunken: #F0F3F7;
+  --cv-border: #DDE3EB;        --cv-border-strong: #C3CDD9;  --cv-border-input: #7C8799;
+  --cv-text: #172B46;          --cv-text-secondary: #536176;  --cv-text-tertiary: #617086;
+  /* accent — Clear Cobalt */
+  --cv-accent: #2457C5;        --cv-accent-hover: #2343B8;    --cv-accent-pressed: #1C379A;
+  --cv-accent-subtle: #EDF3FF; --cv-on-accent: #FFFFFF;
+  /* semantic */
+  --cv-gain: #0A7D3E;  --cv-gain-subtle: #E6F4EC;
+  --cv-loss: #C8302B;  --cv-loss-subtle: #FBEAE9;
+  --cv-warning: #8A5A00; --cv-warning-subtle: #FFF4D6;
+  /* data viz (fixed asset-type mapping, see §2.5) */
+  --cv-viz-1: #2457C5; --cv-viz-2: #7A5AF8; --cv-viz-3: #0F8B8D; --cv-viz-4: #B7791F;
+  --cv-viz-5: #C2418A; --cv-viz-6: #475569; --cv-viz-7: #7C8799; --cv-viz-8: #8C7A6B;
+  /* shape, depth, motion */
+  --cv-radius: 6px;
+  --cv-radius-panel: 10px;
+  --cv-shadow-overlay: 0 8px 24px rgba(14,17,22,.12), 0 2px 6px rgba(14,17,22,.08);
+  --cv-ease: cubic-bezier(0.2, 0, 0, 1);
+  --cv-motion-fast: 120ms; --cv-motion-base: 200ms; --cv-motion-slow: 280ms;
+  /* type */
+  --cv-font-sans: "SamsungOne", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --cv-font-serif: var(--cv-font-sans);
+  --cv-font-mono: var(--cv-font-sans);
+  color-scheme: light;
+}
+
+body {
+  background: var(--cv-bg);
+  color: var(--cv-text);
+  font: 400 15px/24px var(--cv-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.num, td, [data-numeric] { font-variant-numeric: lining-nums tabular-nums; }

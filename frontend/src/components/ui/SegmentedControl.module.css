@@ -1,0 +1,38 @@
+.group {
+  display: inline-flex;
+  border: 1px solid var(--cv-border-strong);
+  border-radius: var(--cv-radius);
+  overflow: hidden;
+}
+
+.segment {
+  height: 44px;
+  border-radius: 0;
+  padding: 0 12px;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--cv-border-strong);
+  color: var(--cv-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    background-color var(--cv-motion-fast) var(--cv-ease),
+    color var(--cv-motion-fast) var(--cv-ease);
+}
+
+.segment:first-child {
+  border-left: 0;
+}
+
+.segment:hover {
+  color: var(--cv-text);
+}
+
+.segment[aria-pressed='true'] {
+  background: var(--cv-text);
+  color: var(--cv-bg);
+}
+
+.segment:focus-visible {
+  outline-offset: -2px;
+}

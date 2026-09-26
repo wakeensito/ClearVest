@@ -6,24 +6,29 @@
 #
 # NOTE: an ecosystem listed here WITHOUT a manifest in the repo produces a
 # red "Dependabot Updates" run every week (verified — it is not silently
-# inert). Only github-actions is active from day zero; uncomment the npm or
-# pip block when the matching manifest lands (the seeded "Scaffold app
-# skeleton" issue covers this).
+# inert). Add an ecosystem only once its manifest exists.
 version: 2
 updates:
-  # Uncomment when a package.json lands:
-  # - package-ecosystem: "npm"
-  #   directory: "/"
-  #   schedule:
-  #     interval: "weekly"
-  #     day: "monday"
-  #   groups:
-  #     minor-and-patch:
-  #       applies-to: version-updates
-  #       update-types:
-  #         - "minor"
-  #         - "patch"
-  #   open-pull-requests-limit: 5
+  # Root package.json is an npm workspace; this covers frontend/ through the root lockfile.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # typescript-eslint and openapi-typescript don't support TypeScript 6+ yet.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # react-router 8 requires Node >= 22.22; bump together with the team's Node version.
+      - dependency-name: "react-router"
+        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 5
 
   - package-ecosystem: "pip"
     directory: "/"

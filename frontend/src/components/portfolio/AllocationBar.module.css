@@ -1,0 +1,41 @@
+.figure {
+  display: grid;
+  gap: 16px;
+}
+
+.bar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+}
+
+.bar span {
+  flex-basis: 0;
+  min-width: 2px;
+  transform-origin: left;
+}
+
+@keyframes grow {
+  from { transform: scaleX(0); }
+  to   { transform: none; }
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+.legend { display: grid; grid-template-columns: 1fr; gap: 12px; }

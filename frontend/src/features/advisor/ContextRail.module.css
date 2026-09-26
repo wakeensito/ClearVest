@@ -1,0 +1,41 @@
+.rail { position: sticky; top: 88px; min-width: 0; background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); }
+.heading { display: flex; align-items: center; gap: 12px; padding: 22px 20px; cursor: pointer; list-style: none; border-radius: var(--cv-radius-panel); }
+.heading::-webkit-details-marker { display: none; }
+.heading h2 { font-size: 18px; line-height: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.subtitle { display: block; margin-top: 3px; font-size: 12px; line-height: 18px; color: var(--cv-text-secondary); }
+.contextIcon { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: var(--cv-radius); background: var(--cv-accent-subtle); color: var(--cv-accent); }
+.chevron { margin-left: auto; flex-shrink: 0; color: var(--cv-text-secondary); }
+.rail details[open] .chevron { transform: rotate(180deg); }
+.body { padding: 0 20px; }
+.section { padding: 18px 0 20px; border-top: 1px solid var(--cv-border); }
+.sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
+.sectionHeading h3, .source h3 { font-size: 14px; line-height: 20px; font-weight: 600; }
+.edit { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; min-height: 36px; min-width: 44px; font-size: 13px; font-weight: 600; text-decoration: none; }
+.edit:hover { text-decoration: underline; }
+.facts { display: grid; gap: 10px; margin-top: 10px; font-size: 13px; line-height: 20px; }
+.facts > div { display: flex; justify-content: space-between; gap: 14px; }
+.facts dt { color: var(--cv-text-secondary); }
+.facts dd { margin: 0; text-align: right; font-weight: 600; }
+.goalsHeading { display: flex; align-items: center; gap: 6px; margin-top: 22px; margin-bottom: 10px; font-size: 13px; line-height: 20px; font-weight: 600; }
+.goalsHeading svg { color: var(--cv-text-secondary); }
+.goals { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.goals li { padding: 5px 9px; background: var(--cv-surface-sunken); border-radius: var(--cv-radius); font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
+.goals li::first-letter { text-transform: uppercase; }
+.note { font-size: 12px; line-height: 19px; color: var(--cv-text-secondary); }
+.value { margin-top: 4px; font-size: 26px; line-height: 36px; font-weight: 600; letter-spacing: -0.025em; overflow-wrap: anywhere; }
+.risk { margin-top: 20px; }
+.riskHeading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 12px; line-height: 20px; }
+.riskHeading h4 { font-size: 13px; font-weight: 400; color: var(--cv-text-secondary); }
+.riskHeading p { display: flex; gap: 10px; }
+.riskHeading strong { font-weight: 600; }
+.outOf { font-weight: 400; color: var(--cv-text-secondary); }
+.scale { position: relative; margin: 13px 4px 0; height: 6px; background: var(--cv-border); border-radius: 3px; }
+.marker { position: absolute; top: -4px; width: 4px; height: 14px; transform: translateX(-50%); background: var(--cv-accent); border-radius: 2px; }
+.scaleLabels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; line-height: 18px; color: var(--cv-text-secondary); }
+.source { display: flex; align-items: flex-start; gap: 10px; padding: 16px 20px; background: var(--cv-surface-sunken); border-top: 1px solid var(--cv-border); border-radius: 0 0 var(--cv-radius-panel) var(--cv-radius-panel); }
+.source > svg { margin-top: 2px; flex-shrink: 0; color: var(--cv-text-secondary); }
+.source h3 { font-size: 12px; }
+.source p { margin-top: 4px; font-size: 12px; line-height: 19px; color: var(--cv-text-secondary); }
+.source p span { display: block; }
+@media (max-width: 1023px) { .rail { position: static; order: -1; } .body { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; } }
+@media (max-width: 639px) { .heading { padding: 18px 16px; gap: 10px; } .heading h2 { font-size: 16px; } .body { display: block; padding: 0 16px; } .source { padding: 16px; } }
