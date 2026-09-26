@@ -8,6 +8,8 @@
 # 4. Syncs frontend/dist to the bucket with a cache split: hashed assets/ get a
 #    1-year immutable Cache-Control, unhashed public/ files max-age=0 +
 #    must-revalidate, index.html no-cache; then invalidates /index.html and /.
+#    Old hashed chunks are kept so open tabs survive a deploy. Deep routes need no
+#    invalidation: the SPA fallback (403/404 -> index.html) has ErrorCachingMinTTL 0.
 #
 # One-time bootstrap (README "Deploy"): deploy infra/cicd-role.yaml, then
 #   gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn output>"
@@ -100,8 +102,12 @@ jobs:
       - name: Publish frontend to S3
         run: |
           test -f frontend/dist/index.html
-          # Only assets/ is content-hashed by Vite: cache it for a year.
-          aws s3 sync frontend/dist/assets "s3://$FRONTEND_BUCKET/assets" --delete \
+          # Only assets/ is content-hashed by Vite: cache it for a year. No --delete:
+          # a tab opened before this deploy still loads its old chunks instead of
+          # getting index.html back from the SPA fallback. Old chunks are a few
+          # hundred KB per deploy; no lifecycle expiry, since sync skips unchanged
+          # files and an age-based rule would also expire chunks still in use.
+          aws s3 sync frontend/dist/assets "s3://$FRONTEND_BUCKET/assets" \
             --cache-control "public, max-age=31536000, immutable"
           # Files copied from frontend/public keep their names: always revalidate.
           aws s3 sync frontend/dist "s3://$FRONTEND_BUCKET" --delete \

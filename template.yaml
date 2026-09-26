@@ -241,6 +241,11 @@ Resources:
   FrontendDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
+      # Ownership tag: the CD role may only update/delete/untag distributions that
+      # carry it (this account hosts other sites' distributions). Never remove it.
+      Tags:
+        - Key: clearvest:managed-by
+          Value: clearvest-cicd
       DistributionConfig:
         Comment: !Sub '${AWS::StackName} frontend'
         Enabled: true

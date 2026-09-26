@@ -152,3 +152,20 @@ def test_frontend_outputs_exist():
     outputs = load()["Outputs"]
     assert outputs["FrontendUrl"]["Value"] == "https://${FrontendDistribution.DomainName}"
     assert {"FrontendBucketName", "FrontendDistributionId"} <= set(outputs)
+
+
+def test_frontend_distribution_carries_cd_ownership_tag():
+    """The CD role can only write to distributions tagged clearvest:managed-by=clearvest-cicd."""
+    tags = load()["Resources"]["FrontendDistribution"]["Properties"]["Tags"]
+    assert {"Key": "clearvest:managed-by", "Value": "clearvest-cicd"} in tags
+
+
+def test_cd_role_gates_cloudfront_writes_on_ownership_tag():
+    role = yaml.load(Path("infra/cicd-role.yaml").read_text(), Loader=_CfnLoader)
+    stmts = role["Resources"]["DeployRole"]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
+    writes = {"cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution", "cloudfront:UntagResource"}
+    for st in stmts:
+        actions = st["Action"] if isinstance(st["Action"], list) else [st["Action"]]
+        if writes & set(actions):
+            cond = st.get("Condition", {}).get("StringEquals", {})
+            assert cond.get("aws:ResourceTag/clearvest:managed-by") == "clearvest-cicd", st["Sid"]
