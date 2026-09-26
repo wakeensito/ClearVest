@@ -1,4 +1,4 @@
-"""One requests.Session for every provider: short timeouts, one retry, typed failures."""
+"""One requests.Session for every provider: short timeouts, one GET retry, typed failures."""
 
 from typing import Any
 from urllib.parse import urlsplit
@@ -15,11 +15,14 @@ _session: requests.Session | None = None
 def _get_session() -> requests.Session:
     global _session
     if _session is None:
+        # One retry for idempotent methods only (urllib3's default allowed_methods, so no POST):
+        # POSTs to Plaid (single-use public tokens) and ElevenLabs (billed per call) must never be
+        # replayed. Retry-After is ignored so a 429 can't park the Lambda for its whole timeout.
         retry = Retry(
             total=1,
             backoff_factor=0.3,
             status_forcelist=(429, 500, 502, 503, 504),
-            allowed_methods=None,  # retry POSTs too; provider calls here are idempotent reads
+            respect_retry_after_header=False,
             raise_on_status=False,
         )
         _session = requests.Session()

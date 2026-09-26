@@ -44,3 +44,35 @@ def test_non_json_body_becomes_upstream_error():
     responses.get("https://x.test/a", body="<html>")
     with pytest.raises(UpstreamError):
         http.request_json("GET", "https://x.test/a", provider="x")
+
+
+@responses.activate
+def test_get_retried_once_on_503():
+    responses.get("https://x.test/a", status=503)
+    responses.get("https://x.test/a", json={"ok": True})
+    assert http.request_json("GET", "https://x.test/a", provider="x") == {"ok": True}
+    assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_post_is_never_retried():
+    # Plaid public tokens are single-use and ElevenLabs bills per call: no automatic POST retry.
+    responses.post("https://x.test/a", status=503)
+    responses.post("https://x.test/a", json={"ok": True})
+    with pytest.raises(UpstreamError):
+        http.request("POST", "https://x.test/a", provider="x")
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_retry_after_header_is_ignored():
+    import time
+
+    responses.get("https://x.test/a", status=429, headers={"Retry-After": "60"})
+    started = time.monotonic()
+    with pytest.raises(UpstreamError):
+        http.request("GET", "https://x.test/a", provider="x")
+    assert time.monotonic() - started < 2
+    # `responses` never calls Retry.sleep(), so also pin the config that makes real urllib3 not sleep.
+    retry = http._get_session().get_adapter("https://x.test").max_retries
+    assert retry.respect_retry_after_header is False
