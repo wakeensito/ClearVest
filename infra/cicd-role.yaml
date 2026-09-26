@@ -79,6 +79,7 @@ Resources:
                   - cloudformation:DeleteChangeSet
                   - cloudformation:DescribeChangeSet
                   - cloudformation:ExecuteChangeSet
+                  # Also used by deploy.yml to read the stack's outputs (ApiUrl, Frontend*).
                   - cloudformation:DescribeStacks
                   - cloudformation:DescribeStackEvents
                   - cloudformation:GetTemplateSummary
@@ -208,7 +209,62 @@ Resources:
                   # Read during create/update/delete of the bucket by CloudFormation's S3 handler.
                   - s3:ListBucket
                   - s3:GetBucketAcl
+                  # Frontend bucket: CloudFront-only bucket policy + BucketOwnerEnforced.
+                  - s3:PutBucketPolicy
+                  - s3:GetBucketPolicy
+                  - s3:DeleteBucketPolicy
+                  - s3:PutBucketOwnershipControls
+                  - s3:GetBucketOwnershipControls
                 Resource: !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-*'
+              # CD syncs the Vite build into the frontend bucket (sync --delete needs
+              # ListBucket). Objects only in the generated clearvest-frontendbucket-* bucket.
+              - Sid: AppFrontendObjects
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-frontendbucket-*/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-frontendbucket-*'
+              # Frontend CDN. CloudFront distribution and OAC IDs are random (E2ABC...),
+              # never derived from the stack name, so they can't be prefix-scoped like
+              # the resources above; they are limited to this account's distributions
+              # and OACs. CloudFront is global, so the ARNs have no region.
+              - Sid: AppCloudFront
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateDistribution
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:GetDistribution
+                  - cloudfront:GetDistributionConfig
+                  - cloudfront:TagResource
+                  - cloudfront:UntagResource
+                  - cloudfront:ListTagsForResource
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
+                Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*'
+              - Sid: AppCloudFrontOAC
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateOriginAccessControl
+                  - cloudfront:GetOriginAccessControl
+                  - cloudfront:UpdateOriginAccessControl
+                  - cloudfront:DeleteOriginAccessControl
+                  - cloudfront:GetOriginAccessControlConfig
+                Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:origin-access-control/*'
+              # The distribution references AWS managed cache/response-headers policies
+              # (CachingOptimized, SecurityHeadersPolicy); they are read at create/update.
+              - Sid: AppCloudFrontManagedPolicies
+                Effect: Allow
+                Action:
+                  - cloudfront:GetCachePolicy
+                  - cloudfront:GetResponseHeadersPolicy
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:cache-policy/*'
+                  - !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:response-headers-policy/*'
 
 Outputs:
   DeployRoleArn:
