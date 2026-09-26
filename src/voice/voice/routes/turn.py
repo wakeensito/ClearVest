@@ -8,13 +8,14 @@ import os
 from aws_lambda_powertools.event_handler.api_gateway import Router
 from botocore.exceptions import ClientError
 from clearvest import advisor, api, aws
-from clearvest.errors import InvalidInput
+from clearvest.errors import InvalidInput, UpstreamError
 from pydantic import BaseModel, Field
 
 from voice import elevenlabs
 
 router = Router()
 MAX_BYTES = 10 * 1024 * 1024
+NOT_FOUND_CODES = {"404", "NoSuchKey", "NotFound"}
 
 
 class TurnRequest(BaseModel):
@@ -26,13 +27,17 @@ def turn():
     uid = api.user_id(router)
     key = api.parse(TurnRequest, api.json_body(router)).key
     prefix = f"audio/in/{uid}/"
-    if not key.startswith(prefix) or ".." in key or "/" in key[len(prefix):]:
+    suffix = key[len(prefix):]
+    if not key.startswith(prefix) or not suffix or ".." in key or "/" in suffix:
         raise InvalidInput("key: not one of your uploads")
     bucket = os.environ["AUDIO_BUCKET"]
     try:
         head = aws.s3().head_object(Bucket=bucket, Key=key)
     except ClientError as err:
-        raise InvalidInput("key: upload not found (did the PUT finish?)") from err
+        code = err.response["Error"]["Code"]
+        if code in NOT_FOUND_CODES:
+            raise InvalidInput("key: upload not found (did the PUT finish?)") from err
+        raise UpstreamError("s3", code) from err
     if head["ContentLength"] > MAX_BYTES:
         raise InvalidInput("Recording is too long (max 10 MB)")
     obj = aws.s3().get_object(Bucket=bucket, Key=key)

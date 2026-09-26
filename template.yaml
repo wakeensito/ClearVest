@@ -178,6 +178,7 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: voice
           MODEL_ID: !Ref ModelId
+          BEDROCK_MAX_ATTEMPTS: '1'
           AUDIO_BUCKET: !Ref AudioBucket
           ELEVENLABS_KEY_PARAM: !Ref ElevenLabsKeyParam
           ELEVENLABS_VOICE_ID: !Ref ElevenLabsVoiceId

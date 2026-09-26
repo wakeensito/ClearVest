@@ -27,9 +27,17 @@ def s3():
 
 @cache
 def bedrock():
+    # Lambda's hard timeout is 29s (API Gateway's is 30s), so retries * read_timeout must
+    # stay under that with room for everything else in the handler (S3, ElevenLabs, ...).
+    # Advisor: default 2 attempts * 12s = 24s. Voice sets BEDROCK_MAX_ATTEMPTS=1 (one Nova
+    # attempt) since it also spends up to ~12s on ElevenLabs STT before this call.
+    read_timeout = int(os.environ.get("BEDROCK_READ_TIMEOUT", "12"))
+    max_attempts = int(os.environ.get("BEDROCK_MAX_ATTEMPTS", "2"))
     return boto3.client(
         "bedrock-runtime",
-        config=Config(retries={"mode": "adaptive", "max_attempts": 4}, read_timeout=25, connect_timeout=3),
+        config=Config(
+            retries={"mode": "adaptive", "max_attempts": max_attempts}, read_timeout=read_timeout, connect_timeout=3
+        ),
     )
 
 

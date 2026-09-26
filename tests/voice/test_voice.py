@@ -3,6 +3,7 @@
 import os
 
 import responses
+from botocore.exceptions import ClientError
 from clearvest import advisor
 from clearvest import aws as aws_mod  # the fixture is also named `aws`
 from voice.app import handler
@@ -38,9 +39,20 @@ def test_turn_transcribes_and_answers(aws, monkeypatch):
 def test_turn_rejects_other_users_key(aws):
     other = "00000000-0000-4000-8000-000000000000"
     aws_mod.s3().put_object(Bucket=BUCKET, Key=f"audio/in/{other}/rec", Body=b"x")
-    for key in (f"audio/in/{other}/rec", f"audio/in/{USER}/../{other}/rec", "audio/out/x.mp3"):
+    for key in (f"audio/in/{other}/rec", f"audio/in/{USER}/../{other}/rec", "audio/out/x.mp3", f"audio/in/{USER}/"):
         status, body = call(handler, "POST", "/voice/turn", {"key": key})
         assert status == 400 and body["error"]["code"] == "VALIDATION"
+
+
+def test_turn_s3_error_other_than_not_found_is_upstream(aws, monkeypatch):
+    key = f"audio/in/{USER}/rec1"
+
+    def boom(**_kw):
+        raise ClientError({"Error": {"Code": "AccessDenied", "Message": "nope"}}, "HeadObject")
+
+    monkeypatch.setattr(aws_mod.s3(), "head_object", boom)
+    status, body = call(handler, "POST", "/voice/turn", {"key": key})
+    assert status == 502 and body["error"]["code"] == "UPSTREAM_UNAVAILABLE"
 
 
 def test_turn_missing_upload_and_empty_transcript(aws, monkeypatch):
