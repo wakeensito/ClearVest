@@ -89,3 +89,25 @@ def test_peek_returns_value_even_if_expired(aws, monkeypatch):
     cache.get_or_fetch("p", "k", 60, lambda: [1, 2])
     monkeypatch.setattr(cache.time, "time", lambda: 10**12)
     assert cache.peek("p", "k") == [1, 2]
+
+
+def test_query_without_limit_reads_every_page(aws, monkeypatch):
+    """limit=None follows LastEvaluatedKey; DynamoDB applies Limit per page, so a cap truncates silently."""
+    import json as _json
+
+    from clearvest import aws as aws_mod
+
+    pages = [
+        {"Items": [{"data": _json.dumps({"n": 1})}], "LastEvaluatedKey": {"pk": "p", "sk": "a"}},
+        {"Items": [{"data": _json.dumps({"n": 2})}]},
+    ]
+    calls = []
+
+    class FakeTable:
+        def query(self, **kwargs):
+            calls.append(kwargs)
+            return pages[len(calls) - 1]
+
+    monkeypatch.setattr(aws_mod, "table", lambda: FakeTable())
+    assert [r["n"] for r in db.query("p", "X#", limit=None)] == [1, 2]
+    assert "Limit" not in calls[0] and calls[1]["ExclusiveStartKey"] == {"pk": "p", "sk": "a"}

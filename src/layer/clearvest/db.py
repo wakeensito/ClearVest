@@ -29,15 +29,29 @@ def get(pk: str, sk: str) -> Any | None:
 
 
 def query(
-    pk: str, sk_prefix: str, limit: int = 50, newest_first: bool = False, consistent: bool = False
+    pk: str, sk_prefix: str, limit: int | None = 50, newest_first: bool = False, consistent: bool = False
 ) -> list:
-    resp = aws.table().query(
-        KeyConditionExpression=Key("pk").eq(pk) & Key("sk").begins_with(sk_prefix),
-        ScanIndexForward=not newest_first,
-        Limit=limit,
-        ConsistentRead=consistent,
-    )
-    return [json.loads(i["data"]) for i in resp.get("Items", [])]
+    """Items under pk whose sk starts with sk_prefix.
+
+    With a limit, one page of at most `limit` items (e.g. the last N chat turns).
+    limit=None reads every page: DynamoDB applies Limit per page, so a capped
+    query silently truncates when callers need the full set.
+    """
+    kwargs = {
+        "KeyConditionExpression": Key("pk").eq(pk) & Key("sk").begins_with(sk_prefix),
+        "ScanIndexForward": not newest_first,
+        "ConsistentRead": consistent,
+    }
+    if limit is not None:
+        kwargs["Limit"] = limit
+        return [json.loads(i["data"]) for i in aws.table().query(**kwargs).get("Items", [])]
+    items = []
+    while True:
+        resp = aws.table().query(**kwargs)
+        items.extend(json.loads(i["data"]) for i in resp.get("Items", []))
+        if "LastEvaluatedKey" not in resp:
+            return items
+        kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
 
 
 def delete_prefix(pk: str, sk_prefix: str) -> int:

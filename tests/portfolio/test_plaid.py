@@ -125,3 +125,4 @@ def test_load_holdings_queries_plaid_items_with_consistent_read(aws, monkeypatch
     except NotLinked:
         pass
     assert captured.get("consistent") is True
+    assert captured.get("limit", "unset") is None  # every PLAID# page, not the default 50

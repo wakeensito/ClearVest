@@ -14,12 +14,14 @@ fail=0
 last_ok=0
 
 step() {  # step <name> <method> <path> [json-body]
+  # Each request is bounded (API Gateway gives up at 30s). A transport failure (DNS, refused,
+  # timeout) is recorded as 000 instead of letting set -e kill the run mid-way.
   local name="$1" method="$2" path="$3" body="${4:-}" code
   if [[ -n "$body" ]]; then
-    code=$(curl -s -o "$OUT" -w '%{http_code}' -X "$method" "$API$path" \
-      -H "x-user-id: $USER_ID" -H 'content-type: application/json' -d "$body")
+    code=$(curl -s --connect-timeout 5 --max-time 35 -o "$OUT" -w '%{http_code}' -X "$method" "$API$path" \
+      -H "x-user-id: $USER_ID" -H 'content-type: application/json' -d "$body") || code=000
   else
-    code=$(curl -s -o "$OUT" -w '%{http_code}' -X "$method" "$API$path" -H "x-user-id: $USER_ID")
+    code=$(curl -s --connect-timeout 5 --max-time 35 -o "$OUT" -w '%{http_code}' -X "$method" "$API$path" -H "x-user-id: $USER_ID") || code=000
   fi
   last_ok=0
   if [[ "$code" =~ ^2 ]]; then
