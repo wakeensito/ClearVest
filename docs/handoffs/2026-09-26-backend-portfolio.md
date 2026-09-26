@@ -1,0 +1,66 @@
+# API contract + PortfolioFn: profile, Plaid sandbox, normalized holdings
+
+- **Date:** 2026-09-26
+- **Author:** @wakeensito
+- **Team:** backend
+- **Status:** done
+- **PR / issue:** #17, #18
+- **Branch:** feat/backend-iac
+- **Follows:** 2026-09-26-backend-sam-stack.md
+
+## What changed
+
+- `docs/api/openapi.yaml`: the OpenAPI 3.1 contract for all four functions, committed so the frontend can
+  build against a mock (`docs/api/README.md`) before the backend deploys.
+- `GET /health` → `{status, version}`.
+- `GET/PUT /profile` → `{age, horizon, goals, riskTolerance}`, stored at `USER#<id>/PROFILE`.
+- `POST /plaid/link-token`, `POST /plaid/exchange`, `POST /plaid/sandbox-link` (dev-only: creates a Plaid
+  sandbox item and exchanges it server-side, so the backend is testable with no Link UI).
+- `GET /portfolio/holdings` → normalized `{asOf, totalValue, holdings: [...]}`, cached at
+  `USER#<id>/HOLDINGS` and refetched when the snapshot is over an hour old. Returns `409 NOT_LINKED` until
+  the user has a Plaid item.
+- `GET /portfolio/risk` → the deterministic 0–100 risk score (see the market/risk handoff for the scoring
+  logic itself).
+
+## How to run / verify it
+
+```bash
+source .venv/bin/activate
+pytest -q tests/portfolio tests/layer/test_db.py
+npx @stoplight/prism-cli mock docs/api/openapi.yaml   # build the frontend against this before deploy
+```
+
+Env vars needed (names only): `PLAID_ENV` (`sandbox`), `PLAID_CLIENT_ID_PARAM`, `PLAID_SECRET_PARAM` (SSM
+parameter names, not values).
+
+## Decisions & why
+
+- **Plaid `access_token` never leaves `PortfolioFn` and is never returned to any client.** It's written to
+  `USER#<id>/PLAID#<itemId>` and read back only inside `load_holdings()`; the public holdings response is
+  built with `_public()`, which strips everything except the normalized snapshot. No other function has
+  Plaid IAM permissions or the Plaid keys.
+- **Holdings are cached for an hour, no TTL on the row itself** (spec §4): the advisor always needs a
+  snapshot to reason over, even a stale one, so the row isn't allowed to expire — only refetched.
+- **`/plaid/sandbox-link` exists so the whole backend is demoable and testable without ever opening Plaid
+  Link.** It calls `sandbox/public_token/create` then the normal exchange path — same code path as a real
+  Link flow.
+- **The contract file wins over this doc or the spec if they ever disagree** — fix the code, not the docs.
+
+## Gotchas
+
+- `/portfolio/holdings` and `/portfolio/risk` both 409 (`NOT_LINKED`) until `/plaid/sandbox-link` or a real
+  Link flow has run for that `X-User-Id`. The smoke script accounts for this (skips holdings/risk if
+  sandbox-link didn't return 2xx).
+- Every route except `/health` requires `X-User-Id`; a missing/invalid header is `400 VALIDATION`, checked
+  in `clearvest.api.user_id()` before any handler code runs.
+- Plaid's sandbox is rate-limited like the real API; `sandbox/public_token/create` + `exchange` are two
+  calls, not one — don't try to collapse them.
+
+## Next steps
+
+1. Plug `clearvest-plaid-client-id` / `clearvest-plaid-secret` into SSM, deploy, run `scripts/smoke.sh`.
+2. Frontend switches its base URL from the Prism mock to the deployed `ApiUrl` (`docs/api/README.md`).
+
+## Open questions / blockers
+
+- None for this slice.
