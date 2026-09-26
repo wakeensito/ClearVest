@@ -24,7 +24,8 @@
 - `/market/compare-companies` (2–4 symbols) also fetches per symbol in parallel. `MarketFn` runs with a 29s
   timeout (API Gateway's limit is 30s); yfinance is called with `timeout=4` (its default is 10s).
 - `GET /market/templates`: bundled JSON (`src/market/market/data/templates.json`) of well-known allocations
-  (60/40, Bogleheads three-fund, All Weather, Buffett 90/10) with a `source` link each — not fetched live.
+  (60/40, Bogleheads three-fund, All Weather, Buffett 90/10, target-date-2065) with a `source` link each —
+  not fetched live.
 
 ## How to run / verify it
 
@@ -52,10 +53,12 @@ Env vars needed (names only): `FMP_KEY_PARAM`, `ALPHAVANTAGE_KEY_PARAM`, `FRED_K
   symbol being a fund with no company facts (ETFs aren't in EDGAR's company data), never breaks the
   comparison; FMP stands in silently.
 - **Templates are bundled JSON, not S3 or a live 13F fetch.** A real "top institutional holders" feature
-  (SEC Form 13F) is a stretch item that didn't make the freeze — these four are hand-curated, well-known
+  (SEC Form 13F) is a stretch item that didn't make the freeze — these five are hand-curated, well-known
   allocations with cited sources instead.
-- **Volatility is annualized std-dev of log returns** (`sqrt(periods_per_year)` scaling); for tickers with
-  under a year of history this under-annualizes — expect it to read low for very young stocks/ETFs.
+- **Volatility is annualized std-dev of log returns** (`sqrt(periods_per_year)` scaling), with the
+  annualization factor computed from the series' actual first/last date span rather than the requested
+  range — so a young ticker that only has (say) a year of history annualizes correctly even when a longer
+  range was requested.
 
 ## Gotchas
 

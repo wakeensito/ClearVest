@@ -27,8 +27,10 @@
 - Each function's IAM policy scopes `ssm:GetParameter` to its own parameter names only (built from
   `${AWS::Region}`/`${AWS::AccountId}` pseudo-parameters — no ARNs committed).
 - CI (`ci.yml`, existing Python job) now covers this code; `pyproject.toml` added for dev tooling
-  (`pytest`, `ruff`, `moto`) — runtime deps for each function still live next to their code
-  (`src/layer/requirements.txt`, `src/market/requirements.txt`).
+  (`pytest`, `moto`) — runtime deps for each function still live next to their code
+  (`src/layer/requirements.txt`, `src/market/requirements.txt`). `ruff` runs via `uvx ruff@0.16.5` (the
+  CI pin), not a `pyproject.toml` dev dependency, so its version is controlled in one place (CI and
+  local runs both use the same pin).
 
 ## How to run / verify it
 

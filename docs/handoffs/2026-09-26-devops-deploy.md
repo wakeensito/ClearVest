@@ -22,9 +22,9 @@
   step, gated by the `DEPLOY_ENABLED` repo variable (merges to `main` no-op until it's set to `true`;
   `workflow_dispatch` always runs, so wiring can be tested on purpose without flipping the gate).
 - `scripts/smoke.sh`: end-to-end check against a deployed stack — health → profile → sandbox-link →
-  (holdings, risk) → chat → macro → templates → retirement-accounts → upload-url. Exits non-zero on the
-  first real failure; a `--allow-upstream` flag turns `502`s into warnings for a fresh deploy where keys
-  aren't in SSM yet.
+  (holdings, risk) → chat → macro → templates → retirement-accounts → upload-url. Runs every step
+  regardless of earlier failures, and exits non-zero at the end if any step failed; a `--allow-upstream`
+  flag turns `502`s into warnings for a fresh deploy where keys aren't in SSM yet.
 
 ## How to run / verify it
 

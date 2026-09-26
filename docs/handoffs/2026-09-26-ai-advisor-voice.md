@@ -15,7 +15,7 @@
   last 10 chat turns, then calls Bedrock `Converse` on Nova. Stores both turns at
   `USER#<id>/CHAT#<ts>#<role>` (7-day TTL).
 - `POST /advisor/chat` → `{reply, disclaimer}`. `GET /advisor/retirement-accounts` → static account types
-  (401k, IRA, Roth IRA, HSA, etc.) with `personalized` notes when a profile exists. `DELETE
+  (Traditional 401(k), Roth 401(k), Roth IRA, TSP) with `personalized` notes when a profile exists. `DELETE
   /advisor/history` → `204`.
 - `POST /voice/upload-url` → presigned S3 PUT (15 min expiry) under `audio/in/<userId>/<uuid>`.
 - `POST /voice/turn {key}` → head-checks the object, rejects anything outside the caller's own prefix,

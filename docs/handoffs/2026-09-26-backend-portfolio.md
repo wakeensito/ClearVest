@@ -19,10 +19,12 @@
 - `GET /portfolio/holdings` → normalized `{asOf, totalValue, holdings: [...]}`, cached at
   `USER#<id>/HOLDINGS` and refetched when the snapshot is over an hour old. Returns `409 NOT_LINKED` until
   the user has a Plaid item.
-- Linking (`/plaid/exchange` or `/plaid/sandbox-link`) deletes the `HOLDINGS` snapshot and refetches it
-  immediately, so the advisor — which reads only that row — sees the new account on the very next
-  question. A Plaid failure during that refetch is swallowed: the link still returns `200 {itemId}` and
-  `GET /portfolio/holdings` retries later.
+- Linking (`/plaid/exchange` or `/plaid/sandbox-link`) marks the existing `HOLDINGS` snapshot stale
+  (`fetchedAt: 0`) and refetches it immediately, so the advisor — which reads only that row — sees the new
+  account on the very next question. The old snapshot is kept, not deleted, so it stays available as the
+  fallback if the refetch fails. A Plaid failure during that refetch is swallowed: the link still returns
+  `200 {itemId}` and `GET /portfolio/holdings` returns the old snapshot (with `stale: true`) until a later
+  refetch succeeds.
 - `GET /portfolio/risk` → the deterministic 0–100 risk score (see the market/risk handoff for the scoring
   logic itself).
 
