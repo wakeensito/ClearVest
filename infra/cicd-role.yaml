@@ -79,6 +79,7 @@ Resources:
                   - cloudformation:DeleteChangeSet
                   - cloudformation:DescribeChangeSet
                   - cloudformation:ExecuteChangeSet
+                  # Also used by deploy.yml to read the stack's outputs (ApiUrl, Frontend*).
                   - cloudformation:DescribeStacks
                   - cloudformation:DescribeStackEvents
                   - cloudformation:GetTemplateSummary
@@ -208,7 +209,113 @@ Resources:
                   # Read during create/update/delete of the bucket by CloudFormation's S3 handler.
                   - s3:ListBucket
                   - s3:GetBucketAcl
+                  # Frontend bucket: CloudFront-only bucket policy + BucketOwnerEnforced.
+                  - s3:PutBucketPolicy
+                  - s3:GetBucketPolicy
+                  - s3:DeleteBucketPolicy
+                  - s3:PutBucketOwnershipControls
+                  - s3:GetBucketOwnershipControls
                 Resource: !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-*'
+              # CD syncs the Vite build into the frontend bucket (sync --delete needs
+              # ListBucket). Objects only in the generated clearvest-frontendbucket-* bucket.
+              - Sid: AppFrontendObjects
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-frontendbucket-*/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-frontendbucket-*'
+              # Frontend CDN. CloudFront distribution and OAC IDs are random (E2ABC...),
+              # never derived from the stack name, so they can't be prefix-scoped like
+              # the resources above; they are limited to this account's distributions
+              # and OACs. CloudFront is global, so the ARNs have no region.
+              # Create actions support NO resource-level permissions (no resource type in
+              # the Service Authorization Reference): scoped to distribution/* or
+              # origin-access-control/* they are implicitly denied, so '*' is required.
+              - Sid: AppCloudFrontCreate
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateDistribution
+                  - cloudfront:CreateDistributionWithTags
+                  - cloudfront:CreateOriginAccessControl
+                  - cloudfront:CreateConnectionGroup
+                Resource: '*'
+              # Read-only lookups the AWS::CloudFront::Distribution create/update handler
+              # declares in the CloudFormation registry; unused features here, but a
+              # missing permission fails the handler. Scoped to this account.
+              - Sid: AppCloudFrontHandlerReads
+                Effect: Allow
+                Action:
+                  - cloudfront:GetConnectionGroup
+                  - cloudfront:GetVpcOrigin
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:connection-group/*'
+                  - !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:vpcorigin/*'
+              # This account hosts OTHER sites' distributions, so every write is gated
+              # on the clearvest:managed-by tag that template.yaml puts on
+              # FrontendDistribution. Reads and invalidations stay account-wide
+              # (harmless, and needed before the tag is readable).
+              - Sid: AppCloudFrontRead
+                Effect: Allow
+                Action:
+                  - cloudfront:GetDistribution
+                  - cloudfront:GetDistributionConfig
+                  - cloudfront:ListTagsForResource
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
+                Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*'
+              - Sid: AppCloudFrontWriteOwn
+                Effect: Allow
+                Action:
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:UpdateDistributionWithStagingConfig
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:TagResource
+                Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*'
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/clearvest:managed-by: clearvest-cicd
+              # First tagging of a new distribution: allowed only if the request
+              # itself carries the ownership tag.
+              - Sid: AppCloudFrontTagNew
+                Effect: Allow
+                Action: cloudfront:TagResource
+                Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*'
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/clearvest:managed-by: clearvest-cicd
+              # Untag our own distributions, but never the ownership tag itself.
+              - Sid: AppCloudFrontUntagOwn
+                Effect: Allow
+                Action: cloudfront:UntagResource
+                Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*'
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/clearvest:managed-by: clearvest-cicd
+                  ForAllValues:StringNotEquals:
+                    aws:TagKeys:
+                      - clearvest:managed-by
+              - Sid: AppCloudFrontOAC
+                Effect: Allow
+                Action:
+                  - cloudfront:GetOriginAccessControl
+                  - cloudfront:UpdateOriginAccessControl
+                  - cloudfront:DeleteOriginAccessControl
+                  - cloudfront:GetOriginAccessControlConfig
+                Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:origin-access-control/*'
+              # The distribution references AWS managed cache/response-headers policies
+              # (CachingOptimized, SecurityHeadersPolicy); they are read at create/update.
+              - Sid: AppCloudFrontManagedPolicies
+                Effect: Allow
+                Action:
+                  - cloudfront:GetCachePolicy
+                  - cloudfront:GetResponseHeadersPolicy
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:cache-policy/*'
+                  - !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:response-headers-policy/*'
 
 Outputs:
   DeployRoleArn:

@@ -10,6 +10,8 @@ import { ContextRail } from './ContextRail'
 import styles from './AdvisorPage.module.css'
 import { SUGGESTED_PROMPTS, useChat } from './chatContext'
 import { Markdown } from './Markdown'
+import { useVoiceTurn } from './useVoiceTurn'
+import { VoiceButton, VoiceStatus } from './VoiceButton'
 
 const MAX = 2000
 const COUNTER_FROM = 1800
@@ -22,6 +24,11 @@ export function AdvisorPage() {
   const [clearing, setClearing] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  // A denied microphone hands focus to the composer (DESIGN.md §11).
+  const voice = useVoiceTurn({ onMicDenied: () => inputRef.current?.focus() })
+  const thinking = chat.pending || voice.status === 'thinking'
+  // One turn at a time across both channels, so exchanges land in the order they were asked.
+  const busy = chat.pending || voice.busy
 
   // A prompt handed over from the dashboard pre-fills the composer; it's never sent automatically.
   useEffect(() => {
@@ -31,12 +38,12 @@ export function AdvisorPage() {
   }, [params])
 
   useEffect(() => {
-    if (chat.messages.length || chat.pending) endRef.current?.scrollIntoView({ block: 'end', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
-  }, [chat.messages.length, chat.pending])
+    if (chat.messages.length || thinking) endRef.current?.scrollIntoView({ block: 'end', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+  }, [chat.messages.length, thinking])
 
   const submit = (e?: FormEvent) => {
     e?.preventDefault()
-    if (!draft.trim() || chat.pending) return
+    if (!draft.trim() || busy) return
     chat.send(draft)
     setParams({}, { replace: true })
     setDraft('')
@@ -74,7 +81,7 @@ export function AdvisorPage() {
 
       <div className={styles.layout}>
         <div className={`${styles.chat} reveal`}>
-          <div className={styles.thread} aria-live="polite" aria-busy={chat.pending}>
+          <div className={styles.thread} aria-live="polite" aria-busy={thinking}>
             {chat.messages.length === 0 && (
               <div className={styles.empty}>
                 <p className="t-h2">What would you like to understand?</p>
@@ -83,7 +90,7 @@ export function AdvisorPage() {
                 </p>
                 <div className={styles.prompts}>
                   {SUGGESTED_PROMPTS.map((p) => (
-                    <button key={p} type="button" className={styles.prompt} onClick={() => chat.send(p)} disabled={chat.pending}>
+                    <button key={p} type="button" className={styles.prompt} onClick={() => chat.send(p)} disabled={busy}>
                       {p}
                     </button>
                   ))}
@@ -98,7 +105,7 @@ export function AdvisorPage() {
                   {m.failed && (
                     <p className={`t-body-sm ${styles.failed}`}>
                       Not answered.{chat.error ? ` ${describeError(chat.error, 'The advisor')}` : ''}{' '}
-                      <button type="button" onClick={() => chat.retry(m.id)} disabled={chat.pending}>
+                      <button type="button" onClick={() => chat.retry(m.id)} disabled={busy}>
                         Retry
                       </button>
                     </p>
@@ -114,7 +121,7 @@ export function AdvisorPage() {
               ),
             )}
 
-            {chat.pending && (
+            {thinking && (
               <div className={styles.advisor}>
                 <p className="t-overline c-tertiary">ClearVest</p>
                 <p className={`t-body c-secondary ${styles.pending}`}>
@@ -145,10 +152,12 @@ export function AdvisorPage() {
                 placeholder="Try: Explain a stock as if this is my first day learning"
                 className={styles.input}
               />
-              <button type="submit" className={styles.send} disabled={!draft.trim() || chat.pending} aria-label="Send">
+              <VoiceButton voice={voice} disabled={chat.pending} />
+              <button type="submit" className={styles.send} disabled={!draft.trim() || busy} aria-label="Send">
                 <ArrowUp size={20} aria-hidden />
               </button>
             </div>
+            <VoiceStatus voice={voice} />
             <div className={styles.meta}>
               <p className="t-caption c-tertiary">{chat.disclaimer}</p>
               {draft.length >= COUNTER_FROM && (

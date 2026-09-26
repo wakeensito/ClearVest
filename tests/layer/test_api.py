@@ -5,7 +5,7 @@ from clearvest import api
 from clearvest.errors import NotLinked, UpstreamError
 from pydantic import BaseModel
 
-from tests.helpers import USER, call
+from tests.helpers import USER, call, ctx, http_event
 
 router = Router()
 
@@ -118,3 +118,11 @@ def test_remaining_seconds_defaults_without_context():
 def test_remaining_seconds_defaults_with_context_lacking_timer():
     call(timed_handler, "GET", "/remaining")  # helpers.FakeContext has no get_remaining_time_in_millis
     assert _seen["remaining"] == 60.0
+
+
+def test_options_preflight_short_circuits_to_204():
+    # The routes are `ANY /x/{proxy+}`, so API Gateway forwards CORS preflights to us instead of
+    # answering them. Browsers require a 2xx; a routed 404 fails every cross-origin request.
+    resp = handler(http_event("OPTIONS", "/market/macro", user=None), ctx())
+    assert resp["statusCode"] == 204
+    assert not resp.get("body")

@@ -44,5 +44,5 @@ def turn():
     transcript = elevenlabs.transcribe(obj["Body"].read(), head.get("ContentType") or "audio/webm")
     if not transcript:
         raise InvalidInput("I didn't catch that. Try recording again.")
-    result = advisor.answer(uid, transcript)
+    result = advisor.answer(uid, transcript, mode="voice")
     return {"transcript": transcript, "reply": result["reply"], "disclaimer": result["disclaimer"]}

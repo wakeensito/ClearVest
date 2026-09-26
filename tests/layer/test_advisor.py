@@ -111,3 +111,249 @@ def test_answer_with_blank_bedrock_reply_returns_fallback_and_stores_nothing(aws
     monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
     assert advisor.answer(USER, "hi")["reply"] == advisor.FALLBACK_REPLY
     assert db.query(db.user_pk(USER), "CHAT#") == []
+
+
+# --- reply-format rules (chat vs voice system prompt) ---------------------------------
+
+
+def test_chat_prompt_has_length_no_headings_table_and_no_ticker_rules(aws):
+    seed()
+    prompt = advisor.system_prompt(advisor.build_context(USER), mode="chat")
+    assert "120 words" in prompt
+    assert "no headings" in prompt.lower() and "#" in prompt
+    assert "markdown table" in prompt.lower()
+    assert "never name specific funds" in prompt.lower()
+
+
+def test_voice_prompt_forbids_markdown_and_tables(aws):
+    seed()
+    prompt = advisor.system_prompt(advisor.build_context(USER), mode="voice")
+    assert "no markdown" in prompt.lower()
+    assert "no tables" in prompt.lower()
+    assert "60 words" in prompt
+
+
+def test_chat_is_default_mode(aws):
+    seed()
+    ctx = advisor.build_context(USER)
+    assert advisor.system_prompt(ctx) == advisor.system_prompt(ctx, mode="chat")
+
+
+def test_prompt_includes_verified_retirement_facts_in_both_modes(aws):
+    seed()
+    ctx = advisor.build_context(USER)
+    for mode in ("chat", "voice"):
+        prompt = advisor.system_prompt(ctx, mode=mode)
+        assert "$24,500" in prompt and "$7,500" in prompt
+        assert "Retirement account facts" in prompt
+        assert ("if something isn't provided, say so briefly or leave it out of the table" in prompt)
+
+
+# --- normalize_markdown -----------------------------------------------------------------
+
+
+def test_normalize_markdown_converts_headings_to_bold():
+    assert advisor.normalize_markdown("#### **401(k)**") == "**401(k)**"
+    assert advisor.normalize_markdown("### Title") == "**Title**"
+
+
+def test_normalize_markdown_collapses_blank_lines():
+    text = "Line one.\n\n\n\n\nLine two."
+    assert advisor.normalize_markdown(text) == "Line one.\n\nLine two."
+
+
+def test_normalize_markdown_leaves_tables_and_bullets_untouched():
+    text = "- one\n- two\n\n| A | B |\n| --- | --- |\n| x | y |"
+    assert advisor.normalize_markdown(text) == text
+
+
+def test_normalize_markdown_strips_trailing_whitespace_per_line():
+    assert advisor.normalize_markdown("Line one.   \nLine two.\t") == "Line one.\nLine two."
+
+
+def test_normalize_markdown_heading_becomes_its_own_paragraph():
+    assert advisor.normalize_markdown("#### **401(k)**\nHere is how") == "**401(k)**\n\nHere is how"
+
+
+def test_normalize_markdown_heading_already_followed_by_blank_line_unchanged():
+    assert advisor.normalize_markdown("### Title\n\nBody.") == "**Title**\n\nBody."
+
+
+def test_normalize_markdown_heading_at_end_gets_no_trailing_blank_line():
+    assert advisor.normalize_markdown("Body.\n### Title") == "Body.\n**Title**"
+
+
+def test_heading_regex_requires_space_after_hashes():
+    assert advisor.normalize_markdown("#ETFs are popular") == "#ETFs are popular"
+
+
+# --- plain_speech ------------------------------------------------------------------------
+
+
+def test_plain_speech_strips_bold_bullets_and_tables():
+    text = "**Key point**: consider these.\n- one thing\n- another thing\n\n| Feature | 401(k) |\n| --- | --- |\n| Taxed | Later |"
+    out = advisor.plain_speech(text)
+    assert "*" not in out and "|" not in out and "#" not in out
+    assert not out.lstrip().startswith("-")
+    assert "Key point" in out and "one thing" in out and "Feature" in out and "401(k)" in out
+
+
+def test_plain_speech_strips_headings():
+    assert "#" not in advisor.plain_speech("# Title\nBody text.")
+
+
+def test_plain_speech_heading_regex_requires_space_after_hashes():
+    assert advisor.plain_speech("#ETFs are popular") == "#ETFs are popular"
+
+
+def test_plain_speech_ends_list_items_and_table_rows_with_a_period():
+    text = "- one thing\n- another thing.\n\n| Feature | 401(k) |\n| --- | --- |\n| Taxed | Later | Never |"
+    out = advisor.plain_speech(text)
+    assert out == "one thing. another thing. Feature, 401(k). Taxed, Later, Never."
+
+
+# --- answer(mode="voice") ----------------------------------------------------------------
+
+
+def test_answer_voice_mode_uses_voice_prompt_and_max_tokens(aws, monkeypatch):
+    seen = {}
+
+    def fake(system, messages, max_tokens=600):
+        seen["system"] = system
+        seen["max_tokens"] = max_tokens
+        return "Sixty word spoken answer."
+
+    monkeypatch.setattr(bedrock, "converse", fake)
+    out = advisor.answer(USER, "what should I do", mode="voice")
+    assert seen["max_tokens"] == 220
+    assert "no markdown" in seen["system"].lower()
+    assert out["reply"] == "Sixty word spoken answer."
+
+
+def test_answer_voice_mode_strips_markdown_from_reply(aws, monkeypatch):
+    monkeypatch.setattr(bedrock, "converse", lambda s, m, max_tokens=600: "**Bold** point.\n- a bullet")
+    out = advisor.answer(USER, "hi", mode="voice")
+    assert "*" not in out["reply"] and "-" not in out["reply"].lstrip()
+
+
+def test_answer_chat_mode_uses_450_max_tokens(aws, monkeypatch):
+    seen = {}
+
+    def fake(system, messages, max_tokens=600):
+        seen["max_tokens"] = max_tokens
+        return "ok"
+
+    monkeypatch.setattr(bedrock, "converse", fake)
+    advisor.answer(USER, "hi")
+    assert seen["max_tokens"] == 450
+
+
+# --- bedrock truncation handling -----------------------------------------------------
+
+
+def test_converse_trims_mid_sentence_truncation_to_last_period(monkeypatch):
+    class Fake:
+        def converse(self, **kw):
+            return {
+                "output": {"message": {"content": [{"text": "First point is solid. Second point is going"}]}},
+                "stopReason": "max_tokens",
+            }
+
+    from clearvest import aws as aws_mod
+
+    monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
+    out = bedrock.converse("sys", [{"role": "user", "content": [{"text": "hi"}]}])
+    assert out == "First point is solid."
+
+
+def test_converse_trims_mid_table_row_by_dropping_partial_row(monkeypatch):
+    class Fake:
+        def converse(self, **kw):
+            return {
+                "output": {"message": {"content": [{"text": "| A | B |\n| --- | --- |\n| x | y\n| p | q |\n| m | n"}]}},
+                "stopReason": "max_tokens",
+            }
+
+    from clearvest import aws as aws_mod
+
+    monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
+    out = bedrock.converse("sys", [{"role": "user", "content": [{"text": "hi"}]}])
+    assert out == "| A | B |\n| --- | --- |\n| x | y\n| p | q |"
+
+
+def test_converse_keeps_complete_list_item_on_truncation(monkeypatch):
+    class Fake:
+        def converse(self, **kw):
+            return {
+                "output": {"message": {"content": [{"text": "Intro text.\n- First tip\n- Second tip"}]}},
+                "stopReason": "max_tokens",
+            }
+
+    from clearvest import aws as aws_mod
+
+    monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
+    out = bedrock.converse("sys", [{"role": "user", "content": [{"text": "hi"}]}])
+    assert out == "Intro text.\n- First tip\n- Second tip"
+
+
+def test_converse_untouched_when_stop_reason_is_end_turn(monkeypatch):
+    class Fake:
+        def converse(self, **kw):
+            return {
+                "output": {"message": {"content": [{"text": "Complete sentence without more."}]}},
+                "stopReason": "end_turn",
+            }
+
+    from clearvest import aws as aws_mod
+
+    monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
+    out = bedrock.converse("sys", [{"role": "user", "content": [{"text": "hi"}]}])
+    assert out == "Complete sentence without more."
+
+
+def test_converse_raises_upstream_when_truncation_trim_would_be_empty(monkeypatch):
+    class Fake:
+        def converse(self, **kw):
+            return {
+                "output": {"message": {"content": [{"text": "no punctuation at all yet"}]}},
+                "stopReason": "max_tokens",
+            }
+
+    from clearvest import aws as aws_mod
+
+    monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
+    with pytest.raises(UpstreamError):
+        bedrock.converse("sys", [{"role": "user", "content": [{"text": "hi"}]}])
+
+
+def _converse_with_truncated_text(monkeypatch, text: str) -> str:
+    class Fake:
+        def converse(self, **kw):
+            return {"output": {"message": {"content": [{"text": text}]}}, "stopReason": "max_tokens"}
+
+    from clearvest import aws as aws_mod
+
+    monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
+    return bedrock.converse("sys", [{"role": "user", "content": [{"text": "hi"}]}])
+
+
+def test_converse_drops_list_item_with_unterminated_bold_span(monkeypatch):
+    out = _converse_with_truncated_text(monkeypatch, "- Key: **term**\n- Consider a **Roth")
+    assert out == "- Key: **term**"
+
+
+def test_converse_drops_table_row_with_unterminated_bold_span(monkeypatch):
+    text = ("Comparing plans:\n| Feature | A | B |\n| --- | --- | --- |\n| Fee | Free | $5 |\n"
+            "| **Match | Often free | Rare |")
+    out = _converse_with_truncated_text(monkeypatch, text)
+    assert out == "Comparing plans:\n| Feature | A | B |\n| --- | --- | --- |\n| Fee | Free | $5 |"
+
+
+def test_converse_drops_table_header_and_delimiter_with_zero_body_rows(monkeypatch):
+    out = _converse_with_truncated_text(monkeypatch, "Here is a comparison:\n| A | B |\n| --- | --- |")
+    assert out == "Here is a comparison:"
+
+
+def test_converse_raises_upstream_when_only_a_headerless_table_survives(monkeypatch):
+    with pytest.raises(UpstreamError):
+        _converse_with_truncated_text(monkeypatch, "| A | B |\n| --- | --- |")

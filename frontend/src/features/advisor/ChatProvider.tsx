@@ -35,7 +35,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [messages, disclaimer])
 
   const ask = useCallback(async (id: string, text: string) => {
-    // One request at a time: /advisor/* is capped at 2 req/s (DESIGN.md §4.8).
+    // One request at a time: /advisor/* is capped at 2 req/s (template.yaml RouteSettings; 429 copy in DESIGN.md §11).
     if (inFlight.current) return
     inFlight.current = true
     setPending(true)
@@ -67,6 +67,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [ask],
   )
 
+  const addTurn = useCallback((userText: string, reply: string, disclaimer?: string) => {
+    if (disclaimer) setDisclaimer(disclaimer)
+    setMessages((m) => [
+      ...m,
+      { id: crypto.randomUUID(), role: 'user', text: userText },
+      { id: crypto.randomUUID(), role: 'advisor', text: reply },
+    ])
+  }, [])
+
   const retry = useCallback(
     (id: string) => {
       const msg = messages.find((m) => m.id === id)
@@ -82,8 +91,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<ChatState>(
-    () => ({ messages, disclaimer, pending, error, send, retry, clear }),
-    [messages, disclaimer, pending, error, send, retry, clear],
+    () => ({ messages, disclaimer, pending, error, send, addTurn, retry, clear }),
+    [messages, disclaimer, pending, error, send, addTurn, retry, clear],
   )
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>

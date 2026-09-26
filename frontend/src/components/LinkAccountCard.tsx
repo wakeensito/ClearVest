@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import { api } from '../api/client'
 import { describeError } from '../api/errors'
+import { sampleAccountEnabled } from '../lib/plaidSandbox'
 import { useOnLinked } from '../api/queries'
 import styles from './LinkAccountCard.module.css'
 import { Banner } from './ui/Banner'
@@ -11,8 +12,12 @@ import { Button } from './ui/Button'
 
 /**
  * Shown for 409 NOT_LINKED and as onboarding step 2 (DESIGN.md §4.14).
- * Flow: /plaid/link-token → Plaid Link → /plaid/exchange. Dev builds also get the sandbox shortcut.
+ * Flow: /plaid/link-token → Plaid Link → /plaid/exchange. While the backend is sandbox-only, the
+ * sample-account shortcut (/plaid/sandbox-link) is the primary action: it skips Plaid's popup,
+ * phone number and code. VITE_PLAID_SANDBOX=false hides it.
  */
+const SHOW_SAMPLE = sampleAccountEnabled(import.meta.env.VITE_PLAID_SANDBOX)
+
 export function LinkAccountCard({ compact, onLinked }: { compact?: boolean; onLinked?: () => void }) {
   const refresh = useOnLinked()
   const [linkToken, setLinkToken] = useState<string | null>(null)
@@ -53,22 +58,32 @@ export function LinkAccountCard({ compact, onLinked }: { compact?: boolean; onLi
           ClearVest reads your holdings through Plaid to explain them. We never see your login and can't place trades.
         </p>
         <div className={styles.actions}>
+          {SHOW_SAMPLE && (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setPlaidError(null)
+                sandbox.mutate()
+              }}
+              loading={sandbox.isPending}
+              loadingLabel="Linking"
+              disabled={busy}
+            >
+              Use a sample account
+            </Button>
+          )}
           <Button
-            variant="primary"
+            variant={SHOW_SAMPLE ? 'secondary' : 'primary'}
             onClick={() => {
               setPlaidError(null)
               tokenMutation.mutate()
             }}
             loading={busy}
             loadingLabel={exchange.isPending ? 'Linking' : 'Opening Plaid'}
+            disabled={sandbox.isPending}
           >
             Link account
           </Button>
-          {import.meta.env.DEV && (
-            <Button variant="tertiary" onClick={() => sandbox.mutate()} loading={sandbox.isPending} loadingLabel="Linking">
-              Use a sample account
-            </Button>
-          )}
         </div>
         <p className={`t-caption c-tertiary ${styles.note}`}>
           <ShieldCheck size={14} aria-hidden /> Sandbox only: no real accounts or money.

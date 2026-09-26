@@ -5,6 +5,7 @@ import uuid
 
 from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, aws
+from clearvest.advisor import plain_speech
 from pydantic import BaseModel, Field
 
 from voice import elevenlabs
@@ -20,7 +21,9 @@ class SpeakRequest(BaseModel):
 
 
 def speakable(text: str) -> str:
-    """Trim to <= MAX_SPOKEN chars at the last sentence end, or hard-cut if there is none."""
+    """Strip markdown (so TTS never reads it), then trim to <= MAX_SPOKEN chars at the last sentence end,
+    or hard-cut if there is none."""
+    text = plain_speech(text)
     if len(text) <= MAX_SPOKEN:
         return text
     window = text[: MAX_SPOKEN + 1]  # one extra char so a boundary ending exactly at the cap counts

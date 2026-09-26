@@ -3,12 +3,16 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { QuickCheck } from '../components/education/QuickCheck'
 import { useResearchProgress } from '../lib/researchProgress'
+import { useLearnProgress } from '../lib/useLearnProgress'
+import { ALL_LESSONS, nextLesson } from '../lib/lessons'
 import styles from './HomePage.module.css'
 
 const milestones = [{ id: 'share', label: 'Understand a share' }, { id: 'profit', label: 'Tell sales from profit' }, { id: 'pe', label: 'Explain a P/E ratio' }] as const
 export function HomePage() {
   const [shares, setShares] = useState(1)
   const progress = useResearchProgress()
+  const lessons = useLearnProgress()
+  const resume = nextLesson(lessons.completed)
   return <div className={styles.page}>
     <header className={styles.intro}><h1>Investing starts with understanding.</h1><p>No experience needed. No account to connect. Start with one idea, then explore at your own pace.</p></header>
     <section className={styles.first} aria-labelledby="first-share">
@@ -20,7 +24,7 @@ export function HomePage() {
       <div className={styles.check}><QuickCheck milestone="share" question="Does owning a share guarantee a profit?" answers={[{ text: 'No, its value can fall', correct: true, explanation: 'You own part of a business, but its future is uncertain. You could lose money.' }, { text: 'Yes, because I own it', correct: false, explanation: 'Ownership does not guarantee success. A business can struggle and its shares can lose value. Try again.' }]} /></div>
     </section>
     <section className={styles.next} aria-labelledby="next-step"><div><h2 id="next-step">Take your next small step</h2><p>You can learn without buying anything.</p></div><div className={styles.paths}>
-      <Link to="/learn"><BookOpen aria-hidden size={24} /><strong>Build the basics</strong><span>Explore simple explanations in Learn.</span></Link>
+      <Link to={lessons.completed.length && resume ? `/learn/${resume.id}` : "/learn"}><BookOpen aria-hidden size={24} /><strong>{lessons.completed.length && resume ? "Continue learning" : "Build the basics"}</strong><span>{lessons.completed.length ? `${lessons.completed.length} of ${ALL_LESSONS.length} lessons complete. ${resume ? `Next: ${resume.title}.` : "Revisit your starter path."}` : "Start with a short lesson and a quick check."}</span></Link>
       <Link to="/markets?symbol=AAPL&guided=1"><Search aria-hidden size={24} /><strong>Explore a real company</strong><span>Learn to read sales, profit and price together.</span></Link>
       <Link to="/portfolio"><Wallet aria-hidden size={24} /><strong>Understand a portfolio</strong><span>See what a collection of investments tells you.</span></Link>
     </div></section>

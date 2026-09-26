@@ -77,7 +77,7 @@ gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn output>"
 gh variable set DEPLOY_ENABLED --body true
 ```
 
-After that, a merge to `main` runs `sam build && sam deploy`. **Deploys run only from `main`**: the CD role's
+After that, a merge to `main` runs `sam build && sam deploy`, then builds and publishes the frontend (see Frontend hosting). **Deploys run only from `main`**: the CD role's
 OIDC trust is pinned to `refs/heads/main`, so PR and feature branches can't assume it. To redeploy without a
 new merge: `gh workflow run deploy.yml --ref main`. The role stack must be redeployed once for this
 restriction to take effect (existing stacks still trust every branch until then):
@@ -85,6 +85,22 @@ restriction to take effect (existing stacks still trust every branch until then)
 (`samconfig.toml` uses `resolve_s3 = true`, no account IDs committed). The CD role deliberately can't delete
 the stack — teardown is manual, with owner credentials. After editing `infra/cicd-role.yaml` (e.g. adding a
 read action CloudFormation turned out to need), re-run the bootstrap `cloudformation deploy` to apply it.
+
+### Frontend hosting
+
+The frontend is hosted on a private S3 bucket behind CloudFront (same stack) at the stack's `FrontendUrl`
+output. CD builds it on every push to `main`, right after `sam deploy`, with the stack's `ApiUrl` baked in as
+`VITE_API_BASE_URL` (build time only, so an API URL change needs a rebuild), then syncs it to the bucket and
+invalidates `/index.html` and `/`. Client-side routes work on refresh: CloudFront serves `index.html` for 403/404.
+
+```bash
+aws cloudformation describe-stacks --stack-name ClearVest --region us-east-1 \
+  --query "Stacks[0].Outputs[?OutputKey=='FrontendUrl'].OutputValue" --output text
+```
+
+The CD role needs new CloudFront and bucket permissions for this. **Redeploy the role stack once before the
+first frontend deploy:** `aws cloudformation deploy --template-file infra/cicd-role.yaml --stack-name ClearVest-cicd --capabilities CAPABILITY_NAMED_IAM`.
+The first deploy creates the CloudFront distribution, which takes about 5–15 minutes.
 
 ### Plugging in keys
 

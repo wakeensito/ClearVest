@@ -1,0 +1,129 @@
+/* Advisor reply markdown (DESIGN.md §4.8). Tokens only; the reply supplies 15/26 body text. */
+
+/* ---------- Heading lead-in ---------- */
+
+/*
+ * A `#` heading becomes a semibold lead-in. The extra space above (20px against the reply's 12px gap
+ * below) groups it with the content that follows.
+ */
+.lead {
+  margin-top: 8px;
+  color: var(--cv-text);
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.lead:first-child {
+  margin-top: 0;
+}
+
+/* ---------- Comparison table ---------- */
+
+/*
+ * A white "paper" surface with a rule border, like other tables (§2). `contain: inline-size` keeps
+ * the table's width out of the reply's intrinsic size, so a wide table scrolls here, never the page.
+ */
+.tableWrap {
+  contain: inline-size;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  background: var(--cv-surface);
+  border: 1px solid var(--cv-border);
+  border-radius: var(--cv-radius);
+}
+
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: 8px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  /* Only long words hyphenate ("contribu-tions"); short ones wrap whole. */
+  hyphens: auto;
+  hyphenate-limit-chars: 10 4 4;
+}
+
+/* The label column is narrower; the option columns share the rest. */
+.table thead th:first-child {
+  width: 34%;
+}
+
+.table thead th {
+  color: var(--cv-text-secondary);
+  font-weight: 500;
+  border-bottom: 1px solid var(--cv-border-strong);
+}
+
+.table tbody th {
+  color: var(--cv-text);
+  font-weight: 500;
+}
+
+.table td {
+  color: var(--cv-text);
+}
+
+.table tbody tr + tr > * {
+  border-top: 1px solid var(--cv-border);
+}
+
+.table strong {
+  font-weight: 600;
+}
+
+/* ---------- Wide tables (4+ columns) ---------- */
+
+/*
+ * Columns keep a readable minimum and the wrapper scrolls. The first column stays pinned with the
+ * surface behind it, and a rule-coloured shade on the right edge hints at more content. The shade is
+ * fixed to the wrapper; a surface-coloured cover attached to the content end hides it once the user
+ * has scrolled all the way.
+ */
+.wide {
+  background:
+    linear-gradient(to left, var(--cv-surface) 40%, transparent) right / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--cv-border-strong), transparent) right / 12px 100% no-repeat scroll,
+    var(--cv-surface);
+}
+
+.wide .table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.wide .table th,
+.wide .table td {
+  min-width: 112px;
+  max-width: 200px;
+}
+
+.wide .table thead th:first-child {
+  width: auto;
+}
+
+.wide .table tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 96px;
+  max-width: 128px;
+  background: var(--cv-surface);
+  box-shadow: inset -1px 0 0 var(--cv-border);
+}
+
+/* Scrolling via keyboard needs a visible focus ring that the overflow does not clip. */
+.tableWrap:focus-visible {
+  outline: 2px solid var(--cv-accent);
+  outline-offset: 2px;
+}

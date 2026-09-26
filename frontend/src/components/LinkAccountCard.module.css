@@ -50,4 +50,15 @@
     grid-template-columns: 1fr;
     padding: 20px;
   }
+
+  /* Phones: full-width stacked buttons, primary (sample account) on top. */
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .actions > * {
+    width: 100%;
+  }
 }

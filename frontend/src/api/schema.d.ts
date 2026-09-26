@@ -545,6 +545,7 @@ export interface components {
             source?: string;
         };
         ChatReply: {
+            /** @description A short reply, at most about 120 words. May use a markdown subset: **bold** for key terms, "- " bullets, "1." numbered lists, and (only when comparing 2-3 options) a GitHub-flavored markdown table of up to 3 columns. Never contains headings ("#"). */
             reply: string;
             disclaimer: string;
         };
@@ -566,6 +567,7 @@ export interface components {
         };
         VoiceTurn: {
             transcript: string;
+            /** @description A short reply meant to be read aloud, about 60 words of plain text: no markdown, no headings, no lists, no tables. */
             reply: string;
             disclaimer: string;
         };

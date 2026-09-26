@@ -27,6 +27,7 @@ export function Wordmark() {
 
 export function AppShell() {
   const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }) }, [pathname])
 
   // Learning, research and general advisor questions work without a saved profile.
 

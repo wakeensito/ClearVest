@@ -1,5 +1,6 @@
 import createClient from 'openapi-fetch'
 import { getUserId } from '../lib/userId'
+import type { VoiceContentType } from '../lib/voice'
 import { ApiError, toApiError } from './errors'
 import type { components, paths } from './schema'
 
@@ -14,10 +15,13 @@ export type ChatReply = Schemas['ChatReply']
 export type HistorySeries = Schemas['HistorySeries']
 export type CompanyResearch = Schemas['CompanyResearch']
 export type AnnualIncome = Schemas['AnnualIncome']
-export type Company = Schemas['Company']
-export type Companies = Schemas['Companies']
 export type MarketCategory = Schemas['MarketMovers']['category']
 export type HistoryRange = components['parameters']['Range']
+export type Company = Schemas['Company']
+export type Companies = Schemas['Companies']
+export type UploadUrl = Schemas['UploadUrl']
+export type VoiceTurn = Schemas['VoiceTurn']
+export type Speech = Schemas['Speech']
 
 /** The Prism mock by default; set VITE_API_BASE_URL to the stack's ApiUrl for the real backend. */
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '')
@@ -71,13 +75,35 @@ export const api = {
   getMarketMovers: (category: MarketCategory) =>
     unwrap(client.GET('/market/movers', { params: { ...user(), query: { category } } })),
 
-  compareCompanies: (symbols: string[]) =>
-    unwrap(client.GET('/market/compare-companies', { params: { ...user(), query: { symbols: symbols.join(',') } } })),
-
   getMacro: () => unwrap(client.GET('/market/macro', { params: user() })),
   getHistory: (symbol: string, range: HistoryRange) =>
     unwrap(client.GET('/market/history', { params: { ...user(), query: { symbols: symbol, range } } })),
+  /** 2 to 4 tickers; the API rejects other counts with a 400. Validate with `lib/compare.ts` first. */
+  compareCompanies: (symbols: readonly string[]) =>
+    unwrap(client.GET('/market/compare-companies', { params: { ...user(), query: { symbols: symbols.join(',') } } })),
 
   chat: (message: string) => unwrap(client.POST('/advisor/chat', { params: user(), body: { message } })),
   clearChatHistory: () => unwrap(client.DELETE('/advisor/history', { params: user() })),
+
+  // Voice (docs/api/README.md "Voice flow"): upload-url -> PUT to S3 -> turn -> speak.
+  createVoiceUploadUrl: (contentType: VoiceContentType) =>
+    unwrap(client.POST('/voice/upload-url', { params: user(), body: { contentType } })),
+  voiceTurn: (key: string) => unwrap(client.POST('/voice/turn', { params: user(), body: { key } })),
+  speak: (text: string) => unwrap(client.POST('/voice/speak', { params: user(), body: { text } })),
+  /** PUT straight to S3. The Content-Type must match what upload-url was asked for; it is in the signature. */
+  uploadRecording: async (uploadUrl: string, blob: Blob, contentType: VoiceContentType): Promise<void> => {
+    let res: Response
+    try {
+      res = await globalThis.fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': contentType },
+        body: blob,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      })
+    } catch (e) {
+      const timedOut = e instanceof DOMException && e.name === 'TimeoutError'
+      throw new ApiError(0, 'NETWORK', timedOut ? 'Upload timed out' : 'Network error')
+    }
+    if (!res.ok) throw new ApiError(res.status, 'UPSTREAM_UNAVAILABLE', 'Upload failed')
+  },
 }

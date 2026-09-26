@@ -176,7 +176,7 @@ The default route is a small interactive explanation of a share, using a clearly
 with 100 equal shares. It offers an optional knowledge check and paths into Learn, research and
 portfolio context. Three research milestones track understanding on this browser, scoped to the demo
 user ID. They award no points for trades, investment returns or daily streaks. This does not replace
-Max's Learn-tab progression; `LearnPage.*` and `lib/learning.ts` remain his integration surface.
+the course progression. Home resumes the first unfinished lesson once a lesson has been completed.
 
 `guided=1` on Markets hides movers and introduces a company through three explicit steps: its
 business, annual sales/profit, and valuation. The chart opens on request. The normal market overview
@@ -207,6 +207,29 @@ comparisons and headlines. Advisor instructions answer one idea first and define
 General questions remain useful without asking for age or brokerage details. Linked questions remain
 in the URL until submitted so optional profile editing can return to them.
 
+### 4.12 Advisor replies
+
+Replies render a small markdown subset as React nodes, never `innerHTML` (`features/advisor/parseMarkdown.ts`,
+`Markdown.tsx`): paragraphs, `-`/`*`/`•` and numbered lists, `**bold**`, headings and comparison tables.
+Lists and tables may start directly after a sentence; a line without a pipe ends a table.
+
+Headings (`#` to `######`) render as a semibold 15/24 lead-in paragraph, not an `h1`–`h6`, so a reply never
+adds to the page outline. Surrounding `**` is dropped. It has 20px above and the reply's 12px gap below,
+grouping it with what follows. A bare `###` stays text.
+
+A GFM table needs a header, a delimiter row with the same cell count and at least one body row; otherwise
+it stays text. Outer pipes are optional, `\|` is a literal pipe, and ragged rows are padded or truncated
+to the header. It renders as a semantic table (`th scope="col"`; each row's first cell is `th scope="row"`)
+on a white surface with a 1px rule border, 6px radius, 13/20 text, 8px cells and rule-coloured row
+separators. The wrapper is a focusable region labelled "Comparison table" with a visible focus ring.
+
+Phone behavior: up to three columns fit the reply at 320px with no scrolling. The layout is fixed, the
+label column is 34% wide, and cells wrap. Only words of ten or more letters hyphenate. Four or more
+columns scroll inside the wrapper (momentum, overscroll contained). The first column stays pinned on the
+surface, and a 12px shade on the right edge hints at more content until the end is reached.
+`contain: inline-size` keeps a wide table from widening the page. The advisor prompt asks for at most
+three columns and six rows.
+
 ## 5. Layout and routes
 
 Desktop: 76px navigation, slim workspace information row, centered content up to 1440px with 40px
@@ -223,7 +246,8 @@ Mobile keeps five bottom navigation items with safe-area spacing: Home, Portfoli
 | `/markets?symbol=AAPL&guided=1` | Guided company research, with optional price chart and company-name lookup |
 | `/advisor` | General questions without setup; optional saved profile/holdings provide more context |
 | `/welcome` | Profile and Plaid account linking; light introduction panel |
-| `/learn` | Searchable plain-language glossary and three learning paths with source links |
+| `/learn` | Beginner starter path (units and lessons), common questions, growth illustration, glossary with flashcards |
+| `/learn/:lessonId` | One short lesson: idea cards, a two-question quick check, completion and next step |
 
 No sidebar full of nonfunctional trading tools. No buy/sell controls or fabricated market-open status.
 
@@ -292,9 +316,22 @@ and account-specific risk text. It persists on the device; it is a portfolio-vie
 access-control boundary or a promise to hide already-existing advisor conversations. Public security
 prices, ownership symbols and percentages remain visible.
 
-Learn includes short starting paths and a searchable eight-term glossary with native disclosure
-controls and Investor.gov references. No learning content depends on a connected account. Links to
-the advisor prefill questions and never submit them automatically.
+Learn is written for people who have never invested. It has a four-unit starter path of short
+lessons (three idea cards, then a two-question quick check with immediate right/wrong feedback and
+an explanation), “Questions beginners ask” as native disclosures, a hypothetical compound-growth
+illustration, and a searchable glossary with a flashcard mode. Lessons are never locked; the next
+unfinished one is marked “Up next”. Completed lessons are stored in this browser (`cv-learn-progress`), with a session fallback when
+storage is blocked. Reset requires a confirmation and leaves research milestones alone. Streak
+metadata stays compatible with earlier storage but is not shown; the interface celebrates completion
+at the learner’s pace. The growth illustration always states that its rate
+is hypothetical and constant, and that real returns vary and can be negative. Retirement limits
+match `src/advisor/advisor/data/retirement_accounts.json`. No learning content depends on a
+connected account. Links to the advisor prefill questions and never submit them automatically.
+
+The next unit is expanded initially; other units, extra FAQs and the growth illustration open on
+request. The glossary starts with six terms and offers all terms plus search and flashcards. Home
+resumes the next lesson; the stocks lesson links to guided company research and fund research links
+to the fund lesson. Keep long lesson actions wrapping at 320px and retain focus when changing cards.
 
 ## 7. Product principles
 
