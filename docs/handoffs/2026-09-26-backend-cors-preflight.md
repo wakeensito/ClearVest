@@ -18,8 +18,8 @@
 ## How to run / verify it
 
 ```bash
-uv venv --python 3.12 .venv && uv pip install -e ".[dev]"
-.venv/Scripts/python.exe -m pytest -q tests/layer/test_api.py
+uv venv --python 3.12 .venv
+uv run --extra dev pytest -q tests/layer/test_api.py
 
 # Against the deployed stack (after CD runs on main). Must be 204, not 404:
 curl -s -i -X OPTIONS "$API_URL/market/macro" \
