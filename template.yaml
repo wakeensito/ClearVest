@@ -1,0 +1,208 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ClearVest backend - one HTTP API, four domain Lambdas (Portfolio, Market,
+  Advisor, Voice) sharing one layer. Spec: docs/superpowers/specs/2026-09-26-backend-architecture-design.md
+
+# SSM parameter NAMES (not values). Hierarchical names go without the leading
+# slash (clearvest/fred), because the ARN and the loader both add it.
+Parameters:
+  PlaidClientIdParam: {Type: String, Default: clearvest-plaid-client-id}
+  PlaidSecretParam: {Type: String, Default: clearvest-plaid-secret}
+  PlaidEnv: {Type: String, Default: sandbox, AllowedValues: [sandbox, production]}
+  FmpKeyParam: {Type: String, Default: clearvest-fmp}
+  AlphaVantageKeyParam: {Type: String, Default: clearvest-alphavantage}
+  FredKeyParam: {Type: String, Default: clearvest-fred}
+  SecUserAgentParam: {Type: String, Default: clearvest-sec-user-agent}
+  ElevenLabsKeyParam: {Type: String, Default: clearvest-elevenlabs}
+  ElevenLabsVoiceId: {Type: String, Default: JBFqnCBsd6RMkjVDRZzb}
+  ElevenLabsTtsModel: {Type: String, Default: eleven_flash_v2_5}
+  ElevenLabsSttModel: {Type: String, Default: scribe_v1}
+  # Cross-region inference profile + the foundation model it routes to.
+  ModelId: {Type: String, Default: us.amazon.nova-2-lite-v1:0}
+  FoundationModelId: {Type: String, Default: amazon.nova-2-lite-v1:0}
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [x86_64]
+    MemorySize: 512
+    Timeout: 15
+    Layers: [!Ref SharedLayer]
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref Table
+        APP_VERSION: '0.1.0'
+        LOG_LEVEL: INFO
+
+Resources:
+  ClearVestApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      # No auth by design (spec §1): throttle to cap Bedrock/ElevenLabs spend.
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 20
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowHeaders: [content-type, x-user-id]
+        AllowMethods: [GET, PUT, POST, DELETE, OPTIONS]
+        MaxAge: 600
+
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWS::StackName}-shared'
+      ContentUri: src/layer
+      CompatibleRuntimes: [python3.12]
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.12
+
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+      TimeToLiveSpecification: {AttributeName: ttl, Enabled: true}
+      PointInTimeRecoverySpecification: {PointInTimeRecoveryEnabled: true}
+
+  AudioBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      LifecycleConfiguration:
+        Rules:
+          - {Id: expire-audio, Status: Enabled, ExpirationInDays: 1}
+      # Browsers PUT recordings and GET speech via presigned URLs.
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ['*']
+            AllowedMethods: [PUT, GET]
+            AllowedHeaders: ['*']
+            MaxAge: 600
+
+  PortfolioFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/portfolio
+      Handler: portfolio.app.handler
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: portfolio
+          PLAID_ENV: !Ref PlaidEnv
+          PLAID_CLIENT_ID_PARAM: !Ref PlaidClientIdParam
+          PLAID_SECRET_PARAM: !Ref PlaidSecretParam
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref Table}
+        - Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PlaidClientIdParam}'
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PlaidSecretParam}'
+      Events:
+        Health: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: /health, Method: GET}}
+        Profile: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: /profile, Method: ANY}}
+        Plaid: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/plaid/{proxy+}', Method: ANY}}
+        Portfolio: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/portfolio/{proxy+}', Method: ANY}}
+
+  MarketFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/market
+      Handler: market.app.handler
+      MemorySize: 1024  # yfinance pulls in pandas
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: market
+          FMP_KEY_PARAM: !Ref FmpKeyParam
+          ALPHAVANTAGE_KEY_PARAM: !Ref AlphaVantageKeyParam
+          FRED_KEY_PARAM: !Ref FredKeyParam
+          SEC_USER_AGENT_PARAM: !Ref SecUserAgentParam
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref Table}
+        - Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${FmpKeyParam}'
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AlphaVantageKeyParam}'
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${FredKeyParam}'
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SecUserAgentParam}'
+      Events:
+        Market: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/market/{proxy+}', Method: ANY}}
+
+  AdvisorFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/advisor
+      Handler: advisor.app.handler
+      Timeout: 29  # API Gateway stops waiting at 30s
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: advisor
+          MODEL_ID: !Ref ModelId
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref Table}
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}'
+                # A us.* profile routes to any US region, so the model ARN needs a region wildcard.
+                - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/${FoundationModelId}'
+      Events:
+        Advisor: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/advisor/{proxy+}', Method: ANY}}
+
+  VoiceFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/voice
+      Handler: voice.app.handler
+      Timeout: 29
+      MemorySize: 1024
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: voice
+          MODEL_ID: !Ref ModelId
+          AUDIO_BUCKET: !Ref AudioBucket
+          ELEVENLABS_KEY_PARAM: !Ref ElevenLabsKeyParam
+          ELEVENLABS_VOICE_ID: !Ref ElevenLabsVoiceId
+          ELEVENLABS_TTS_MODEL: !Ref ElevenLabsTtsModel
+          ELEVENLABS_STT_MODEL: !Ref ElevenLabsSttModel
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref Table}
+        - S3CrudPolicy: {BucketName: !Ref AudioBucket}
+        - Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ElevenLabsKeyParam}'
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}'
+                - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/${FoundationModelId}'
+      Events:
+        Voice: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/voice/{proxy+}', Method: ANY}}
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the frontend
+    Value: !Sub 'https://${ClearVestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+  TableName:
+    Value: !Ref Table
+  AudioBucketName:
+    Value: !Ref AudioBucket
