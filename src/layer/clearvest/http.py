@@ -1,6 +1,7 @@
 """One requests.Session for every provider: short timeouts, one retry, typed failures."""
 
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -30,7 +31,11 @@ def request(method: str, url: str, *, provider: str, timeout: float = 5, **kwarg
     try:
         resp = _get_session().request(method, url, timeout=timeout, **kwargs)
     except requests.RequestException as err:
-        raise UpstreamError(provider, f"{type(err).__name__}: {err}") from err
+        # Never str(err) or include the query string: requests embeds the full URL (incl. api
+        # keys passed as query params) in its exception messages, and detail gets logged.
+        parts = urlsplit(url)
+        detail = f"{type(err).__name__} calling {parts.scheme}://{parts.netloc}{parts.path}"
+        raise UpstreamError(provider, detail) from err
     if resp.status_code >= 400:
         raise UpstreamError(provider, f"HTTP {resp.status_code}: {resp.text[:200]}")
     return resp
