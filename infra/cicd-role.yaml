@@ -125,6 +125,10 @@ Resources:
                   - dynamodb:UntagResource
                   - dynamodb:UpdateContinuousBackups
                   - dynamodb:DescribeContinuousBackups
+                  # CloudFormation's DynamoDB handler reads these on every create/update.
+                  - dynamodb:DescribeContributorInsights
+                  - dynamodb:DescribeKinesisStreamingDestination
+                  - dynamodb:GetResourcePolicy
                 Resource:
                   - !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AppStackName}-*'
               # Execution roles the app stack creates for its functions.
@@ -188,6 +192,9 @@ Resources:
                   - s3:GetBucketCORS
                   - s3:PutBucketTagging
                   - s3:GetBucketTagging
+                  # Read during create/update/delete of the bucket by CloudFormation's S3 handler.
+                  - s3:ListBucket
+                  - s3:GetBucketAcl
                 Resource: !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-*'
 
 Outputs:
