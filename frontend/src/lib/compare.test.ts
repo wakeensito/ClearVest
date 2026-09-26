@@ -10,7 +10,10 @@ describe('normalizeSymbols', () => {
     expect(normalizeSymbols([' amd', 'NVDA', 'Amd', 'brk-b', ''])).toEqual({ symbols: ['AMD', 'NVDA', 'BRK-B'], invalid: [] })
   })
   it('reports tickers that break the 12-character rule instead of sending them', () => {
-    expect(normalizeSymbols(['AMD', 'bad ticker', 'TOOLONGSYMBOL1'])).toEqual({ symbols: ['AMD'], invalid: ['bad ticker', 'TOOLONGSYMBOL1'] })
+    expect(normalizeSymbols(['AMD', 'bad ticker', 'ABCDEFGHIJKL', 'ABCDEFGHIJKLM'])).toEqual({ symbols: ['AMD', 'ABCDEFGHIJKL'], invalid: ['bad ticker', 'ABCDEFGHIJKLM'] })
+  })
+  it('dedupes invalid entries case-insensitively too', () => {
+    expect(normalizeSymbols(['bad x', 'BAD X'])).toEqual({ symbols: [], invalid: ['bad x'] })
   })
 })
 
@@ -28,6 +31,8 @@ describe('symbolsFromParam', () => {
   it('reads a comma-separated param and falls back when it cannot be compared', () => {
     expect(symbolsFromParam('amd,nvda', ['VOO', 'QQQ'])).toEqual(['AMD', 'NVDA'])
     expect(symbolsFromParam('AMD', ['VOO', 'QQQ'])).toEqual(['VOO', 'QQQ'])
+    // Duplicates collapse to one ticker, which is too few.
+    expect(symbolsFromParam('AMD,amd', ['VOO', 'QQQ'])).toEqual(['VOO', 'QQQ'])
     expect(symbolsFromParam('A,B,C,D,E', ['VOO', 'QQQ'])).toEqual(['VOO', 'QQQ'])
     expect(symbolsFromParam(null, ['VOO', 'QQQ'])).toEqual(['VOO', 'QQQ'])
     // Invalid entries are dropped; the rest still compares.

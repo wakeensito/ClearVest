@@ -1,6 +1,7 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type Profile, type HistoryRange } from './client'
 import { isApiError } from './errors'
+import { symbolsError } from '../lib/compare'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +60,6 @@ export const useHistory = (symbol: string, range: HistoryRange) => useQuery({
 export const useCompareCompanies = (symbols: readonly string[]) => useQuery({
   queryKey: ['compare', ...symbols],
   queryFn: () => api.compareCompanies(symbols),
-  enabled: symbols.length >= 2 && symbols.length <= 4,
+  enabled: symbolsError(symbols) === null,
   staleTime: 15 * 60_000,
 })

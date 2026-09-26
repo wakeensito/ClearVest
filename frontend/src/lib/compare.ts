@@ -14,7 +14,7 @@ export function normalizeSymbols(raw: readonly string[]): { symbols: string[]; i
   const invalid: string[] = []
   for (const item of raw) {
     const symbol = item.trim().toUpperCase()
-    if (!symbol || symbols.includes(symbol)) continue
+    if (!symbol || symbols.includes(symbol) || invalid.some((i) => i.toUpperCase() === symbol)) continue
     if (SYMBOL.test(symbol)) symbols.push(symbol)
     else invalid.push(item.trim())
   }

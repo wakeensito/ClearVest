@@ -4,7 +4,7 @@
 - **Author:** @Mario-Recondo
 - **Team:** frontend
 - **Status:** in-progress
-- **PR / issue:** #24 (backend side is done; no frontend issue yet)
+- **PR / issue:** #37 (this plumbing); #24 is the backend side, done. No frontend issue yet.
 - **Branch:** feat/company-comparison
 - **Follows:** 2026-09-26-frontend-voice-button.md, 2026-09-26-data-market.md
 
@@ -56,11 +56,19 @@ Contract example, in case you want to see the shape: `npm run mock -w frontend`,
   data handoff: ratios and per-share figures so a $3T and a $300B company compare fairly).
 - `grossMargin` and `revenueGrowth` arrive as fractions (`0.532`), so `percentFromFraction`, not
   `percent`. The macro card is the opposite case; don't copy from it.
-- ETFs (VOO, QQQ) have no EDGAR company facts and FMP's free tier 402s on some of them, so a
-  comparison that includes an ETF may come back with nulls. `MISSING` (`—`) is the expected display,
-  with the "Not available from the data provider" tooltip from DESIGN.md §10.
-- The whole request fails as one: a 502 from any provider is one banner over the table, not a
-  per-column error. `QueryView` handles it.
+- **An ETF in the set usually means a 502 for the whole request.** FMP's free tier 402s on some ETFs
+  (VOO, seen in testing); the backend turns that into `UpstreamError` before anything is cached, so
+  AMD+VOO fails as one banner ("Company data is temporarily unavailable."), not as a VOO column of
+  dashes. The exception is an ETF whose ratios are already cached: then it's a 200 with `stale: true`.
+  Worth a line of helper copy under the input ("Works best with individual companies.").
+- Nulls do happen when FMP returns a row with missing fields. `MISSING` (`—`) is the display, with the
+  "Not available from the data provider" tooltip from DESIGN.md §10. EDGAR lacking company facts only
+  affects `revenueGrowth`, and FMP's figure fills that in silently.
+- **`ChipInput`'s full-state placeholder is goal copy:** it hardcodes `Up to ${max} goals`, so at four
+  tickers it would read "Up to 4 goals". Add a prop for that string (or generalize the copy) before
+  reusing it. With `max={4}` and `maxLength={12}` the input can't produce a fifth chip or a 13-character
+  ticker, so the "up to four" error and the length half of the regex are unreachable from the UI. That's
+  fine; don't write smoke cases for them.
 - The Prism mock returns the AMD/NVDA example for any symbols, so requesting `INTC` from the mock
   makes `arrangeCompanies` report it as missing. That's the mock, not a bug.
 
@@ -87,7 +95,8 @@ Contract example, in case you want to see the shape: `npm run mock -w frontend`,
    on the joined string so a URL change resets the panel.
 3. **Browser smoke** (`frontend/scripts/browser-smoke.cjs`): add a `compareMode` like `historyMode`
    and cover default render (AMD, NVDA columns), the invalid-ticker alert, the fewer-than-two alert,
-   a 502 with Retry, `stale`, and a requested ticker the response lacks.
+   a 502 with Retry (this is also what an ETF in the set looks like), `stale`, a null field showing
+   `—`, and a requested ticker the response lacks.
 4. Open a `team:frontend` issue for the screen if it helps the board; #24 is the data-side issue.
 
 ## Open questions / blockers
