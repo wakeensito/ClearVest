@@ -146,7 +146,8 @@ Mobile keeps four bottom navigation items with safe-area spacing.
 | `/markets?symbol=VOO` | Research a selected security and inspect available closes |
 | `/advisor` | Ask about holdings, with the existing profile/portfolio context |
 | `/welcome` | Profile and Plaid account linking; light introduction panel |
-| `/learn` | Searchable plain-language glossary and three learning paths with source links |
+| `/learn` | Beginner starter path (units and lessons), common questions, growth illustration, glossary with flashcards |
+| `/learn/:lessonId` | One short lesson: idea cards, a two-question quick check, completion and next step |
 
 No sidebar full of nonfunctional trading tools. No buy/sell controls or fabricated market-open status.
 
@@ -215,9 +216,15 @@ and account-specific risk text. It persists on the device; it is a portfolio-vie
 access-control boundary or a promise to hide already-existing advisor conversations. Public security
 prices, ownership symbols and percentages remain visible.
 
-Learn includes short starting paths and a searchable eight-term glossary with native disclosure
-controls and Investor.gov references. No learning content depends on a connected account. Links to
-the advisor prefill questions and never submit them automatically.
+Learn is written for people who have never invested. It has a four-unit starter path of short
+lessons (three idea cards, then a two-question quick check with immediate right/wrong feedback and
+an explanation), “Questions beginners ask” as native disclosures, a hypothetical compound-growth
+illustration, and a searchable glossary with a flashcard mode. Lessons are never locked; the next
+unfinished one is marked “Up next”. Completed lessons and a daily streak are stored on the device
+only (`cv-learn-progress`) and can be reset. The growth illustration always states that its rate
+is hypothetical and constant, and that real returns vary and can be negative. Retirement limits
+match `src/advisor/advisor/data/retirement_accounts.json`. No learning content depends on a
+connected account. Links to the advisor prefill questions and never submit them automatically.
 
 ## 7. Product principles
 

@@ -1,0 +1,88 @@
+/* Lesson player, flashcards and growth calculator. Tokens: DESIGN.md §13. */
+
+.lessonShell { max-width: 720px; margin: 0 auto; display: grid; gap: 16px; }
+.lessonTop { display: flex; align-items: center; gap: 16px; }
+.exit { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--cv-radius); color: var(--cv-text-secondary); flex-shrink: 0; }
+.exit:hover { background: var(--cv-surface-sunken); color: var(--cv-text); }
+.progressTrack { flex: 1; height: 10px; border-radius: 999px; background: var(--cv-surface-sunken); overflow: hidden; }
+.progressTrack span { display: block; height: 100%; background: var(--cv-accent); border-radius: inherit; transition: width var(--cv-motion-slow) var(--cv-ease); }
+.lessonMeta { font-size: 13px; color: var(--cv-text-tertiary); }
+
+.stage { background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); padding: 32px; display: grid; gap: 16px; }
+.stepLabel { font-size: 13px; font-weight: 600; color: var(--cv-accent); }
+.lessonTitle { font-size: 26px; line-height: 34px; font-weight: 600; letter-spacing: -0.015em; outline: none; }
+.cardBody { font-size: 16px; line-height: 26px; color: var(--cv-text); max-width: 60ch; }
+.cardExample { display: grid; gap: 4px; padding: 16px; border-radius: var(--cv-radius); background: var(--cv-accent-subtle); font-size: 15px; line-height: 24px; }
+.cardExample strong { font-size: 12px; font-weight: 600; color: var(--cv-accent); }
+.stageActions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+
+.options { display: grid; gap: 10px; }
+.option { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 12px 16px; text-align: left; font-size: 15px; line-height: 22px; color: var(--cv-text); background: var(--cv-surface); border: 1px solid var(--cv-border-strong); border-radius: var(--cv-radius); cursor: pointer; transition: border-color var(--cv-motion-fast) var(--cv-ease), background-color var(--cv-motion-fast) var(--cv-ease); }
+.option:hover:not(:disabled) { border-color: var(--cv-accent); background: var(--cv-accent-subtle); }
+.option:disabled { cursor: default; opacity: 1; }
+.optionKey { flex-shrink: 0; display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--cv-radius); border: 1px solid var(--cv-border-strong); font-size: 13px; font-weight: 600; color: var(--cv-text-secondary); }
+.optionIcon { margin-left: auto; flex-shrink: 0; color: var(--cv-gain); }
+.option.optionRight, .option.optionRight:disabled { border-color: var(--cv-gain); background: var(--cv-gain-subtle); }
+.optionRight .optionKey { border-color: var(--cv-gain); color: var(--cv-gain); }
+.option.optionWrong, .option.optionWrong:disabled { border-color: var(--cv-loss); background: var(--cv-loss-subtle); }
+.optionWrong .optionKey { border-color: var(--cv-loss); color: var(--cv-loss); }
+.option.optionMuted, .option.optionMuted:disabled { color: var(--cv-text-tertiary); }
+
+.feedback { padding: 16px; border-radius: var(--cv-radius); border-left: 4px solid; font-size: 15px; line-height: 24px; }
+.feedback p { margin-top: 4px; }
+.feedbackRight { background: var(--cv-gain-subtle); border-color: var(--cv-gain); }
+.feedbackRight strong { color: var(--cv-gain); }
+.feedbackWrong { background: var(--cv-warning-subtle); border-color: var(--cv-warning); }
+.feedbackWrong strong { color: var(--cv-warning); }
+
+.done { justify-items: start; }
+.doneBadge { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--cv-gain-subtle); color: var(--cv-gain); }
+.streakNote { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--cv-warning); }
+.source { color: var(--cv-text-tertiary); font-size: 12px; line-height: 20px; max-width: 100ch; }
+
+/* Flashcards */
+.flash { display: grid; gap: 16px; margin-top: 20px; }
+.flashHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.flashTools { display: flex; gap: 4px; }
+.count { font-size: 12px; color: var(--cv-text-tertiary); }
+.flashCard { display: grid; align-content: center; justify-items: center; gap: 12px; min-height: 240px; padding: 32px; text-align: center; background: var(--cv-surface-sunken); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); color: var(--cv-text); cursor: pointer; transition: background-color var(--cv-motion-base) var(--cv-ease), border-color var(--cv-motion-base) var(--cv-ease); }
+.flashCard:hover { border-color: var(--cv-accent); }
+.flashRevealed { background: var(--cv-accent-subtle); border-color: var(--cv-accent); }
+.flashTerm { font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.015em; }
+.flashMeaning { font-size: 16px; line-height: 26px; max-width: 52ch; }
+.flashExample { font-size: 14px; line-height: 22px; color: var(--cv-text-secondary); max-width: 52ch; }
+.flashHint { font-size: 14px; color: var(--cv-text-tertiary); }
+.flashActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+
+/* Growth calculator */
+.calc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; margin-top: 20px; align-items: start; }
+.calcInputs { display: grid; gap: 10px; }
+.calcInputs input[type='range'] { width: 100%; min-height: 44px; accent-color: var(--cv-accent); }
+.calcLabel { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; color: var(--cv-text-secondary); }
+.calcLabel strong { font-size: 16px; color: var(--cv-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.calcResult { padding: 24px; border-radius: var(--cv-radius-panel); background: var(--cv-surface-sunken); display: grid; gap: 12px; }
+.calcCaption { font-size: 13px; color: var(--cv-text-secondary); }
+.calcTotal { font-size: 40px; line-height: 50px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.calcBar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--cv-border); }
+.calcBarYou { background: var(--cv-viz-6); transition: width var(--cv-motion-base) var(--cv-ease); }
+.calcBarGrowth { background: var(--cv-accent); transition: width var(--cv-motion-base) var(--cv-ease); }
+.calcLegend { display: grid; gap: 6px; margin: 0; }
+.calcLegend div { display: flex; justify-content: space-between; font-size: 14px; }
+.calcLegend dt { display: inline-flex; align-items: center; gap: 8px; color: var(--cv-text-secondary); }
+.calcLegend dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.calcSwatchYou, .calcSwatchGrowth { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.calcSwatchYou { background: var(--cv-viz-6); }
+.calcSwatchGrowth { background: var(--cv-accent); }
+
+@media (max-width: 767px) {
+  .stage { padding: 20px 16px; }
+  .lessonTitle { font-size: 22px; line-height: 30px; }
+  .calc { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .calcTotal { font-size: 32px; line-height: 40px; }
+  .flashCard { min-height: 200px; padding: 24px 16px; }
+  .flashTerm { font-size: 24px; line-height: 32px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressTrack span, .calcBarYou, .calcBarGrowth, .flashCard, .option { transition: none; }
+}

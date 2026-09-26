@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { AppShell } from './components/AppShell'
 import { AdvisorPage } from './features/advisor/AdvisorPage'
+import { LessonPage } from './features/learn/LessonPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { MarketsPage } from './pages/MarketsPage'
 import { PortfolioPage } from './pages/PortfolioPage'
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: '/advisor', element: <AdvisorPage /> },
       { path: '/markets', element: <MarketsPage /> },
       { path: '/learn', element: <LearnPage /> },
+      { path: '/learn/:lessonId', element: <LessonPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
