@@ -68,6 +68,7 @@ parameter names, not values).
 
 1. Plug `clearvest-plaid-client-id` / `clearvest-plaid-secret` into SSM, deploy, run `scripts/smoke.sh`.
 2. Frontend switches its base URL from the Prism mock to the deployed `ApiUrl` (`docs/api/README.md`).
+3. **Before any production Plaid use (`PlaidEnv=production`):** envelope-encrypt `accessToken` with a KMS key before `db.put` and decrypt only in PortfolioFn. Today it is stored as plaintext JSON (sandbox tokens, with DynamoDB encryption at rest), and every function has table-wide CRUD. That needs a KMS key, `kms:Encrypt`/`kms:Decrypt` on PortfolioFn only, and KMS permissions on the CD role. Deferred from CodeRabbit's PR #29 review.
 
 ## Open questions / blockers
 
