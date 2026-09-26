@@ -1,0 +1,49 @@
+"""One requests.Session for every provider: short timeouts, one retry, typed failures."""
+
+from typing import Any
+
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+from clearvest.errors import UpstreamError
+
+_session: requests.Session | None = None
+
+
+def _get_session() -> requests.Session:
+    global _session
+    if _session is None:
+        retry = Retry(
+            total=1,
+            backoff_factor=0.3,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=None,  # retry POSTs too; provider calls here are idempotent reads
+            raise_on_status=False,
+        )
+        _session = requests.Session()
+        _session.mount("https://", HTTPAdapter(max_retries=retry))
+    return _session
+
+
+def request(method: str, url: str, *, provider: str, timeout: float = 5, **kwargs) -> requests.Response:
+    try:
+        resp = _get_session().request(method, url, timeout=timeout, **kwargs)
+    except requests.RequestException as err:
+        raise UpstreamError(provider, f"{type(err).__name__}: {err}") from err
+    if resp.status_code >= 400:
+        raise UpstreamError(provider, f"HTTP {resp.status_code}: {resp.text[:200]}")
+    return resp
+
+
+def request_json(method: str, url: str, *, provider: str, timeout: float = 5, **kwargs) -> Any:
+    resp = request(method, url, provider=provider, timeout=timeout, **kwargs)
+    try:
+        return resp.json()
+    except ValueError as err:
+        raise UpstreamError(provider, "response was not JSON") from err
+
+
+def reset() -> None:
+    global _session
+    _session = None

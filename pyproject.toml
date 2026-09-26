@@ -1,0 +1,32 @@
+# Dev tooling only. Runtime deps live next to the code that ships:
+# src/layer/requirements.txt (shared) and src/market/requirements.txt (yfinance).
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clearvest-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[project.optional-dependencies]
+dev = [
+  "aws-lambda-powertools==3.35.0",
+  "pydantic==2.13.5",
+  "requests==2.34.2",
+  "yfinance==1.7.0",
+  "boto3==1.43.103",
+  "moto[dynamodb,s3,ssm]==5.2.3",
+  "responses",
+  "jsonschema",
+  "pyyaml",
+  "pytest==9.1.1",
+]
+
+[tool.setuptools]
+# Nothing to package: Lambdas are built by SAM, this file only installs dev deps.
+packages = []
+
+[tool.pytest.ini_options]
+pythonpath = ["src/layer", "src/portfolio", "src/market", "src/advisor", "src/voice", "."]
+testpaths = ["tests"]
