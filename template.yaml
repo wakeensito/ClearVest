@@ -43,6 +43,14 @@ Resources:
       DefaultRouteSettings:
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 20
+      # Bedrock and ElevenLabs bill per call: the AI routes get a much tighter cap.
+      RouteSettings:
+        "ANY /voice/{proxy+}":
+          ThrottlingBurstLimit: 5
+          ThrottlingRateLimit: 2
+        "ANY /advisor/{proxy+}":
+          ThrottlingBurstLimit: 5
+          ThrottlingRateLimit: 2
       CorsConfiguration:
         AllowOrigins: ['*']
         AllowHeaders: [content-type, x-user-id]

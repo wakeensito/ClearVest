@@ -62,5 +62,12 @@ def test_api_is_throttled():
     assert api["DefaultRouteSettings"]["ThrottlingRateLimit"] <= 20
 
 
+def test_ai_routes_have_tighter_throttles():
+    routes = load()["Resources"]["ClearVestApi"]["Properties"]["RouteSettings"]
+    for key in ("ANY /voice/{proxy+}", "ANY /advisor/{proxy+}"):
+        assert routes[key]["ThrottlingRateLimit"] <= 2
+        assert routes[key]["ThrottlingBurstLimit"] <= 5
+
+
 def test_market_fn_fits_api_gateway_timeout():
     assert load()["Resources"]["MarketFn"]["Properties"]["Timeout"] == 29
