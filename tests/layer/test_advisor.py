@@ -171,6 +171,22 @@ def test_normalize_markdown_strips_trailing_whitespace_per_line():
     assert advisor.normalize_markdown("Line one.   \nLine two.\t") == "Line one.\nLine two."
 
 
+def test_normalize_markdown_heading_becomes_its_own_paragraph():
+    assert advisor.normalize_markdown("#### **401(k)**\nHere is how") == "**401(k)**\n\nHere is how"
+
+
+def test_normalize_markdown_heading_already_followed_by_blank_line_unchanged():
+    assert advisor.normalize_markdown("### Title\n\nBody.") == "**Title**\n\nBody."
+
+
+def test_normalize_markdown_heading_at_end_gets_no_trailing_blank_line():
+    assert advisor.normalize_markdown("Body.\n### Title") == "Body.\n**Title**"
+
+
+def test_heading_regex_requires_space_after_hashes():
+    assert advisor.normalize_markdown("#ETFs are popular") == "#ETFs are popular"
+
+
 # --- plain_speech ------------------------------------------------------------------------
 
 
@@ -184,6 +200,16 @@ def test_plain_speech_strips_bold_bullets_and_tables():
 
 def test_plain_speech_strips_headings():
     assert "#" not in advisor.plain_speech("# Title\nBody text.")
+
+
+def test_plain_speech_heading_regex_requires_space_after_hashes():
+    assert advisor.plain_speech("#ETFs are popular") == "#ETFs are popular"
+
+
+def test_plain_speech_ends_list_items_and_table_rows_with_a_period():
+    text = "- one thing\n- another thing.\n\n| Feature | 401(k) |\n| --- | --- |\n| Taxed | Later | Never |"
+    out = advisor.plain_speech(text)
+    assert out == "one thing. another thing. Feature, 401(k). Taxed, Later, Never."
 
 
 # --- answer(mode="voice") ----------------------------------------------------------------
@@ -298,3 +324,36 @@ def test_converse_raises_upstream_when_truncation_trim_would_be_empty(monkeypatc
     monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
     with pytest.raises(UpstreamError):
         bedrock.converse("sys", [{"role": "user", "content": [{"text": "hi"}]}])
+
+
+def _converse_with_truncated_text(monkeypatch, text: str) -> str:
+    class Fake:
+        def converse(self, **kw):
+            return {"output": {"message": {"content": [{"text": text}]}}, "stopReason": "max_tokens"}
+
+    from clearvest import aws as aws_mod
+
+    monkeypatch.setattr(aws_mod, "bedrock", lambda: Fake())
+    return bedrock.converse("sys", [{"role": "user", "content": [{"text": "hi"}]}])
+
+
+def test_converse_drops_list_item_with_unterminated_bold_span(monkeypatch):
+    out = _converse_with_truncated_text(monkeypatch, "- Key: **term**\n- Consider a **Roth")
+    assert out == "- Key: **term**"
+
+
+def test_converse_drops_table_row_with_unterminated_bold_span(monkeypatch):
+    text = ("Comparing plans:\n| Feature | A | B |\n| --- | --- | --- |\n| Fee | Free | $5 |\n"
+            "| **Match | Often free | Rare |")
+    out = _converse_with_truncated_text(monkeypatch, text)
+    assert out == "Comparing plans:\n| Feature | A | B |\n| --- | --- | --- |\n| Fee | Free | $5 |"
+
+
+def test_converse_drops_table_header_and_delimiter_with_zero_body_rows(monkeypatch):
+    out = _converse_with_truncated_text(monkeypatch, "Here is a comparison:\n| A | B |\n| --- | --- |")
+    assert out == "Here is a comparison:"
+
+
+def test_converse_raises_upstream_when_only_a_headerless_table_survives(monkeypatch):
+    with pytest.raises(UpstreamError):
+        _converse_with_truncated_text(monkeypatch, "| A | B |\n| --- | --- |")

@@ -20,7 +20,7 @@ CHAT_TTL = 7 * 24 * 3600
 CHAT_MAX_TOKENS = 450
 VOICE_MAX_TOKENS = 220
 
-_HEADING_RE = re.compile(r"^#{1,6}\s*(.+)$", re.MULTILINE)
+_HEADING_RE = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
 _BLANK_RUN_RE = re.compile(r"\n{3,}")
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+")
 _SEP_ROW_RE = re.compile(r"^[\s|:-]+$")
@@ -121,29 +121,43 @@ def _store(pk: str, role: str, text: str) -> None:
 
 
 def normalize_markdown(text: str) -> str:
-    """Turn any '#' heading into **bold**, collapse runs of blank lines, and strip trailing whitespace."""
-
-    def _repl(match: "re.Match[str]") -> str:
-        inner = match.group(1).strip().replace("**", "")
-        return f"**{inner}**"
-
-    text = _HEADING_RE.sub(_repl, text)
-    text = _BLANK_RUN_RE.sub("\n\n", text)
-    return "\n".join(line.rstrip() for line in text.split("\n"))
+    """Turn any '#' heading into its own **bold** paragraph, collapse runs of blank lines, and strip
+    trailing whitespace."""
+    lines = text.split("\n")
+    out: list[str] = []
+    for i, raw in enumerate(lines):
+        match = _HEADING_RE.match(raw)
+        if match:
+            inner = match.group(1).strip().replace("**", "")
+            out.append(f"**{inner}**")
+            is_last_line = i == len(lines) - 1
+            next_is_blank = i + 1 < len(lines) and not lines[i + 1].strip()
+            if not is_last_line and not next_is_blank:
+                out.append("")  # heading is its own paragraph, not merged into what follows
+        else:
+            out.append(raw.rstrip())
+    return _BLANK_RUN_RE.sub("\n\n", "\n".join(out))
 
 
 def plain_speech(text: str) -> str:
-    """Strip markdown syntax (headings, bold, bullets/numbering, table pipes and separator rows) for TTS."""
+    """Strip markdown syntax (headings, bold, bullets/numbering, table pipes and separator rows) for TTS.
+
+    Each list item and table row gets a trailing '.' (unless it already ends with '.'/'!'/'?') so the
+    voice reads a pause between items instead of running them together.
+    """
     text = _HEADING_RE.sub(lambda m: m.group(1), text)
     lines: list[str] = []
     for raw in text.split("\n"):
         if _SEP_ROW_RE.match(raw) and "-" in raw:
             continue  # a table separator row like "| --- | --- |"
+        is_item = bool(_LIST_ITEM_RE.match(raw)) or "|" in raw
         line = _LIST_ITEM_RE.sub("", raw)
         line = line.replace("**", "").replace("*", "")
         if "|" in line:
             line = ", ".join(part.strip() for part in line.split("|") if part.strip())
         line = line.strip()
+        if line and is_item and not line.endswith((".", "!", "?")):
+            line += "."
         if line:
             lines.append(line)
     return re.sub(r"\s+", " ", " ".join(lines)).strip()
