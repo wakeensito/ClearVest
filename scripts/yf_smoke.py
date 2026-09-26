@@ -7,10 +7,14 @@ No API key. Hits Yahoo Finance over the network.
 import sys
 
 import yfinance as yf
-from yfinance.exceptions import YFDataException
 
 
 def main(tickers: list[str]) -> int:
+    """Print last close for each ticker, plus top holdings for funds.
+
+    Returns 1 if any ticker has no price data. Holdings are optional: any
+    failure there (not a fund, Yahoo error, rate limit) is skipped.
+    """
     for symbol in tickers:
         ticker = yf.Ticker(symbol)
         history = ticker.history(period="5d")
@@ -20,10 +24,9 @@ def main(tickers: list[str]) -> int:
         last_close = float(history["Close"].iloc[-1])
         print(f"{symbol}: last close {last_close:.2f} ({len(history)} rows)")
 
-        funds = ticker.funds_data
         try:
-            top = funds.top_holdings
-        except YFDataException:  # not a fund
+            top = ticker.funds_data.top_holdings
+        except Exception:  # noqa: BLE001 - optional; not a fund, or Yahoo failed
             top = None
         if top is not None and not top.empty:
             names = ", ".join(top.index[:3])
