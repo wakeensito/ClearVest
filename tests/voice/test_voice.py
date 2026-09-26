@@ -30,9 +30,16 @@ def test_turn_transcribes_and_answers(aws, monkeypatch):
     key = f"audio/in/{USER}/rec1"
     aws_mod.s3().put_object(Bucket=BUCKET, Key=key, Body=b"fake-audio", ContentType="audio/webm")
     monkeypatch.setattr(elevenlabs, "transcribe", lambda audio, ct: "I'm 63 and retiring soon")
-    monkeypatch.setattr(advisor, "answer", lambda uid, msg: {"reply": f"echo {msg}", "disclaimer": "d"})
+    seen = {}
+
+    def fake_answer(uid, msg, mode="chat"):
+        seen["mode"] = mode
+        return {"reply": f"echo {msg}", "disclaimer": "d"}
+
+    monkeypatch.setattr(advisor, "answer", fake_answer)
     status, body = call(handler, "POST", "/voice/turn", {"key": key})
     assert status == 200 and body == {"transcript": "I'm 63 and retiring soon", "reply": "echo I'm 63 and retiring soon", "disclaimer": "d"}
+    assert seen["mode"] == "voice"
     assert_matches("/voice/turn", "post", 200, body)
 
 
@@ -97,6 +104,14 @@ def test_speakable_boundaries():
     assert speakable("Why? " + "y" * 2500) == "Why?"
     assert speakable("a" * 1998 + "! b") == "a" * 1998 + "!"
     assert speakable("a" * 1999 + ". " + "b" * 10) == "a" * 1999 + "."  # boundary exactly at 2000
+
+
+def test_speakable_strips_markdown_before_trimming():
+    from voice.routes.speak import speakable
+
+    out = speakable("**Bold point**\n- one\n- two\n\n| A | B |\n| --- | --- |\n| x | y |")
+    assert "*" not in out and "|" not in out and "#" not in out
+    assert "Bold point" in out and "one" in out and "A" in out and "x" in out
 
 
 @responses.activate
