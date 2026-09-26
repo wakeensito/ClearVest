@@ -1,0 +1,171 @@
+"""Contract tests for Plaid Link flow and normalized holdings."""
+
+import json
+from pathlib import Path
+
+import responses
+from clearvest import db
+from clearvest.errors import NotLinked
+from clearvest.providers import plaid
+from portfolio.app import handler
+from portfolio.routes.holdings import load_holdings
+
+from tests.contract import assert_matches
+from tests.helpers import USER, call
+
+RAW = json.loads(Path("tests/fixtures/plaid_holdings.json").read_text())
+BASE = "https://sandbox.plaid.com"
+
+
+def test_normalize():
+    out = plaid.normalize([RAW])
+    assert out["totalValue"] == 5000.0
+    assert [h["symbol"] for h in out["holdings"]] == ["VTI", "AAPL", "Cash Sweep"]
+    assert out["holdings"][0] == {
+        "symbol": "VTI", "name": "Vanguard Total Stock Market ETF", "type": "etf",
+        "quantity": 10.0, "price": 300.0, "value": 3000.0, "weight": 0.6,
+    }
+    assert out["holdings"][2]["type"] == "cash"
+
+
+@responses.activate
+def test_link_token(aws):
+    responses.post(f"{BASE}/link/token/create", json={"link_token": "link-sandbox-1"})
+    assert call(handler, "POST", "/plaid/link-token") == (200, {"linkToken": "link-sandbox-1"})
+    sent = json.loads(responses.calls[0].request.body)
+    assert sent["client_id"] == "plaid-id" and sent["user"]["client_user_id"] == USER
+    assert sent["products"] == ["investments"]
+
+
+@responses.activate
+def test_sandbox_link_then_holdings(aws):
+    responses.post(f"{BASE}/sandbox/public_token/create", json={"public_token": "public-1"})
+    responses.post(f"{BASE}/item/public_token/exchange", json={"item_id": "item-1", "access_token": "access-1"})
+    responses.post(f"{BASE}/investments/holdings/get", json=RAW)
+
+    assert call(handler, "POST", "/plaid/sandbox-link") == (200, {"itemId": "item-1"})
+    stored = db.get(db.user_pk(USER), "PLAID#item-1")
+    assert stored["accessToken"] == "access-1"
+
+    status, body = call(handler, "GET", "/portfolio/holdings")
+    assert status == 200 and body["totalValue"] == 5000.0
+    assert "accessToken" not in json.dumps(body) and "access-1" not in json.dumps(body)
+    assert_matches("/portfolio/holdings", "get", 200, body)
+
+    # Second call inside an hour is served from the snapshot: no new Plaid call.
+    call(handler, "GET", "/portfolio/holdings")
+    assert len([c for c in responses.calls if c.request.url.endswith("/investments/holdings/get")]) == 1
+
+
+@responses.activate
+def test_link_refreshes_holdings_snapshot(aws):
+    # A stale snapshot from before the new item must not survive the link.
+    db.put(db.user_pk(USER), "HOLDINGS", {"asOf": "x", "totalValue": 1.0, "holdings": [], "fetchedAt": 9e12})
+    responses.post(f"{BASE}/sandbox/public_token/create", json={"public_token": "public-1"})
+    responses.post(f"{BASE}/item/public_token/exchange", json={"item_id": "item-1", "access_token": "access-1"})
+    responses.post(f"{BASE}/investments/holdings/get", json=RAW)
+    assert call(handler, "POST", "/plaid/sandbox-link") == (200, {"itemId": "item-1"})
+    assert db.get(db.user_pk(USER), "HOLDINGS")["totalValue"] == 5000.0
+
+
+@responses.activate
+def test_link_succeeds_even_if_holdings_fetch_fails(aws):
+    responses.post(f"{BASE}/sandbox/public_token/create", json={"public_token": "public-1"})
+    responses.post(f"{BASE}/item/public_token/exchange", json={"item_id": "item-1", "access_token": "access-1"})
+    responses.post(f"{BASE}/investments/holdings/get", status=500)
+    assert call(handler, "POST", "/plaid/sandbox-link") == (200, {"itemId": "item-1"})
+    assert db.get(db.user_pk(USER), "PLAID#item-1")["accessToken"] == "access-1"
+    assert db.get(db.user_pk(USER), "HOLDINGS") is None
+
+
+@responses.activate
+def test_exchange_validates_body(aws):
+    status, _ = call(handler, "POST", "/plaid/exchange", {})
+    assert status == 400
+
+
+def test_holdings_without_link_is_409(aws):
+    status, body = call(handler, "GET", "/portfolio/holdings")
+    assert status == 409 and body["error"]["code"] == "NOT_LINKED"
+
+
+@responses.activate
+def test_plaid_down_with_snapshot_serves_stale(aws, monkeypatch):
+    db.put(db.user_pk(USER), "PLAID#item-1", {"itemId": "item-1", "accessToken": "access-1"})
+    db.put(db.user_pk(USER), "HOLDINGS", {"asOf": "2026-09-26T00:00:00Z", "totalValue": 1.0, "holdings": [], "fetchedAt": 0})
+    responses.post(f"{BASE}/investments/holdings/get", status=500)
+    status, body = call(handler, "GET", "/portfolio/holdings")
+    assert status == 200 and body["stale"] is True
+
+
+@responses.activate
+def test_link_keeps_old_snapshot_as_stale_fallback_when_holdings_fetch_fails(aws):
+    # A snapshot already exists (e.g. from a previously linked item).
+    db.put(db.user_pk(USER), "HOLDINGS", {"asOf": "x", "totalValue": 42.0, "holdings": [], "fetchedAt": 9e12})
+    responses.post(f"{BASE}/sandbox/public_token/create", json={"public_token": "public-1"})
+    responses.post(f"{BASE}/item/public_token/exchange", json={"item_id": "item-1", "access_token": "access-1"})
+    responses.post(f"{BASE}/investments/holdings/get", status=500)
+
+    assert call(handler, "POST", "/plaid/sandbox-link") == (200, {"itemId": "item-1"})
+
+    status, body = call(handler, "GET", "/portfolio/holdings")
+    assert status == 200 and body["totalValue"] == 42.0 and body["stale"] is True
+
+
+def test_load_holdings_queries_plaid_items_with_consistent_read(aws, monkeypatch):
+    captured = {}
+
+    def fake_query(pk, prefix, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(db, "query", fake_query)
+    try:
+        load_holdings(USER)
+    except NotLinked:
+        pass
+    assert captured.get("consistent") is True
+    assert captured.get("limit", "unset") is None  # every PLAID# page, not the default 50
+
+
+def _post_timeout(monkeypatch, remaining):
+    from clearvest import api, http
+
+    captured = {}
+    monkeypatch.setattr(api, "remaining_seconds", lambda: remaining)
+    monkeypatch.setattr(http, "request_json", lambda *a, **kw: captured.update(kw) or {"link_token": "t"})
+    plaid.create_link_token(USER)
+    return captured.get("timeout")
+
+
+def test_plaid_timeout_is_capped_at_25s(aws, monkeypatch):
+    assert _post_timeout(monkeypatch, 60.0) == 25
+
+
+def test_plaid_timeout_leaves_2s_of_the_lambda_deadline(aws, monkeypatch):
+    assert _post_timeout(monkeypatch, 14.0) == 12.0
+
+
+def test_plaid_refuses_to_call_without_enough_time(aws, monkeypatch):
+    import pytest
+    from clearvest.errors import UpstreamError
+
+    with pytest.raises(UpstreamError) as err:
+        _post_timeout(monkeypatch, 4.5)
+    assert err.value.provider == "plaid" and "not enough time" in err.value.detail
+
+
+@responses.activate
+def test_link_skips_holdings_refresh_when_time_is_short(aws, monkeypatch):
+    from clearvest import api
+
+    db.put(db.user_pk(USER), "HOLDINGS", {"asOf": "x", "totalValue": 42.0, "holdings": [], "fetchedAt": 9e12})
+    responses.post(f"{BASE}/sandbox/public_token/create", json={"public_token": "public-1"})
+    responses.post(f"{BASE}/item/public_token/exchange", json={"item_id": "item-1", "access_token": "access-1"})
+    responses.post(f"{BASE}/investments/holdings/get", json=RAW)
+    remaining = iter([20.0, 12.0, 7.5])  # create, exchange, then the refresh check
+    monkeypatch.setattr(api, "remaining_seconds", lambda: next(remaining))
+
+    assert call(handler, "POST", "/plaid/sandbox-link") == (200, {"itemId": "item-1"})
+    assert not [c for c in responses.calls if c.request.url.endswith("/investments/holdings/get")]
+    assert db.get(db.user_pk(USER), "HOLDINGS")["fetchedAt"] == 0  # stale, so the next read refreshes

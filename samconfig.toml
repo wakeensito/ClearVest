@@ -1,0 +1,19 @@
+# No account IDs here: resolve_s3 lets SAM manage its artifact bucket.
+version = 0.1
+
+[default.global.parameters]
+stack_name = "ClearVest"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+s3_prefix = "ClearVest"
+region = "us-east-1"

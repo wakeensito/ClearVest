@@ -1,0 +1,946 @@
+openapi: 3.1.0
+info:
+  title: ClearVest API
+  version: "1.0.0"
+  description: >
+    The contract between the ClearVest backend (4 SAM Lambdas) and the frontend.
+    If code and this file disagree, this file wins; fix the code. See docs/api/README.md
+    for how to run a mock server against this file before the backend is deployed.
+servers:
+  - url: "http://127.0.0.1:4010"
+    description: Prism mock
+  - url: "{apiUrl}"
+    variables:
+      apiUrl:
+        default: "https://example.execute-api.us-east-1.amazonaws.com"
+tags:
+  - name: Portfolio
+  - name: Market
+  - name: Advisor
+  - name: Voice
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [Portfolio]
+      summary: Liveness check. No X-User-Id required.
+      responses:
+        "200":
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version]
+                properties:
+                  status:
+                    type: string
+                  version:
+                    type: string
+              example:
+                status: ok
+                version: "1.0.0"
+
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [Portfolio]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: The user's profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+              example:
+                age: 24
+                horizon: long
+                goals: ["retire early", "buy a house"]
+                riskTolerance: medium
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putProfile
+      tags: [Portfolio]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Profile"
+            example:
+              age: 24
+              horizon: long
+              goals: ["retire early", "buy a house"]
+              riskTolerance: medium
+      responses:
+        "200":
+          description: The saved profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+              example:
+                age: 24
+                horizon: long
+                goals: ["retire early", "buy a house"]
+                riskTolerance: medium
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /plaid/link-token:
+    post:
+      operationId: createPlaidLinkToken
+      tags: [Portfolio]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: A Plaid Link token for the frontend to open Link with.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [linkToken]
+                properties:
+                  linkToken:
+                    type: string
+              example:
+                linkToken: link-sandbox-11111111-2222-3333-4444-555555555555
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /plaid/exchange:
+    post:
+      operationId: exchangePlaidPublicToken
+      tags: [Portfolio]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [publicToken]
+              properties:
+                publicToken:
+                  type: string
+              example:
+                publicToken: public-sandbox-11111111-2222-3333-4444-555555555555
+      responses:
+        "200":
+          description: The Plaid item created from the public token.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itemId]
+                properties:
+                  itemId:
+                    type: string
+              example:
+                itemId: item-sandbox-66666666-7777-8888-9999-000000000000
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /plaid/sandbox-link:
+    post:
+      operationId: createPlaidSandboxLink
+      tags: [Portfolio]
+      summary: "Dev only: creates a sandbox item with no Link UI."
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: The Plaid item created directly in the sandbox.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [itemId]
+                properties:
+                  itemId:
+                    type: string
+              example:
+                itemId: item-sandbox-66666666-7777-8888-9999-000000000000
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /portfolio/holdings:
+    get:
+      operationId: getHoldings
+      tags: [Portfolio]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: The user's normalized holdings, cached for 1h.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Holdings"
+              example:
+                asOf: "2026-09-26T00:00:00+00:00"
+                totalValue: 10000.0
+                holdings:
+                  - symbol: VTI
+                    name: Vanguard Total Stock Market ETF
+                    type: etf
+                    quantity: 20.0
+                    price: 250.0
+                    value: 5000.0
+                    weight: 0.5
+                  - symbol: AAPL
+                    name: Apple Inc.
+                    type: equity
+                    quantity: 10.0
+                    price: 200.0
+                    value: 2000.0
+                    weight: 0.2
+                  - symbol: BND
+                    name: Vanguard Total Bond Market ETF
+                    type: fixed income
+                    quantity: 300.0
+                    price: 10.0
+                    value: 3000.0
+                    weight: 0.3
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/NotLinked"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /portfolio/risk:
+    get:
+      operationId: getRisk
+      tags: [Portfolio]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: The deterministic 0-100 risk score.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Risk"
+              example:
+                score: 58
+                label: Moderate
+                factors:
+                  - name: Concentration
+                    detail: Your largest position (VTI) is 50% of your portfolio.
+                  - name: Asset mix
+                    detail: 70% equity/ETF, 30% fixed income.
+                  - name: Horizon
+                    detail: A long time horizon supports a bit more risk.
+                summary: A moderate risk profile balancing growth and stability.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/NotLinked"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /market/history:
+    get:
+      operationId: getMarketHistory
+      tags: [Market]
+      description: Takes 1 to 5 symbols; fewer or more is a 400.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/Symbols"
+        - $ref: "#/components/parameters/Range"
+      responses:
+        "200":
+          description: Price history and computed return/volatility per symbol.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/History"
+              example:
+                series:
+                  - symbol: VOO
+                    points:
+                      - date: "2026-07-01"
+                        close: 520.12
+                      - date: "2026-08-01"
+                        close: 531.4
+                      - date: "2026-09-01"
+                        close: 545.87
+                    returnPct: 0.0494
+                    volatility: 0.132
+                  - symbol: QQQ
+                    points:
+                      - date: "2026-07-01"
+                        close: 480.55
+                      - date: "2026-08-01"
+                        close: 470.2
+                      - date: "2026-09-01"
+                        close: 492.33
+                    returnPct: 0.0245
+                    volatility: 0.198
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /market/compare-companies:
+    get:
+      operationId: compareCompanies
+      tags: [Market]
+      description: Takes 2 to 4 symbols; fewer or more is a 400.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - $ref: "#/components/parameters/Symbols"
+      responses:
+        "200":
+          description: Normalized fundamental ratios per symbol.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Companies"
+              example:
+                companies:
+                  - symbol: AMD
+                    pe: 95.1
+                    ps: 11.2
+                    grossMargin: 0.532
+                    revenueGrowth: 0.343
+                    epsTTM: 1.9
+                    fcfPerShare: 4.1
+                    debtToEquity: 0.06
+                  - symbol: NVDA
+                    pe: 65.4
+                    ps: 28.7
+                    grossMargin: 0.75
+                    revenueGrowth: 0.2
+                    epsTTM: 2.94
+                    fcfPerShare: 2.6
+                    debtToEquity: 0.12
+                notes: Ratios are trailing-twelve-month figures from provider data and may lag the latest quarter.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /market/macro:
+    get:
+      operationId: getMacro
+      tags: [Market]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: The latest FRED macro snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Macro"
+              example:
+                fedFunds: 4.33
+                cpiYoY: 2.9
+                unemployment: 4.2
+                wageGrowth: 3.8
+                tenYear: 4.1
+                asOf: "2026-08-01"
+                summary: "Fed funds 4.33%, inflation 2.9% YoY, unemployment 4.2%, wages +3.8% YoY, 10-year Treasury 4.1%."
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /market/templates:
+    get:
+      operationId: getTemplates
+      tags: [Market]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Bundled portfolio templates (not user-specific).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Template"
+              example:
+                - id: three-fund-boglehead
+                  name: Three-Fund Boglehead
+                  description: A simple, low-cost mix of total US stock, total international stock and total bond market funds.
+                  allocations:
+                    - asset: US Total Stock Market
+                      weight: 0.6
+                    - asset: International Total Stock Market
+                      weight: 0.2
+                    - asset: US Total Bond Market
+                      weight: 0.2
+                  source: https://www.bogleheads.org/wiki/Three-fund_portfolio
+                - id: target-date-2065
+                  name: Target Date 2065 Style
+                  description: An age-based glide path favoring equities for a long time horizon.
+                  allocations:
+                    - asset: US Total Stock Market
+                      weight: 0.54
+                    - asset: International Total Stock Market
+                      weight: 0.36
+                    - asset: US Total Bond Market
+                      weight: 0.1
+                  source: https://investor.vanguard.com/investment-products/mutual-funds/profile/vfifx
+
+  /advisor/chat:
+    post:
+      operationId: postAdvisorChat
+      tags: [Advisor]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+              example:
+                message: "I'm 24, what retirement account should I use?"
+      responses:
+        "200":
+          description: The advisor's reply, grounded in the user's real numbers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatReply"
+              example:
+                reply: "At 24, a Roth IRA is worth considering since you're likely in a lower tax bracket now than you will be in retirement."
+                disclaimer: "ClearVest provides educational information, not financial advice. Consider a licensed professional before making investment decisions."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /advisor/retirement-accounts:
+    get:
+      operationId: getRetirementAccounts
+      tags: [Advisor]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: Static, sourced retirement account facts plus a personalized note.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetirementAccounts"
+              example:
+                accounts:
+                  - id: traditional-401k
+                    name: Traditional 401(k)
+                    taxTreatment: Pre-tax contributions, taxed on withdrawal.
+                    contributionLimit: "$24,500 employee deferral (2026); $8,000 catch-up at 50+"
+                    bestFor: Higher earners now who expect a lower tax rate in retirement.
+                    source: https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-401k-and-profit-sharing-plan-contribution-limits
+                  - id: roth-401k
+                    name: Roth 401(k)
+                    taxTreatment: After-tax contributions, qualified withdrawals tax-free.
+                    contributionLimit: "$24,500 employee deferral (2026); $8,000 catch-up at 50+"
+                    bestFor: Early-career earners who expect higher taxes later.
+                    source: https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-401k-and-profit-sharing-plan-contribution-limits
+                  - id: roth-ira
+                    name: Roth IRA
+                    taxTreatment: After-tax contributions, qualified withdrawals tax-free.
+                    contributionLimit: "$7,500 (2026); $1,100 catch-up at 50+; income limits apply"
+                    bestFor: Anyone under the income limit who wants tax-free growth and flexible access to contributions.
+                    source: https://www.irs.gov/retirement-plans/roth-iras
+                  - id: tsp
+                    name: Thrift Savings Plan (TSP)
+                    taxTreatment: Federal employees and uniformed services; traditional or Roth; very low fees.
+                    contributionLimit: "$24,500 employee deferral (2026); $8,000 catch-up at 50+"
+                    bestFor: Federal employees and service members seeking low-cost retirement savings.
+                    source: https://www.tsp.gov/making-contributions/contribution-limits/
+                personalized: "At 24, Roth accounts often make more sense since you're likely in a lower tax bracket now than you will be later."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /advisor/history:
+    delete:
+      operationId: deleteAdvisorHistory
+      tags: [Advisor]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: Chat history cleared. No body.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /voice/upload-url:
+    post:
+      operationId: createVoiceUploadUrl
+      tags: [Voice]
+      summary: A presigned S3 PUT so audio never passes through API Gateway.
+      description: >
+        The Content-Type is part of the signature: the PUT to uploadUrl must send the same
+        Content-Type header that was requested here, or S3 rejects it with 403.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentType]
+              properties:
+                contentType:
+                  type: string
+                  enum: [audio/webm, audio/mp4, audio/mpeg, audio/wav, audio/ogg]
+              example:
+                contentType: audio/webm
+      responses:
+        "200":
+          description: A presigned PUT URL and the key the recording will land at.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrl"
+              example:
+                uploadUrl: "https://clearvest-audio.s3.us-east-1.amazonaws.com/audio/in/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222?X-Amz-Signature=example"
+                key: audio/in/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222
+                expiresIn: 900
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /voice/turn:
+    post:
+      operationId: postVoiceTurn
+      tags: [Voice]
+      summary: Speech-to-text on the uploaded key, then the same advisor as /advisor/chat.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+              example:
+                key: audio/in/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222
+      responses:
+        "200":
+          description: The transcript and the advisor's reply.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoiceTurn"
+              example:
+                transcript: "What's a good retirement account for someone my age?"
+                reply: "At 24, a Roth IRA is worth considering since you're likely in a lower tax bracket now than you will be in retirement."
+                disclaimer: "ClearVest provides educational information, not financial advice. Consider a licensed professional before making investment decisions."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /voice/speak:
+    post:
+      operationId: postVoiceSpeak
+      tags: [Voice]
+      summary: Text-to-speech into S3, returned as a presigned GET.
+      description: >
+        Accepts up to 5000 characters so a full advisor reply can be sent as-is; it is trimmed
+        to about 2000 characters at a sentence boundary before speech.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 5000
+              example:
+                text: "At 24, a Roth IRA is worth considering."
+      responses:
+        "200":
+          description: A presigned GET URL for the synthesized mp3.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Speech"
+              example:
+                audioUrl: "https://clearvest-audio.s3.us-east-1.amazonaws.com/audio/out/11111111-1111-1111-1111-111111111111/33333333-3333-3333-3333-333333333333.mp3?X-Amz-Signature=example"
+                expiresIn: 900
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+components:
+  parameters:
+    UserId:
+      name: X-User-Id
+      in: header
+      required: true
+      description: The user's id. Required on every route except /health.
+      schema:
+        type: string
+        format: uuid
+    Symbols:
+      name: symbols
+      in: query
+      required: true
+      description: Comma-separated ticker symbols.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9.^-]+(,[A-Za-z0-9.^-]+)*$'
+      example: "AMD,NVDA"
+    Range:
+      name: range
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [1y, 5y, 10y]
+        default: 1y
+
+  responses:
+    BadRequest:
+      description: The request failed validation (e.g. a missing/invalid X-User-Id, or a bad body/query param).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: VALIDATION
+              message: "X-User-Id header is required and must be a UUID."
+              requestId: "9a1e6b2e-0000-4c00-8000-000000000001"
+    NotLinked:
+      description: The user has no linked Plaid item yet.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: NOT_LINKED
+              message: "No linked account. Send the user to Plaid Link."
+              requestId: "9a1e6b2e-0000-4c00-8000-000000000002"
+    NotFound:
+      description: The requested resource does not exist (e.g. no profile saved yet).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: NOT_FOUND
+              message: "No profile yet"
+              requestId: "9a1e6b2e-0000-4c00-8000-000000000004"
+    Upstream:
+      description: A data provider is down.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: UPSTREAM_UNAVAILABLE
+              message: "The data provider is temporarily unavailable. Please retry."
+              requestId: "9a1e6b2e-0000-4c00-8000-000000000003"
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION, NOT_FOUND, NOT_LINKED, UPSTREAM_UNAVAILABLE, INTERNAL]
+            message:
+              type: string
+            requestId:
+              type: [string, "null"]
+
+    Profile:
+      type: object
+      required: [age, horizon, goals, riskTolerance]
+      properties:
+        age:
+          type: integer
+          minimum: 13
+          maximum: 120
+        horizon:
+          type: string
+          enum: [short, medium, long]
+        goals:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+        riskTolerance:
+          type: string
+          enum: [low, medium, high]
+
+    Holding:
+      type: object
+      required: [symbol, name, type, quantity, price, value, weight]
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        quantity:
+          type: number
+        price:
+          type: number
+        value:
+          type: number
+        weight:
+          type: number
+
+    Holdings:
+      type: object
+      required: [asOf, totalValue, holdings]
+      properties:
+        asOf:
+          type: string
+        totalValue:
+          type: number
+        holdings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Holding"
+        stale:
+          type: boolean
+
+    Risk:
+      type: object
+      required: [score, label, factors, summary]
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        label:
+          type: string
+        factors:
+          type: array
+          items:
+            type: object
+            required: [name, detail]
+            properties:
+              name:
+                type: string
+              detail:
+                type: string
+        summary:
+          type: string
+
+    HistorySeries:
+      type: object
+      required: [symbol, points, returnPct, volatility]
+      properties:
+        symbol:
+          type: string
+        points:
+          type: array
+          items:
+            type: object
+            required: [date, close]
+            properties:
+              date:
+                type: string
+              close:
+                type: number
+        returnPct:
+          type: number
+        volatility:
+          type: number
+
+    History:
+      type: object
+      required: [series]
+      properties:
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistorySeries"
+        stale:
+          type: boolean
+
+    Company:
+      type: object
+      required: [symbol, pe, ps, grossMargin, revenueGrowth, epsTTM, fcfPerShare, debtToEquity]
+      properties:
+        symbol:
+          type: string
+        pe:
+          type: [number, "null"]
+        ps:
+          type: [number, "null"]
+        grossMargin:
+          type: [number, "null"]
+        revenueGrowth:
+          type: [number, "null"]
+        epsTTM:
+          type: [number, "null"]
+        fcfPerShare:
+          type: [number, "null"]
+        debtToEquity:
+          type: [number, "null"]
+
+    Companies:
+      type: object
+      required: [companies, notes]
+      properties:
+        companies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Company"
+        notes:
+          type: string
+        stale:
+          type: boolean
+
+    Macro:
+      type: object
+      required: [fedFunds, cpiYoY, unemployment, wageGrowth, tenYear, asOf, summary]
+      properties:
+        fedFunds:
+          type: [number, "null"]
+        cpiYoY:
+          type: [number, "null"]
+        unemployment:
+          type: [number, "null"]
+        wageGrowth:
+          type: [number, "null"]
+        tenYear:
+          type: [number, "null"]
+        asOf:
+          type: [string, "null"]
+        summary:
+          type: string
+        stale:
+          type: boolean
+
+    Template:
+      type: object
+      required: [id, name, description, allocations]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        allocations:
+          type: array
+          items:
+            type: object
+            required: [asset, weight]
+            properties:
+              asset:
+                type: string
+              weight:
+                type: number
+        source:
+          type: string
+
+    ChatReply:
+      type: object
+      required: [reply, disclaimer]
+      properties:
+        reply:
+          type: string
+        disclaimer:
+          type: string
+
+    RetirementAccounts:
+      type: object
+      required: [accounts, personalized]
+      properties:
+        accounts:
+          type: array
+          items:
+            type: object
+            required: [id, name, taxTreatment, contributionLimit, bestFor]
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              taxTreatment:
+                type: string
+              contributionLimit:
+                type: string
+              bestFor:
+                type: string
+              source:
+                type: string
+        personalized:
+          type: string
+
+    UploadUrl:
+      type: object
+      required: [uploadUrl, key, expiresIn]
+      properties:
+        uploadUrl:
+          type: string
+        key:
+          type: string
+        expiresIn:
+          type: integer
+
+    VoiceTurn:
+      type: object
+      required: [transcript, reply, disclaimer]
+      properties:
+        transcript:
+          type: string
+        reply:
+          type: string
+        disclaimer:
+          type: string
+
+    Speech:
+      type: object
+      required: [audioUrl, expiresIn]
+      properties:
+        audioUrl:
+          type: string
+        expiresIn:
+          type: integer

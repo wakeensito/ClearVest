@@ -19,6 +19,10 @@ Parameters:
     Type: String
     Default: ClearVest
     Description: the CloudFormation/SAM stack this role deploys
+  AppBucketPrefix:
+    Type: String
+    Default: clearvest
+    Description: Lowercase stack name. CloudFormation lowercases generated S3 bucket names.
 
 Resources:
   # Assumes the account already has the GitHub OIDC provider
@@ -28,6 +32,11 @@ Resources:
   #     --client-id-list sts.amazonaws.com
   DeployRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - W3037
     Properties:
       RoleName: !Sub '${AppStackName}-gha-deploy'
       MaxSessionDuration: 3600
@@ -47,10 +56,14 @@ Resources:
                 # "repo:owner@id/name@id:..." — accounts with the newer
                 # format never match the classic pattern alone, and the
                 # failure is an opaque "Not authorized" at assume time.
+                # Both are pinned to main: PR/feature branches can no longer
+                # assume this role, so CD runs only from main (a push, or
+                # `gh workflow run deploy.yml --ref main`). StringLike stays
+                # for the @* wildcards in the ID-stamped shape.
                 token.actions.githubusercontent.com:sub:
-                  - !Sub 'repo:${GitHubRepo}:*'
+                  - !Sub 'repo:${GitHubRepo}:ref:refs/heads/main'
                   - !Sub
-                    - 'repo:${Owner}@*/${Name}@*:*'
+                    - 'repo:${Owner}@*/${Name}@*:ref:refs/heads/main'
                     - Owner: !Select [0, !Split ['/', !Ref GitHubRepo]]
                       Name: !Select [1, !Split ['/', !Ref GitHubRepo]]
       Policies:
@@ -119,6 +132,12 @@ Resources:
                   - dynamodb:ListTagsOfResource
                   - dynamodb:TagResource
                   - dynamodb:UntagResource
+                  - dynamodb:UpdateContinuousBackups
+                  - dynamodb:DescribeContinuousBackups
+                  # CloudFormation's DynamoDB handler reads these on every create/update.
+                  - dynamodb:DescribeContributorInsights
+                  - dynamodb:DescribeKinesisStreamingDestination
+                  - dynamodb:GetResourcePolicy
                 Resource:
                   - !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AppStackName}-*'
               # Execution roles the app stack creates for its functions.
@@ -140,6 +159,56 @@ Resources:
                   - iam:ListAttachedRolePolicies
                 Resource:
                   - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${AppStackName}-*'
+              # HTTP API. API Gateway ARNs carry no name, so this can't be scoped by
+              # prefix; it is limited to the apis/tags paths in this region.
+              # apigateway:TagResource/UntagResource ARE real, required IAM actions —
+              # ApiGatewayV2's Stage resource handler calls them directly on create/
+              # update/delete (separately from the apigateway:PUT-on-/tags/* path).
+              # cfn-lint's action database is stale and doesn't know about them
+              # (flags as W3037); that's a lint gap, not evidence the action is fake.
+              - Sid: AppHttpApi
+                Effect: Allow
+                Action:
+                  - apigateway:GET
+                  - apigateway:POST
+                  - apigateway:PUT
+                  - apigateway:PATCH
+                  - apigateway:DELETE
+                  - apigateway:TagResource
+                  - apigateway:UntagResource
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/apis'
+                  - !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/apis/*'
+                  - !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/tags/*'
+              - Sid: AppLayers
+                Effect: Allow
+                Action:
+                  - lambda:PublishLayerVersion
+                  - lambda:DeleteLayerVersion
+                  - lambda:GetLayerVersion
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:${AppStackName}-*'
+                  - !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:${AppStackName}-*:*'
+              - Sid: AppBucket
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:GetBucketLocation
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:PutEncryptionConfiguration
+                  - s3:GetEncryptionConfiguration
+                  - s3:PutLifecycleConfiguration
+                  - s3:GetLifecycleConfiguration
+                  - s3:PutBucketCORS
+                  - s3:GetBucketCORS
+                  - s3:PutBucketTagging
+                  - s3:GetBucketTagging
+                  # Read during create/update/delete of the bucket by CloudFormation's S3 handler.
+                  - s3:ListBucket
+                  - s3:GetBucketAcl
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-*'
 
 Outputs:
   DeployRoleArn:
