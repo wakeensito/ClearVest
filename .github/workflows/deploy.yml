@@ -1,13 +1,20 @@
-# Deploy — OIDC-ready stub. Silent no-op on merges until wired, so an
-# unwired repo never shows red X's on main.
+# Deploy — OIDC CD for the ClearVest SAM stack (backend + frontend hosting).
+# Runs on push to main once DEPLOY_ENABLED=true (manual dispatch always runs).
 #
-# To wire it up (full steps live in the seeded issue "Wire up deploy pipeline"):
-#   1. aws cloudformation deploy --template-file infra/cicd-role.yaml \
-#        --stack-name <repo>-cicd --capabilities CAPABILITY_NAMED_IAM
-#   2. gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn output>"
-#   3. Replace the TODO step below with real build+deploy commands — done
-#   4. gh variable set DEPLOY_ENABLED --body true
-#   5. gh workflow run deploy.yml    # dispatch once to verify
+# 1. sam build && sam deploy: HTTP API, Lambdas, table, audio bucket, and the
+#    private frontend bucket + CloudFront distribution (template.yaml).
+# 2. Reads the stack outputs (ApiUrl, FrontendBucketName, FrontendDistributionId).
+# 3. Builds the frontend with VITE_API_BASE_URL=<ApiUrl> baked in (build time only).
+# 4. Syncs frontend/dist to the bucket with a cache split: hashed assets/ get a
+#    1-year immutable Cache-Control, unhashed public/ files max-age=0 +
+#    must-revalidate, index.html no-cache; then invalidates /index.html and /.
+#    Old hashed chunks are kept so open tabs survive a deploy. Deep routes need no
+#    invalidation: the SPA fallback (403/404 -> index.html) has ErrorCachingMinTTL 0.
+#
+# One-time bootstrap (README "Deploy"): deploy infra/cicd-role.yaml, then
+#   gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn output>"
+#   gh variable set DEPLOY_ENABLED --body true
+# Re-deploy the role stack whenever infra/cicd-role.yaml changes.
 #
 # Role ARN and targets are repo *variables* (vars.*), not secrets — they are
 # not sensitive, and vars are visible/diffable in the UI. Never static AWS
@@ -33,7 +40,8 @@ jobs:
     # the real deploy so wiring can be tested on purpose.
     if: vars.DEPLOY_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The first CloudFront distribution create alone takes ~5-15 min inside sam deploy.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -55,3 +63,67 @@ jobs:
         run: |
           sam build
           sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Read stack outputs
+        run: |
+          out() {
+            aws cloudformation describe-stacks --stack-name ClearVest \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text
+          }
+          API_URL="$(out ApiUrl)"
+          FRONTEND_BUCKET="$(out FrontendBucketName)"
+          DISTRIBUTION_ID="$(out FrontendDistributionId)"
+          FRONTEND_URL="$(out FrontendUrl)"
+          for v in API_URL FRONTEND_BUCKET DISTRIBUTION_ID FRONTEND_URL; do
+            val="${!v}"
+            if [ -z "$val" ] || [ "$val" = "None" ]; then
+              echo "::error::Stack output for $v is empty"
+              exit 1
+            fi
+          done
+          {
+            echo "API_URL=${API_URL%/}"
+            echo "FRONTEND_BUCKET=$FRONTEND_BUCKET"
+            echo "DISTRIBUTION_ID=$DISTRIBUTION_ID"
+            echo "FRONTEND_URL=$FRONTEND_URL"
+          } >> "$GITHUB_ENV"
+
+      - name: Build frontend (API URL baked in at build time)
+        run: VITE_API_BASE_URL="$API_URL" npm run build
+
+      - name: Publish frontend to S3
+        run: |
+          test -f frontend/dist/index.html
+          # Only assets/ is content-hashed by Vite: cache it for a year. No --delete:
+          # a tab opened before this deploy still loads its old chunks instead of
+          # getting index.html back from the SPA fallback. Old chunks are a few
+          # hundred KB per deploy; no lifecycle expiry, since sync skips unchanged
+          # files and an age-based rule would also expire chunks still in use.
+          aws s3 sync frontend/dist/assets "s3://$FRONTEND_BUCKET/assets" \
+            --cache-control "public, max-age=31536000, immutable"
+          # Files copied from frontend/public keep their names: always revalidate.
+          aws s3 sync frontend/dist "s3://$FRONTEND_BUCKET" --delete \
+            --exclude index.html --exclude "assets/*" \
+            --cache-control "public, max-age=0, must-revalidate"
+          # index.html points at the current hashes: never cached, so a deploy shows up at once.
+          aws s3 cp frontend/dist/index.html "s3://$FRONTEND_BUCKET/index.html" \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html; charset=utf-8"
+
+      - name: Invalidate index.html and /
+        run: |
+          aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" \
+            --paths "/index.html" "/" --query Invalidation.Id --output text
+
+      - name: Frontend URL
+        run: |
+          echo "Frontend: $FRONTEND_URL"
+          echo "### Frontend: $FRONTEND_URL" >> "$GITHUB_STEP_SUMMARY"
