@@ -210,6 +210,86 @@ Resources:
       Events:
         Voice: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/voice/{proxy+}', Method: ANY}}
 
+  # --- Frontend hosting: private S3 bucket behind CloudFront (Origin Access Control) ---
+  # No BucketName: CloudFormation generates a lowercase clearvest-frontendbucket-* name,
+  # which the CD role's ${AppBucketPrefix}-* statements already cover.
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+
+  FrontendOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-frontend-oac'
+        Description: CloudFront signs every request to the private frontend bucket
+        OriginAccessControlOriginType: s3
+        SigningProtocol: sigv4
+        SigningBehavior: always
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub '${AWS::StackName} frontend'
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        IPV6Enabled: true
+        Origins:
+          - Id: FrontendS3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            # Empty OAI is required alongside OAC on an S3 origin.
+            S3OriginConfig: {OriginAccessIdentity: ''}
+            OriginAccessControlId: !GetAtt FrontendOAC.Id
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          # AWS managed "CachingOptimized" cache policy. This UUID is the same in every
+          # AWS account (a global managed-policy ID), not account data.
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          # AWS managed "SecurityHeadersPolicy" response headers policy (HSTS, nosniff,
+          # frame-options, referrer-policy, XSS). Global managed-policy ID, not account data.
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+        # SPA fallback: client-side routes (/markets, /learn...) are not S3 keys. A private
+        # bucket answers a missing key with 403 (404 only if the caller may ListBucket), so
+        # both map to index.html with 200 and the router takes over. TTL 0 so a real
+        # missing file is never cached as the app shell for long.
+        CustomErrorResponses:
+          - {ErrorCode: 403, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 0}
+          - {ErrorCode: 404, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 0}
+
+  # Only this distribution (via OAC) can read objects; the bucket stays fully private.
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: cloudfront.amazonaws.com}
+            Action: s3:GetObject
+            Resource: !Sub '${FrontendBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}'
+
 Outputs:
   ApiUrl:
     Description: Base URL for the frontend
@@ -218,3 +298,12 @@ Outputs:
     Value: !Ref Table
   AudioBucketName:
     Value: !Ref AudioBucket
+  FrontendUrl:
+    Description: Public URL of the hosted frontend (CloudFront)
+    Value: !Sub 'https://${FrontendDistribution.DomainName}'
+  FrontendBucketName:
+    Description: Private bucket CD syncs the Vite build into
+    Value: !Ref FrontendBucket
+  FrontendDistributionId:
+    Description: CloudFront distribution CD invalidates after each sync
+    Value: !Ref FrontendDistribution
