@@ -61,6 +61,10 @@ def create_app(*routers) -> APIGatewayHttpResolver:
 def make_handler(app: APIGatewayHttpResolver):
     @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_HTTP, clear_state=True)
     def handler(event, context):
+        # Routes are `ANY /x/{proxy+}`, so API Gateway forwards CORS preflights here instead of
+        # answering them itself. Browsers need a 2xx; the gateway adds the CORS headers.
+        if event.get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
+            return {"statusCode": 204, "body": ""}
         global _context
         _context = context
         try:
