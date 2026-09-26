@@ -5,7 +5,7 @@ from clearvest import api, cache
 from clearvest.errors import UpstreamError
 
 from market.providers import edgar, fmp
-from market.routes.history import parse_symbols
+from market.routes.history import fetch_all, parse_symbols
 
 router = Router()
 TTL = 24 * 3600
@@ -38,8 +38,7 @@ def _company(symbol: str) -> tuple[dict, bool]:
 def compare():
     api.user_id(router)
     rows, any_stale = [], False
-    for symbol in parse_symbols(router.current_event.get_query_string_value("symbols"), 2, 4):
-        row, stale = _company(symbol)
+    for row, stale in fetch_all(parse_symbols(router.current_event.get_query_string_value("symbols"), 2, 4), _company):
         rows.append(row)
         any_stale |= stale
     return {"companies": rows, "notes": NOTES, "stale": any_stale}

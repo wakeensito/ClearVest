@@ -43,7 +43,7 @@ def revenue_growth(symbol: str) -> float | None:
         cik = _cik(symbol)
         if not cik:
             return None
-        facts = _get(FACTS_URL.format(cik=cik))["facts"].get("us-gaap", {})
+        facts = _get(FACTS_URL.format(cik=cik)).get("facts", {}).get("us-gaap", {})
         revs = annual_revenues(facts)
         if len(revs) < 2 or not revs[-2][1]:
             return None

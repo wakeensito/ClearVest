@@ -60,3 +60,12 @@ def test_macro_is_cached_for_advisor(aws):
 def test_fred_down_no_cache_is_502(aws):
     responses.get(URL, status=500)
     assert call(handler, "GET", "/market/macro")[0] == 502
+
+
+@responses.activate
+def test_fred_all_missing_is_502_and_not_cached(aws):
+    from clearvest import cache
+
+    responses.get(URL, json={"observations": [{"date": "2026-09-01", "value": "."}]})
+    assert call(handler, "GET", "/market/macro")[0] == 502
+    assert cache.peek("fred", "macro") is None

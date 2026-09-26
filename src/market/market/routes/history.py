@@ -1,6 +1,7 @@
 """GET /market/history: side-by-side performance for ETFs, index funds, stocks and crypto."""
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
 from aws_lambda_powertools.event_handler.api_gateway import Router
@@ -40,6 +41,19 @@ def _fetch(symbol: str, years: int):
     raise UpstreamError("market data", "; ".join(errors))
 
 
+def fetch_all(symbols: list[str], fn):
+    """fn(symbol) for every symbol concurrently, results in input order; worker errors propagate as-is.
+
+    Sequential provider chains (up to ~3 sources x 5 symbols) would blow API Gateway's 30s limit.
+    """
+    with ThreadPoolExecutor(max_workers=len(symbols)) as pool:
+        return list(pool.map(fn, symbols))
+
+
+def _cached(symbol: str, rng: str):
+    return cache.get_or_fetch("history", f"{symbol}:{rng}", TTL, lambda: _fetch(symbol, YEARS[rng]))
+
+
 @router.get("/market/history")
 def get_history():
     api.user_id(router)
@@ -48,8 +62,7 @@ def get_history():
     if rng not in YEARS:
         raise InvalidInput("range: must be 1y, 5y or 10y")
     series, any_stale = [], False
-    for symbol in symbols:
-        points, stale = cache.get_or_fetch("history", f"{symbol}:{rng}", TTL, lambda s=symbol: _fetch(s, YEARS[rng]))
+    for symbol, (points, stale) in zip(symbols, fetch_all(symbols, lambda s: _cached(s, rng)), strict=True):
         any_stale |= stale
         closes = [c for _, c in points]
         per_year = len(points) / YEARS[rng]

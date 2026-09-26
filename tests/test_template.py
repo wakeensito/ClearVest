@@ -60,3 +60,7 @@ def test_only_portfolio_reads_plaid_secrets():
 def test_api_is_throttled():
     api = load()["Resources"]["ClearVestApi"]["Properties"]
     assert api["DefaultRouteSettings"]["ThrottlingRateLimit"] <= 20
+
+
+def test_market_fn_fits_api_gateway_timeout():
+    assert load()["Resources"]["MarketFn"]["Properties"]["Timeout"] == 29

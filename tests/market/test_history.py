@@ -65,3 +65,48 @@ def test_fmp_crypto_symbol_drops_dash(aws):
     except UpstreamError:
         pass
     assert "symbol=BTCUSD" in responses.calls[0].request.url
+
+
+def test_parallel_fetch_keeps_request_order(aws, monkeypatch):
+    import threading
+    import time
+
+    delays = {"VOO": 0.3, "QQQ": 0.15, "SPY": 0.0}  # completion order is SPY, QQQ, VOO
+    finished, lock = [], threading.Lock()
+
+    def slow(symbol, start):
+        time.sleep(delays[symbol])
+        with lock:
+            finished.append(symbol)
+        return SERIES
+
+    monkeypatch.setattr(yahoo, "history", slow)
+    status, body = call(handler, "GET", "/market/history", query={"symbols": "VOO,QQQ,SPY"})
+    assert status == 200 and [s["symbol"] for s in body["series"]] == ["VOO", "QQQ", "SPY"]
+    assert finished == ["SPY", "QQQ", "VOO"]  # proves the workers really ran concurrently
+
+
+
+def test_yahoo_passes_short_timeout(monkeypatch):
+    import sys
+    import types
+    from datetime import date
+
+    seen = {}
+
+    class FakeTicker:
+        def __init__(self, symbol):
+            pass
+
+        def history(self, **kwargs):
+            seen.update(kwargs)
+
+    fake = types.ModuleType("yfinance")
+    fake.Ticker = FakeTicker
+    fake.set_tz_cache_location = lambda _path: None
+    monkeypatch.setitem(sys.modules, "yfinance", fake)
+    try:
+        yahoo.history("VOO", date(2026, 1, 1))
+    except UpstreamError:
+        pass  # empty frame; only the kwargs matter here
+    assert seen["timeout"] == 4

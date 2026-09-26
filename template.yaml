@@ -125,6 +125,9 @@ Resources:
       CodeUri: src/market
       Handler: market.app.handler
       MemorySize: 1024  # yfinance pulls in pandas
+      # Symbols are fetched in parallel, but one symbol's provider chain (Yahoo 4s -> FMP 5s ->
+      # Alpha Vantage 5s, each with a retry) can still run long; API Gateway stops waiting at 30s.
+      Timeout: 29
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: market

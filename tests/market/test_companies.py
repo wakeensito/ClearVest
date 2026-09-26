@@ -63,3 +63,11 @@ def test_edgar_revenue_growth_end_to_end(aws):
         ]}}}}})
     assert round(edgar.revenue_growth("AAPL"), 4) == 0.1
     assert responses.calls[0].request.headers["User-Agent"] == "ClearVest test@example.com"
+
+
+@responses.activate
+def test_edgar_unexpected_payload_is_no_growth(aws):
+    responses.get("https://www.sec.gov/files/company_tickers.json",
+                  json={"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}})
+    responses.get("https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json", json={"message": "not found"})
+    assert edgar.revenue_growth("AAPL") is None

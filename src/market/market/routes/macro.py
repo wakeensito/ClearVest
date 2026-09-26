@@ -5,6 +5,7 @@ Cached 24h at CACHE#fred/macro; the advisor reads the same row as context.
 
 from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, cache
+from clearvest.errors import UpstreamError
 
 from market.providers import fred
 
@@ -31,6 +32,8 @@ def _fetch() -> dict:
         "wageGrowth": (_yoy, "CES0500000003"), "tenYear": (_latest, "DGS10"),
     }.items():
         dates[field], values[field] = fn(sid)
+    if all(v is None for v in values.values()):
+        raise UpstreamError("fred", "no usable observations")  # never cache an empty snapshot
     parts = [
         f"Fed funds {values['fedFunds']}%" if values["fedFunds"] is not None else None,
         f"inflation {values['cpiYoY']}% YoY" if values["cpiYoY"] is not None else None,
