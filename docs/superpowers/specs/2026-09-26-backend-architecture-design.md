@@ -1,7 +1,7 @@
 # ClearVest backend — architecture design
 
 - **Date:** 2026-09-26
-- **Status:** approved in brainstorming, pending written-spec review
+- **Status:** approved 2026-09-26. Built as **one backend + IaC PR** (see §10).
 - **Scope:** backend only. The frontend is built separately and connects through the API contract below.
 - **Deadline:** hackathon ends **Sunday 2026-09-27, 11:00**. Feature freeze at 09:00.
 
@@ -17,7 +17,8 @@ Constraints:
 - **Guidance is educational, not financial advice.** Every advisor reply carries a disclaimer.
 - **API keys live in SSM Parameter Store** (SecureString), added by teammates. The first one exists as
   `clearvest-fmp`. The code never assumes a naming pattern (see §6).
-- **CoinGecko is out of scope.** Crypto price history, if it's needed, comes from FMP (`BTCUSD`-style symbols).
+- **CoinGecko is out of scope.** Crypto history comes from yfinance (`BTC-USD`), with FMP (`BTCUSD`) as fallback.
+- **Build on the data team's work (#15, #16):** yfinance is the primary price source (no key); SEC EDGAR is the source for filed figures, reusing its revenue-tag rule (latest period end, then latest filing date).
 - **No auth.** The frontend generates a UUID once, stores it in localStorage and sends it as `X-User-Id`.
 - **Never commit account IDs, ARNs or secrets** (see `AGENTS.md`).
 
@@ -44,7 +45,7 @@ feature adds a file, not template changes.
 | Function | Routes | Can access |
 |---|---|---|
 | `PortfolioFn` | `/health`, `/profile`, `/plaid/*`, `/portfolio/*` | DynamoDB table; Plaid keys |
-| `MarketFn` | `/market/*` | DynamoDB table (cache rows); FMP, Alpha Vantage, FRED keys; EDGAR (keyless, needs a `User-Agent`) |
+| `MarketFn` | `/market/*` | DynamoDB table (cache rows); FMP, Alpha Vantage, FRED keys; SEC User-Agent param; yfinance (keyless) |
 | `AdvisorFn` | `/advisor/*` | DynamoDB table; Bedrock `InvokeModel` / `Converse` on the Nova model only |
 | `VoiceFn` | `/voice/*` | S3 audio bucket; ElevenLabs key; DynamoDB table; Bedrock (Nova) |
 
@@ -64,13 +65,17 @@ both `AdvisorFn` and `VoiceFn`, so voice doesn't call another Lambda.
 ```
 template.yaml                 SAM: HttpApi, 4 functions, Layer, table, bucket
 samconfig.toml                resolve_s3 = true; no account IDs
+pyproject.toml                dev deps + pytest paths (runtime deps live per function / layer)
 src/
-  layer/python/clearvest/     shared: config.py (SSM), cache.py, errors.py, models.py,
-                              advisor.py, providers/{plaid,fmp,alphavantage,fred,edgar,elevenlabs,bedrock}.py
-  portfolio/app.py + routes/  profile.py, plaid.py, holdings.py, risk.py, health.py
-  market/app.py + routes/     history.py, companies.py, macro.py, templates.py (+ data/templates.json)
-  advisor/app.py + routes/    chat.py, retirement.py
-  voice/app.py + routes/      upload.py, turn.py, speak.py
+  layer/requirements.txt      powertools, pydantic, requests
+  layer/clearvest/            shared: api.py, aws.py, config.py, db.py, cache.py, errors.py, http.py,
+                              risk.py, advisor.py, providers/{plaid,bedrock}.py
+  portfolio/portfolio/        app.py + routes/{health,profile,plaid,holdings,risk}.py
+  market/requirements.txt     yfinance (MarketFn only: pandas is too heavy for the shared layer)
+  market/market/              app.py, metrics.py, routes/{history,companies,macro,templates}.py,
+                              providers/{yahoo,fmp,alphavantage,fred,edgar}.py, data/templates.json
+  advisor/advisor/            app.py + routes/{chat,retirement}.py + data/retirement_accounts.json
+  voice/voice/                app.py, elevenlabs.py, routes/{upload,turn,speak}.py
 tests/                        pytest, mirrors src/
 docs/api/openapi.yaml         the contract (§5)
 scripts/smoke.sh              deployed end-to-end check
@@ -84,7 +89,7 @@ scripts/smoke.sh              deployed end-to-end check
 |---|---|---|---|
 | `USER#<id>` | `PROFILE` | age, horizon, goals, riskTolerance | none |
 | `USER#<id>` | `PLAID#<itemId>` | Plaid `access_token`. **Never returned to any client.** | none |
-| `USER#<id>` | `HOLDINGS` | latest normalized holdings snapshot | 1h |
+| `USER#<id>` | `HOLDINGS` | latest normalized holdings snapshot; refetched when `fetchedAt` is over 1h old (no TTL, so the advisor always has a snapshot) | none |
 | `USER#<id>` | `CHAT#<iso-ts>` | advisor turns (role, text) | 7d |
 | `CACHE#<provider>` | `<normalized query>` | provider response + `fetchedAt` | 1h–24h per provider |
 
@@ -112,7 +117,8 @@ responses before the backend is deployed. At go-live they change one base URL.
 - Base URL: the `ApiUrl` stack output. CORS allows all origins.
 - `X-User-Id: <uuid>` is required on every route except `/health`. Missing or invalid returns `400 VALIDATION`.
 - JSON in and out. Error envelope: `{"error": {"code": "<CODE>", "message": "<human text>", "requestId": "<id>"}}`
-- Codes: `VALIDATION` (400), `NOT_LINKED` (409), `UPSTREAM_UNAVAILABLE` (502), `INTERNAL` (500).
+- Codes: `VALIDATION` (400), `NOT_FOUND` (404, unknown route), `NOT_LINKED` (409), `UPSTREAM_UNAVAILABLE` (502), `INTERNAL` (500).
+- The API is unauthenticated, so the HttpApi has default throttling (20 req/s, burst 50) to cap Bedrock/ElevenLabs spend.
 - Responses served from an expired cache after a provider failure include `"stale": true`.
 
 ### Routes
@@ -134,7 +140,7 @@ responses before the backend is deployed. At go-live they change one base URL.
 | Advisor | GET | `/advisor/retirement-accounts` | → `{accounts: [{id, name, taxTreatment, contributionLimit, bestFor}], personalized}` |
 | Advisor | DELETE | `/advisor/history` | → `204` |
 | Voice | POST | `/voice/upload-url` | `{contentType}` → `{uploadUrl, key}` |
-| Voice | POST | `/voice/turn` | `{key}` → `{transcript, reply}` |
+| Voice | POST | `/voice/turn` | `{key}` → `{transcript, reply, disclaimer}` |
 | Voice | POST | `/voice/speak` | `{text}` → `{audioUrl, expiresIn}` |
 
 `/portfolio/holdings` and `/portfolio/risk` return `409 NOT_LINKED` until the user has a Plaid item.
@@ -150,7 +156,8 @@ parameters only**, built with `${AWS::Region}`/`${AWS::AccountId}` pseudo-parame
 Whatever naming the team settles on (`clearvest-fred` or `/clearvest/fred`), only `samconfig.toml` parameter
 overrides change.
 
-Expected parameters: `fmp`, `alphavantage`, `fred`, `plaid-client-id`, `plaid-secret`, `elevenlabs`.
+Expected parameters: `fmp`, `alphavantage`, `fred`, `plaid-client-id`, `plaid-secret`, `elevenlabs`, `sec-user-agent` (String, e.g. `ClearVest you@example.com`).
+Hierarchical names (`clearvest/fred`) are given **without** the leading slash; the loader adds it, and the IAM ARN is built from the same value.
 A missing parameter fails only the routes that need it (`502 UPSTREAM_UNAVAILABLE`, logged by name), never cold start.
 
 ### Plaid (sandbox)
@@ -181,8 +188,8 @@ Two short calls instead of one long one, so each stays well under API Gateway's 
 2. `/voice/turn {key}` → ElevenLabs speech-to-text → `advisor.answer()` → `{transcript, reply}` (target under 10s).
 3. `/voice/speak {text}` → ElevenLabs text-to-speech → mp3 to `audio/out/` → presigned GET `{audioUrl}` (target under 5s).
 
-The frontend shows `reply` as soon as step 2 returns and plays audio when step 3 returns. `VoiceFn` timeout is 29s,
-the other functions 15s.
+The frontend shows `reply` as soon as step 2 returns and plays audio when step 3 returns. `AdvisorFn` and `VoiceFn`
+timeouts are 29s (Nova latency), the other two 15s. `/voice/turn` only accepts keys under the caller's own `audio/in/<userId>/` prefix.
 
 ### Risk score (deterministic)
 
@@ -216,7 +223,8 @@ Each factor returns a plain-language `detail` string.
 
 ## 10. Build order
 
-Each step is one issue and one PR, and each PR ships its handoff doc (`docs/handoffs/2026-09-2x-backend-<slug>.md`).
+**Everything below ships in one backend + IaC PR** (owner's call, 2026-09-26) so it gets a single CodeRabbit review; the owner
+merges it manually. The PR closes #3, #17–#26 and includes one handoff doc per domain. Keys are plugged into SSM afterwards.
 
 1. **P0 contract:** `docs/api/openapi.yaml` (unblocks the frontend immediately)
 2. **P0 skeleton:** template, Layer, 4 functions, `/health`, SSM loader, cache, error handler, CI green, first deploy
