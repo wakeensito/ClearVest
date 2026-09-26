@@ -38,6 +38,22 @@ Layer for provider clients, SSM config, DynamoDB, cache and error handling. IaC 
 | `AdvisorFn` | `/advisor/*` | DynamoDB table; Bedrock (Nova model only) |
 | `VoiceFn` | `/voice/*` | S3 audio bucket; ElevenLabs key; DynamoDB table; Bedrock (Nova) |
 
+Operational limits worth knowing:
+
+- **Timeouts:** `MarketFn`, `AdvisorFn` and `VoiceFn` run up to 29s (API Gateway stops at 30s); `MarketFn`
+  fetches each requested symbol in parallel so the Yahoo → FMP → Alpha Vantage chain fits.
+- **Throttles:** 20 req/s (burst 50) by default; `/voice/*` and `/advisor/*` are capped at 2 req/s (burst 5)
+  because they spend Bedrock/ElevenLabs money.
+- **`/voice/speak`** takes up to 5000 chars and speaks the first ~2000, cut at a sentence end.
+- **Linking an account** (`/plaid/exchange`, `/plaid/sandbox-link`) refreshes the holdings snapshot right
+  away, so the advisor sees it on the next question.
+- **Retries:** provider GETs retry once on 429/5xx (ignoring `Retry-After`); POSTs (Plaid, ElevenLabs) never
+  retry — Plaid public tokens are single-use and ElevenLabs bills per call.
+- **Plaid tokens are isolated in code, not IAM:** every function has table-wide DynamoDB access; only
+  `PortfolioFn`'s code reads `PLAID#` rows. Fine for the sandbox; scope it before real accounts.
+- `src/market/requirements.txt` shadows the layer's packages inside `MarketFn` (yfinance pulls in its own
+  `requests`). If you pin `requests` there, keep it in lockstep with `src/layer/requirements.txt`.
+
 ### Local setup
 
 ```bash
@@ -64,7 +80,8 @@ gh variable set DEPLOY_ENABLED --body true
 After that, a merge to `main` runs `sam build && sam deploy`. To deploy a branch without merging:
 `gh workflow run deploy.yml --ref <branch>`. Local `sam build && sam deploy` still works for emergencies
 (`samconfig.toml` uses `resolve_s3 = true`, no account IDs committed). The CD role deliberately can't delete
-the stack — teardown is manual, with owner credentials.
+the stack — teardown is manual, with owner credentials. After editing `infra/cicd-role.yaml` (e.g. adding a
+read action CloudFormation turned out to need), re-run the bootstrap `cloudformation deploy` to apply it.
 
 ### Plugging in keys
 

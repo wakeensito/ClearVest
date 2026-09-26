@@ -17,10 +17,12 @@
   reused by the advisor prompt.
 - `GET /market/history?symbols=&range=`: per-symbol price series with `returnPct` and annualized
   `volatility`, source order **yfinance → FMP → Alpha Vantage** with a 24h cache and stale-on-failure
-  fallback.
+  fallback. Symbols (1–5) are fetched in parallel threads; the response keeps request order.
 - `GET /market/compare-companies?symbols=`: normalized ratios (P/E, P/S, gross margin, revenue growth,
   EPS TTM, FCF/share, debt-to-equity) from FMP, with EDGAR's own revenue-growth calc preferred when
   available (falls back to FMP's if EDGAR is down or the ticker has no EDGAR company facts, e.g. ETFs).
+- `/market/compare-companies` (2–4 symbols) also fetches per symbol in parallel. `MarketFn` runs with a 29s
+  timeout (API Gateway's limit is 30s); yfinance is called with `timeout=4` (its default is 10s).
 - `GET /market/templates`: bundled JSON (`src/market/market/data/templates.json`) of well-known allocations
   (60/40, Bogleheads three-fund, All Weather, Buffett 90/10) with a `source` link each — not fetched live.
 
@@ -67,6 +69,15 @@ Env vars needed (names only): `FMP_KEY_PARAM`, `ALPHAVANTAGE_KEY_PARAM`, `FRED_K
 - **EDGAR: 10 req/s across all `sec.gov`/`data.sec.gov`/`efts.sec.gov` hosts, and every request needs the
   `SEC_USER_AGENT` param or you get a 403** — it's an SSM parameter (`SecUserAgentParam`, type `String`,
   not `SecureString`), not an env literal, so it can be rotated without a redeploy of code.
+- **Timeout math:** one symbol's worst case is Yahoo 4s → FMP 5s → Alpha Vantage 5s (each GET may retry
+  once), which is why symbols run in parallel and `MarketFn` gets 29s. Don't make the fetch sequential
+  again or add a fourth source without redoing this.
+- FRED returning no usable figures at all (every series missing) is a `502`, and nothing is cached — an
+  empty macro snapshot would otherwise sit in the advisor's prompt for 24h. An unexpected EDGAR
+  companyfacts payload (no `facts` key) means "no EDGAR growth", and FMP stands in.
+- `src/market/requirements.txt` shadows the layer's packages (the function's own deps come first on
+  `sys.path`); yfinance brings its own `requests`. If you pin `requests` there, keep it in lockstep with
+  `src/layer/requirements.txt`.
 - Company comparison intentionally never shows raw dollar figures — ratios and per-share numbers only, so a
   $3T company and a $300B company compare fairly.
 

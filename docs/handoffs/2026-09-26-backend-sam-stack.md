@@ -13,12 +13,15 @@
 - `template.yaml`: one `AWS::Serverless::HttpApi`, four Python 3.12 functions (`PortfolioFn`, `MarketFn`,
   `AdvisorFn`, `VoiceFn`), one shared `SharedLayer`, one on-demand DynamoDB table (`pk`/`sk`, TTL on `ttl`),
   one private `AudioBucket` (SSE, 1-day lifecycle, presigned-URL-only access). Default throttling
-  (20 req/s, burst 50) on the HTTP API to cap Bedrock/ElevenLabs spend, since the API is unauthenticated.
+  (20 req/s, burst 50) on the HTTP API, plus tighter per-route throttles on `ANY /voice/{proxy+}` and
+  `ANY /advisor/{proxy+}` (2 req/s, burst 5) to cap Bedrock/ElevenLabs spend, since the API is
+  unauthenticated. Timeouts: 15s global, 29s on `MarketFn`, `AdvisorFn` and `VoiceFn` (API Gateway gives up
+  at 30s).
 - `src/layer/clearvest/`: shared runtime used by all four functions — `api.py` (Powertools resolver +
   error-to-response mapping), `aws.py` (boto3 clients, Bedrock client with configurable timeout/retries),
   `config.py` (SSM secret loader, cached per warm container), `db.py` (DynamoDB helpers), `cache.py`
   (`get_or_fetch` with stale-on-failure fallback), `errors.py` (`AppError` subclasses), `http.py` (shared
-  `requests` session, one retry, typed `UpstreamError`).
+  `requests` session, typed `UpstreamError`; one retry for GETs only, `Retry-After` ignored — see Decisions).
 - `/health` on `PortfolioFn` returns `{status, version}` with no `X-User-Id` required — the only route that
   doesn't need it.
 - Each function's IAM policy scopes `ssm:GetParameter` to its own parameter names only (built from
@@ -54,6 +57,14 @@ sam build                 # needs python3.12 on PATH; see Gotchas
   `urlsplit(url)` (scheme/host/path only) instead of `str(err)`, because `requests` embeds the full URL —
   including `api_key=...` query params — in its exception messages, and that detail gets logged
   (review fix, see `1cecaf7`).
+- **`clearvest/http.py` never retries POSTs** (urllib3's default `allowed_methods`, idempotent verbs only):
+  Plaid public tokens are single-use and ElevenLabs bills per call, so a replayed POST could double-bill or
+  fail on a spent token. `respect_retry_after_header=False`, so a `429 Retry-After: 60` can't park a Lambda
+  for its whole timeout. GETs to market providers still get one retry on 429/5xx.
+- **Plaid-token isolation is enforced in code, not IAM.** Every function gets `DynamoDBCrudPolicy` on the
+  whole table, so `MarketFn`/`AdvisorFn`/`VoiceFn` *could* read `USER#<id>/PLAID#*` rows; only
+  `PortfolioFn`'s code does. Acceptable for a Plaid sandbox; before real accounts, scope each function with
+  `dynamodb:LeadingKeys` conditions or move tokens to their own table.
 - **DynamoDB single-table, on-demand billing:** the cache is required, not an optimization — Alpha Vantage's
   free tier is 25 calls/day.
 
@@ -65,6 +76,9 @@ sam build                 # needs python3.12 on PATH; see Gotchas
   than raw `requests`, or you'll reintroduce the leak this layer was built to avoid.
 - The shared layer is Python-only (`Metadata: BuildMethod: python3.12`); `pandas`/`yfinance` are too heavy
   for it and live only in `MarketFn`'s own `requirements.txt`.
+- `src/market/requirements.txt` is installed into `MarketFn`'s package, which sits ahead of the layer on
+  `sys.path` — anything it installs (notably `requests`, pulled in by yfinance) shadows the layer's copy. If
+  `requests` gets pinned there, keep it in lockstep with `src/layer/requirements.txt`.
 
 ## Next steps
 

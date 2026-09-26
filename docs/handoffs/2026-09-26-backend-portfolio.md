@@ -19,6 +19,10 @@
 - `GET /portfolio/holdings` → normalized `{asOf, totalValue, holdings: [...]}`, cached at
   `USER#<id>/HOLDINGS` and refetched when the snapshot is over an hour old. Returns `409 NOT_LINKED` until
   the user has a Plaid item.
+- Linking (`/plaid/exchange` or `/plaid/sandbox-link`) deletes the `HOLDINGS` snapshot and refetches it
+  immediately, so the advisor — which reads only that row — sees the new account on the very next
+  question. A Plaid failure during that refetch is swallowed: the link still returns `200 {itemId}` and
+  `GET /portfolio/holdings` retries later.
 - `GET /portfolio/risk` → the deterministic 0–100 risk score (see the market/risk handoff for the scoring
   logic itself).
 
@@ -26,7 +30,7 @@
 
 ```bash
 source .venv/bin/activate
-pytest -q tests/portfolio tests/layer/test_db.py
+pytest -q tests/portfolio tests/layer/test_db_cache.py
 npx @stoplight/prism-cli mock docs/api/openapi.yaml   # build the frontend against this before deploy
 ```
 
@@ -38,7 +42,9 @@ parameter names, not values).
 - **Plaid `access_token` never leaves `PortfolioFn` and is never returned to any client.** It's written to
   `USER#<id>/PLAID#<itemId>` and read back only inside `load_holdings()`; the public holdings response is
   built with `_public()`, which strips everything except the normalized snapshot. No other function has
-  Plaid IAM permissions or the Plaid keys.
+  the Plaid keys — but every function has table-wide DynamoDB CRUD, so keeping other functions away from
+  the `PLAID#` rows is enforced in code, not IAM. Fine for the sandbox; tighten with `dynamodb:LeadingKeys`
+  or a separate table before real accounts.
 - **Holdings are cached for an hour, no TTL on the row itself** (spec §4): the advisor always needs a
   snapshot to reason over, even a stale one, so the row isn't allowed to expire — only refetched.
 - **`/plaid/sandbox-link` exists so the whole backend is demoable and testable without ever opening Plaid

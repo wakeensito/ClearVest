@@ -10,7 +10,7 @@ def _headers() -> dict:
 
 
 def transcribe(audio: bytes, content_type: str) -> str:
-    # timeout=6, and clearvest.http retries once on 5xx/timeout, so STT worst case is ~12s
+    # timeout=6 and clearvest.http never retries POSTs, so STT worst case is ~6s
     # (VoiceFn's 29s budget also needs headroom for a Bedrock call after this).
     resp = http.request_json(
         "POST", "https://api.elevenlabs.io/v1/speech-to-text", provider="elevenlabs", timeout=6,

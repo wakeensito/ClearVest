@@ -21,7 +21,9 @@
 - `POST /voice/turn {key}` → head-checks the object, rejects anything outside the caller's own prefix,
   transcribes with ElevenLabs STT, then calls the same `advisor.answer()` as the text chat → `{transcript,
   reply, disclaimer}`.
-- `POST /voice/speak {text}` → ElevenLabs TTS → mp3 into `audio/out/<userId>/<uuid>.mp3` → presigned GET
+- `POST /voice/speak {text}` (1–5000 chars, so a full advisor reply can be sent as-is) → trimmed by
+  `speakable()` to ≤ 2000 chars at the last sentence end (`. `/`! `/`? `), or hard-cut at 2000 if there is
+  none → ElevenLabs TTS → mp3 into `audio/out/<userId>/<uuid>.mp3` → presigned GET
   (15 min expiry) → `{audioUrl, expiresIn}`.
 
 ## How to run / verify it
@@ -66,9 +68,9 @@ Env vars needed (names only): `MODEL_ID` (Bedrock inference profile), `ELEVENLAB
   Bedrock read timeout: 12s. `BEDROCK_MAX_ATTEMPTS` is **total attempts**, not retries — `clearvest.aws.bedrock()`
   passes it through as botocore's `total_max_attempts`, not its `max_attempts` (which counts retries only;
   we hit this the hard way — see commits `dcf2404` and `036e60d`). Default (`AdvisorFn`) is 2 total attempts
-  × 12s = 24s. `VoiceFn` sets it to 1 (one Nova attempt, no retry) because it also spends up to ~12s on
-  ElevenLabs STT first (6s timeout × up to 2 tries via `clearvest.http`'s one retry) — worst case ~12s STT +
-  12s Bedrock = 24s, still under 29s. **Don't raise `BEDROCK_READ_TIMEOUT` or `BEDROCK_MAX_ATTEMPTS` on
+  × 12s = 24s. `VoiceFn` sets it to 1 (one Nova attempt, no retry) because it also spends up to 6s on
+  ElevenLabs STT first — a single try, since `clearvest.http` never retries POSTs (ElevenLabs bills per
+  call) — worst case ~6s STT + 12s Bedrock = 18s, under 29s. **Don't raise `BEDROCK_READ_TIMEOUT` or `BEDROCK_MAX_ATTEMPTS` on
   `VoiceFn` without redoing this math.**
 - **Provider API keys are never logged.** ElevenLabs/Bedrock failures raise `UpstreamError` built without
   `str(err)` or the request URL's query string (see the SAM-stack handoff's `http.py` note) — don't
@@ -80,6 +82,9 @@ Env vars needed (names only): `MODEL_ID` (Bedrock inference profile), `ELEVENLAB
 - A non-404 S3 error on `/voice/turn`'s `head_object` (e.g. `AccessDenied`) is a `502 UPSTREAM_UNAVAILABLE`,
   not a `400` — only `404`/`NoSuchKey`/`NotFound` mean "upload not found." Don't collapse that distinction;
   it was a review fix (`dcf2404`) precisely because masking IAM errors as "not found" hides real breakage.
+- **Per-route throttles:** `ANY /voice/{proxy+}` and `ANY /advisor/{proxy+}` are capped at 2 req/s, burst 5
+  (everything else 20/50), because every call here costs Bedrock and/or ElevenLabs money. A demo that fires
+  requests in a tight loop will see `429`s from API Gateway — that's the cap working.
 - An empty ElevenLabs transcript is `400 VALIDATION` ("I didn't catch that"), not a 500 and not passed to
   Nova as an empty message.
 - A text-to-speech failure never touches the already-returned text reply — `/voice/turn` and `/voice/speak`

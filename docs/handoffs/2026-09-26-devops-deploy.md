@@ -13,7 +13,10 @@
 - `infra/cicd-role.yaml`: a one-time-bootstrap CloudFormation stack for a GitHub Actions OIDC deploy role
   (`ClearVest-gha-deploy`), scoped to exactly what `sam deploy` needs for this stack (CloudFormation on
   `ClearVest/*` and SAM's own managed artifact bucket stack, the SAM transform, Lambda/DynamoDB/S3/IAM/HTTP
-  API resources prefixed `ClearVest-`/`clearvest-`). No account ID or ARN committed — every resource is
+  API resources prefixed `ClearVest-`/`clearvest-`). Includes the read-side calls CloudFormation's
+  resource handlers make during create/update (`dynamodb:DescribeContributorInsights`,
+  `DescribeKinesisStreamingDestination`, `GetResourcePolicy` on the table; `s3:ListBucket`, `GetBucketAcl`
+  on the app bucket). No account ID or ARN committed — every resource is
   built from `${AWS::Region}`/`${AWS::AccountId}` pseudo-parameters.
 - `.github/workflows/deploy.yml`: replaced the launch-repo TODO stub with a real `sam build && sam deploy`
   step, gated by the `DEPLOY_ENABLED` repo variable (merges to `main` no-op until it's set to `true`;
@@ -73,6 +76,10 @@ scripts/smoke.sh <ApiUrl>
 - `AppResources`'s `lambda:*`/`scheduler:*` and `AppRoles`' IAM actions are scoped by the `${AppStackName}-*`
   naming prefix, not by exact ARNs — extending the app template with a new resource type needs a matching
   new statement in `cicd-role.yaml`, scoped the same way, never a bare `*` Resource.
+- If a deploy fails with `AccessDenied` on a `Describe*`/`Get*` call, it's a handler read-back the role
+  doesn't have yet — add that one action to the matching statement (same scope) and re-run the bootstrap
+  deploy; don't widen the Resource. `apigateway:TagResource` is not a real IAM action (cfn-lint rejects it);
+  tagging goes through `apigateway:PUT` on `/tags/*`.
 - `scripts/smoke.sh` needs `python3` on `PATH` only to generate a UUID for `X-User-Id`; it has no other
   dependency beyond `curl`.
 - Re-running `cloudformation deploy` on `infra/cicd-role.yaml` after editing its policies is safe and
