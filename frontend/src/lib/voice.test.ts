@@ -29,6 +29,11 @@ describe('voiceErrorCopy', () => {
     expect(voiceErrorCopy(empty)).toBe("Didn't catch that. Try again a little closer to the mic.")
   })
 
+  it('keeps other validation messages, like a recording that is too long', () => {
+    const big = new ApiError(400, 'VALIDATION', 'Recording is too long (max 10 MB)')
+    expect(voiceErrorCopy(big)).toBe('Recording is too long (max 10 MB)')
+  })
+
   it('defers to the shared error copy otherwise', () => {
     expect(voiceErrorCopy(new ApiError(429, 'THROTTLED', 'Too many'))).toMatch(/sending requests quickly/)
     expect(voiceErrorCopy(new ApiError(0, 'NETWORK', 'Network error'))).toMatch(/Can't reach ClearVest/)

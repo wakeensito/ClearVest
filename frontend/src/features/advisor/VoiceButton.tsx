@@ -23,10 +23,9 @@ const STATUS: Record<Exclude<VoiceStatus, 'idle'>, string> = {
 /** The mic button for the composer. Space toggles it because it is a native button (DESIGN.md §12). */
 export function VoiceButton({ voice, disabled }: { voice: VoiceTurnState; disabled?: boolean }) {
   if (!voice.supported) return null
-  const busy = voice.status === 'uploading' || voice.status === 'thinking'
   const icon =
     voice.status === 'recording' ? <Square size={18} aria-hidden fill="currentColor" />
-    : busy ? <LoaderCircle size={20} aria-hidden className={styles.spin} />
+    : voice.busy ? <LoaderCircle size={20} aria-hidden className={styles.spin} />
     : voice.status === 'speaking' ? <Pause size={18} aria-hidden fill="currentColor" />
     : voice.status === 'paused' ? <Play size={18} aria-hidden fill="currentColor" />
     : <Mic size={20} aria-hidden />
@@ -35,7 +34,7 @@ export function VoiceButton({ voice, disabled }: { voice: VoiceTurnState; disabl
       type="button"
       className={`${styles.mic} ${styles[voice.status]}`}
       onClick={voice.toggle}
-      disabled={disabled || busy}
+      disabled={disabled || voice.busy}
       aria-label={LABEL[voice.status]}
       aria-pressed={voice.status === 'recording'}
       title={LABEL[voice.status]}

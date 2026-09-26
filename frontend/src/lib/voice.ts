@@ -1,4 +1,4 @@
-import { describeError, hasCode } from '../api/errors'
+import { describeError, hasCode, isApiError } from '../api/errors'
 
 /** What the API's /voice/upload-url accepts (docs/api/openapi.yaml). */
 export type VoiceContentType = 'audio/webm' | 'audio/mp4' | 'audio/mpeg' | 'audio/wav' | 'audio/ogg'
@@ -25,14 +25,17 @@ export function pickRecordingType(isSupported: (mimeType: string) => boolean): R
 }
 
 const MIC_DENIED = 'Microphone access is off. You can type your question instead.'
-const NOT_CAUGHT = "Didn't catch that. Try again a little closer to the mic."
+export const NOT_CAUGHT = "Didn't catch that. Try again a little closer to the mic."
+// The backend's message for a transcript with no words (src/voice/voice/routes/turn.py).
+const EMPTY_TRANSCRIPT = /didn.t catch that/i
 
 /** User-facing copy for a failed voice turn (DESIGN.md §11, the two voice rows). */
 export function voiceErrorCopy(e: unknown): string {
   if (e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'NotFoundError' || e.name === 'SecurityError')) {
     return MIC_DENIED
   }
-  if (hasCode(e, 'VALIDATION')) return NOT_CAUGHT
+  // Only the empty-transcript 400 gets the mic copy; "Recording is too long" and friends keep their message.
+  if (hasCode(e, 'VALIDATION') && isApiError(e) && EMPTY_TRANSCRIPT.test(e.message)) return NOT_CAUGHT
   return describeError(e, 'The advisor')
 }
 

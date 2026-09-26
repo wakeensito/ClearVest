@@ -27,6 +27,8 @@ export function AdvisorPage() {
   // A denied microphone hands focus to the composer (DESIGN.md §11).
   const voice = useVoiceTurn({ onMicDenied: () => inputRef.current?.focus() })
   const thinking = chat.pending || voice.status === 'thinking'
+  // One turn at a time across both channels, so exchanges land in the order they were asked.
+  const busy = chat.pending || voice.busy
 
   // A prompt handed over from the dashboard pre-fills the composer; it's never sent automatically.
   useEffect(() => {
@@ -42,7 +44,7 @@ export function AdvisorPage() {
 
   const submit = (e?: FormEvent) => {
     e?.preventDefault()
-    if (!draft.trim() || chat.pending) return
+    if (!draft.trim() || busy) return
     chat.send(draft)
     setDraft('')
   }
@@ -89,7 +91,7 @@ export function AdvisorPage() {
                 </p>
                 <div className={styles.prompts}>
                   {SUGGESTED_PROMPTS.map((p) => (
-                    <button key={p} type="button" className={styles.prompt} onClick={() => chat.send(p)} disabled={chat.pending}>
+                    <button key={p} type="button" className={styles.prompt} onClick={() => chat.send(p)} disabled={busy}>
                       {p}
                     </button>
                   ))}
@@ -104,7 +106,7 @@ export function AdvisorPage() {
                   {m.failed && (
                     <p className={`t-body-sm ${styles.failed}`}>
                       Not answered.{chat.error ? ` ${describeError(chat.error, 'The advisor')}` : ''}{' '}
-                      <button type="button" onClick={() => chat.retry(m.id)} disabled={chat.pending}>
+                      <button type="button" onClick={() => chat.retry(m.id)} disabled={busy}>
                         Retry
                       </button>
                     </p>
@@ -152,7 +154,7 @@ export function AdvisorPage() {
                 className={styles.input}
               />
               <VoiceButton voice={voice} disabled={chat.pending} />
-              <button type="submit" className={styles.send} disabled={!draft.trim() || chat.pending} aria-label="Send">
+              <button type="submit" className={styles.send} disabled={!draft.trim() || busy} aria-label="Send">
                 <ArrowUp size={20} aria-hidden />
               </button>
             </div>
