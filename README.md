@@ -4,7 +4,7 @@
 
 Bootstrapped with launch-repo. Replace this line with what the project actually is.
 
-**Sprint board:** __PROJECT_URL__
+**Sprint board:** https://github.com/users/wakeensito/projects/11
 
 ## House rules
 
