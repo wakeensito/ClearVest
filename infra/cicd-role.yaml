@@ -19,6 +19,10 @@ Parameters:
     Type: String
     Default: ClearVest
     Description: the CloudFormation/SAM stack this role deploys
+  AppBucketPrefix:
+    Type: String
+    Default: clearvest
+    Description: Lowercase stack name. CloudFormation lowercases generated S3 bucket names.
 
 Resources:
   # Assumes the account already has the GitHub OIDC provider
@@ -119,6 +123,8 @@ Resources:
                   - dynamodb:ListTagsOfResource
                   - dynamodb:TagResource
                   - dynamodb:UntagResource
+                  - dynamodb:UpdateContinuousBackups
+                  - dynamodb:DescribeContinuousBackups
                 Resource:
                   - !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${AppStackName}-*'
               # Execution roles the app stack creates for its functions.
@@ -140,6 +146,49 @@ Resources:
                   - iam:ListAttachedRolePolicies
                 Resource:
                   - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${AppStackName}-*'
+              # HTTP API. API Gateway ARNs carry no name, so this can't be scoped by
+              # prefix; it is limited to the apis/tags paths in this region.
+              # No apigateway:TagResource — API Gateway's control plane has no
+              # named IAM actions; tagging goes through PUT /tags/{arn}, already
+              # covered by apigateway:PUT against the /tags/* resource below.
+              - Sid: AppHttpApi
+                Effect: Allow
+                Action:
+                  - apigateway:GET
+                  - apigateway:POST
+                  - apigateway:PUT
+                  - apigateway:PATCH
+                  - apigateway:DELETE
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/apis'
+                  - !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/apis/*'
+                  - !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/tags/*'
+              - Sid: AppLayers
+                Effect: Allow
+                Action:
+                  - lambda:PublishLayerVersion
+                  - lambda:DeleteLayerVersion
+                  - lambda:GetLayerVersion
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:${AppStackName}-*'
+                  - !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:layer:${AppStackName}-*:*'
+              - Sid: AppBucket
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:GetBucketLocation
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:PutEncryptionConfiguration
+                  - s3:GetEncryptionConfiguration
+                  - s3:PutLifecycleConfiguration
+                  - s3:GetLifecycleConfiguration
+                  - s3:PutBucketCORS
+                  - s3:GetBucketCORS
+                  - s3:PutBucketTagging
+                  - s3:GetBucketTagging
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${AppBucketPrefix}-*'
 
 Outputs:
   DeployRoleArn:
