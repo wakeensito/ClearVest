@@ -46,3 +46,15 @@ def test_score_is_clamped():
 
 def test_unknown_type_counts_as_other():
     assert score([h("warrant", 1.0)], None)["score"] == score([h("other", 1.0)], None)["score"]
+
+
+def test_short_position_scores_aggressive_not_zero():
+    out = score([h("equity", -1.0, "GME")], None)
+    assert out["label"] == "Aggressive"
+    assert any(f["name"] == "Borrowed or short positions" for f in out["factors"])
+
+
+def test_holding_without_symbol_does_not_raise():
+    holdings = [{"type": "equity", "value": 1000, "weight": 1.0}]
+    out = score(holdings, None)
+    assert any(f["name"] == "Concentration" and "one position" in f["detail"] for f in out["factors"])

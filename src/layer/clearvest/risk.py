@@ -19,7 +19,7 @@ def _label(value: int) -> str:
 
 
 def score(holdings: list[dict], profile: dict | None) -> dict:
-    invested = [h for h in holdings if h.get("weight", 0) > 0]
+    invested = [h for h in holdings if h.get("weight", 0) != 0]
     if not invested:
         return {
             "score": 0, "label": "Conservative",
@@ -27,8 +27,13 @@ def score(holdings: list[dict], profile: dict | None) -> dict:
             "summary": "No invested assets yet.",
         }
 
-    mix = 100 * sum(h["weight"] * TYPE_RISK.get(h.get("type", "other"), 0.6) for h in invested)
-    singles = [h for h in invested if h.get("type") in SINGLE_NAME]
+    def type_risk(h: dict) -> float:
+        # Short/margin positions (negative weight) can lose more than 100%, so they
+        # carry the max type risk regardless of the reported instrument type.
+        return 1.0 if h["weight"] < 0 else TYPE_RISK.get(h.get("type", "other"), 0.6)
+
+    mix = 100 * sum(abs(h["weight"]) * type_risk(h) for h in invested)
+    singles = [h for h in invested if h.get("type") in SINGLE_NAME or h["weight"] < 0]
     concentration = 100 * sum(h["weight"] ** 2 for h in singles)
     base = 0.7 * mix + 0.3 * concentration
     factors = [
@@ -36,11 +41,16 @@ def score(holdings: list[dict], profile: dict | None) -> dict:
                                         "(cash 0, bonds 25, funds 60, single stocks 80, crypto 100)."},
     ]
     if singles:
-        top = max(singles, key=lambda h: h["weight"])
-        factors.append({"name": "Concentration", "detail": f"Your largest single position is {top['symbol']} "
-                                                           f"at {top['weight']:.0%} of the portfolio."})
+        top = max(singles, key=lambda h: abs(h["weight"]))
+        factors.append({"name": "Concentration", "detail": f"Your largest single position is "
+                                                           f"{top.get('symbol', 'one position')} "
+                                                           f"at {abs(top['weight']):.0%} of the portfolio."})
     else:
         factors.append({"name": "Concentration", "detail": "No single stock or coin: your risk is spread across funds."})
+
+    if any(h["weight"] < 0 for h in invested):
+        factors.append({"name": "Borrowed or short positions",
+                         "detail": "Some positions are short or bought on margin, which can lose more than you put in."})
 
     adjust = 0
     if profile:
