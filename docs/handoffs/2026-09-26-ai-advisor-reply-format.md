@@ -41,6 +41,41 @@
 - `docs/api/openapi.yaml`: added `description` text (no schema changes) on `ChatReply.reply` and
   `VoiceTurn.reply` documenting the allowed markdown subset for chat vs. plain-text-only for voice.
 
+### Follow-up: verified retirement facts, shared with the layer
+
+A live check against Nova (format was correct, but content wasn't) showed the model inventing figures once
+it was free-writing a compact chat/voice answer: a $23,000 401(k) limit (2024's number, not 2026's), a
+made-up "None" withdrawal age (we never provide one), and calling Traditional 401(k) contributions
+after-tax (backwards — they're pre-tax). The retirement-accounts route already had the correct, sourced
+facts; the chat/voice prompt just never saw them.
+
+- Moved `src/advisor/advisor/data/retirement_accounts.json` → `src/layer/clearvest/data/retirement_accounts.json`
+  (`git mv`, sources unchanged) so both `AdvisorFn` and `VoiceFn` can read it — it previously lived only
+  inside the advisor Lambda's own source tree.
+- Added `clearvest.facts.retirement_accounts()`: reads the JSON once and caches it with
+  `functools.lru_cache(maxsize=1)`. `advisor/routes/retirement.py` now calls this instead of loading its
+  own copy of the file.
+- `advisor.system_prompt()` (both modes) now renders a "Retirement account facts (2026; use these exact
+  figures, cite nothing else)" block, one line per account with name, tax treatment, contribution limit and
+  best-for, straight from `facts.retirement_accounts()`. Added a new shared rule: "Never state contribution
+  limits, ages, income limits, tax rates or other rules unless they appear in the facts or context below; if
+  something isn't provided, say so briefly or leave it out of the table" — this is what stops the model from
+  inventing a withdrawal-age column that was never given to it.
+- Checked the JSON's `taxTreatment` wording for ambiguity per the fix request; it was already unambiguous
+  ("Pre-tax contributions, taxed on withdrawal." for Traditional 401(k), "After-tax contributions, qualified
+  withdrawals tax-free." for Roth 401(k)/Roth IRA), so no wording change was needed — the bug was that the
+  model never saw the facts, not that the facts were wrong or unclear.
+- Confirmed `sam build` copies non-`.py` files under a layer's `ContentUri`: after this move,
+  `.aws-sam/build/SharedLayer/python/clearvest/data/retirement_accounts.json` is present with no packaging
+  changes needed (`AdvisorFn`'s own build already worked the same way before the move).
+
+**Live-verified** (default AWS creds, `MODEL_ID=us.amazon.nova-2-lite-v1:0`, `us-east-1`, a 24-year-old
+profile with no holdings, "What is the difference between a 401k and a Roth IRA?"): the chat-mode table
+showed `$24,500` / `$7,500` (matches the JSON exactly) and correct pre-tax/after-tax wording, with no
+withdrawal-age row invented; voice mode correctly said "A Traditional 401(k) uses pre-tax money, so you pay
+taxes when you withdraw it" and "A Roth IRA uses after-tax money, so your withdrawals are tax-free" — no
+figures beyond what the facts block provided.
+
 ## How to run / verify it
 
 ```bash
@@ -96,6 +131,10 @@ No new env vars. `MODEL_ID`, `ELEVENLABS_*` etc. are unchanged from the previous
   scope.
 - **This is the backend half only.** The frontend renderer (markdown subset → HTML/JSX) is a parallel PR;
   don't assume the bubble already renders `**bold**`/tables until that lands.
+- **`facts.retirement_accounts()` is process-cached (`lru_cache(maxsize=1)`), not per-request.** A warm
+  Lambda execution environment reuses the cached list across invocations (fine — it's static file content),
+  but editing `retirement_accounts.json` requires a new deploy, not just a data update, to take effect.
+  Tests that need a fresh read call `facts.retirement_accounts.cache_clear()`.
 
 ## Next steps
 

@@ -139,6 +139,16 @@ def test_chat_is_default_mode(aws):
     assert advisor.system_prompt(ctx) == advisor.system_prompt(ctx, mode="chat")
 
 
+def test_prompt_includes_verified_retirement_facts_in_both_modes(aws):
+    seed()
+    ctx = advisor.build_context(USER)
+    for mode in ("chat", "voice"):
+        prompt = advisor.system_prompt(ctx, mode=mode)
+        assert "$24,500" in prompt and "$7,500" in prompt
+        assert "Retirement account facts" in prompt
+        assert ("if something isn't provided, say so briefly or leave it out of the table" in prompt)
+
+
 # --- normalize_markdown -----------------------------------------------------------------
 
 

@@ -5,15 +5,14 @@ Bedrock is down, a simple age rule stands in so the page still works.
 """
 
 import json
-from pathlib import Path
 
 from aws_lambda_powertools.event_handler.api_gateway import Router
-from clearvest import api, db
+from clearvest import api, db, facts
 from clearvest.errors import UpstreamError
 from clearvest.providers import bedrock
 
 router = Router()
-ACCOUNTS = json.loads((Path(__file__).parent.parent / "data" / "retirement_accounts.json").read_text())
+ACCOUNTS = facts.retirement_accounts()
 
 
 def _rule_based(profile: dict) -> str:
