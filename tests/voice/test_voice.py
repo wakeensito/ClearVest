@@ -74,7 +74,29 @@ def test_speak_stores_mp3_and_returns_url(aws, monkeypatch):
 
 def test_speak_validates_text(aws):
     assert call(handler, "POST", "/voice/speak", {"text": ""})[0] == 400
-    assert call(handler, "POST", "/voice/speak", {"text": "x" * 2001})[0] == 400
+    assert call(handler, "POST", "/voice/speak", {"text": "x" * 5001})[0] == 400
+
+
+def test_speak_trims_long_reply_at_sentence_end(aws, monkeypatch):
+    spoken = []
+    monkeypatch.setattr(elevenlabs, "synthesize", lambda text: spoken.append(text) or b"ID3fake")
+    sentence = "Your portfolio is diversified across nine funds today. "  # 55 chars
+    reply = (sentence * 48)[:2600]
+    assert len(reply) == 2600
+    status, _ = call(handler, "POST", "/voice/speak", {"text": reply})
+    assert status == 200
+    assert len(spoken[0]) <= 2000 and spoken[0].endswith("today.")
+    assert reply.startswith(spoken[0])
+
+
+def test_speakable_boundaries():
+    from voice.routes.speak import speakable
+
+    assert speakable("Short. Reply!") == "Short. Reply!"
+    assert speakable("x" * 2500) == "x" * 2000  # no sentence boundary: hard cut
+    assert speakable("Why? " + "y" * 2500) == "Why?"
+    assert speakable("a" * 1998 + "! b") == "a" * 1998 + "!"
+    assert speakable("a" * 1999 + ". " + "b" * 10) == "a" * 1999 + "."  # boundary exactly at 2000
 
 
 @responses.activate

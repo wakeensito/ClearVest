@@ -11,16 +11,27 @@ from voice import elevenlabs
 
 router = Router()
 EXPIRES = 900
+MAX_SPOKEN = 2000  # ElevenLabs cost/latency cap; advisor replies can run longer
+BOUNDARIES = (". ", "! ", "? ")
 
 
 class SpeakRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=2000)
+    text: str = Field(min_length=1, max_length=5000)
+
+
+def speakable(text: str) -> str:
+    """Trim to <= MAX_SPOKEN chars at the last sentence end, or hard-cut if there is none."""
+    if len(text) <= MAX_SPOKEN:
+        return text
+    window = text[: MAX_SPOKEN + 1]  # one extra char so a boundary ending exactly at the cap counts
+    end = max(window.rfind(b) for b in BOUNDARIES)
+    return window[: end + 1] if end >= 0 else text[:MAX_SPOKEN]
 
 
 @router.post("/voice/speak")
 def speak():
     uid = api.user_id(router)
-    text = api.parse(SpeakRequest, api.json_body(router)).text
+    text = speakable(api.parse(SpeakRequest, api.json_body(router)).text)
     key = f"audio/out/{uid}/{uuid.uuid4()}.mp3"
     bucket = os.environ["AUDIO_BUCKET"]
     aws.s3().put_object(Bucket=bucket, Key=key, Body=elevenlabs.synthesize(text), ContentType="audio/mpeg")
