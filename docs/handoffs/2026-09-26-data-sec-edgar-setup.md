@@ -27,7 +27,8 @@ python scripts/sec_smoke.py NVDA
 
 - Plain `requests`, no EDGAR wrapper library. The four endpoints are simple JSON GETs; a library would add a dependency for no gain and hide the User-Agent rule.
 - `SEC_USER_AGENT` is read from the environment, then from the repo-root `.env`. No `python-dotenv` dependency for one variable.
-- Revenue tag: companies use either `Revenues` or `RevenueFromContractWithCustomerExcludingAssessedTax`. The script checks both. Real code will need the same fallback for every metric.
+- Revenue tag: companies switch tags over time (Apple used `Revenues` through FY2018, then `RevenueFromContractWithCustomerExcludingAssessedTax`), and later 10-Ks restate prior years. "First tag that exists" returned Apple's 2018 number. The script gathers annual values across both tags and picks the latest period end, then latest filing date. Real code needs the same rule for every metric.
+- Every request goes through `raise_for_status()` and `main()` catches `requests` errors, so a rejected User-Agent prints `HTTP 403 ... check SEC_USER_AGENT` instead of a JSON-decode traceback.
 
 ## Gotchas
 
