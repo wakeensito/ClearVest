@@ -37,3 +37,27 @@ def ratios_ttm(symbol: str) -> dict:
 def revenue_growth(symbol: str) -> float | None:
     rows = _get("financial-growth", symbol=symbol, limit=1)
     return rows[0].get("revenueGrowth") if rows else None
+
+
+def market_movers(endpoint: str) -> list:
+    """Documented FMP /stable market performance lists; caller allowlists endpoints."""
+    return _get(endpoint)
+
+
+def stock_news(symbols: list[str]) -> list:
+    if symbols:
+        return _get("news/stock", symbols=",".join(symbols), limit=12)
+    return _get("news/stock-latest", limit=12)
+
+
+
+def research_section(symbol: str, section: str) -> list:
+    """Small, explicitly allowlisted datasets for guided company research."""
+    endpoint = {"profile": "profile", "income": "income-statement",
+                "valuation": "ratios-ttm", "history": "ratios"}[section]
+    params = {"period": "annual", "limit": 5} if section in {"income", "history"} else {}
+    return _get(endpoint, symbol=symbol, **params)
+
+
+def search_companies(query: str, by_symbol: bool) -> list:
+    return _get("search-symbol" if by_symbol else "search-name", query=query, limit=8)

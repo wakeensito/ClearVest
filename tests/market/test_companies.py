@@ -1,5 +1,6 @@
 """Tests for GET /market/compare-companies: FMP ratios plus EDGAR/FMP revenue growth."""
 
+import pytest
 import responses
 from market.app import handler
 from market.providers import edgar, fmp
@@ -71,3 +72,13 @@ def test_edgar_unexpected_payload_is_no_growth(aws):
                   json={"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}})
     responses.get("https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json", json={"message": "not found"})
     assert edgar.revenue_growth("AAPL") is None
+
+
+@pytest.mark.parametrize("pe,eps,growth", [(-10, -2, float("inf")), (20, 0, True), (0, 3, "unknown")])
+def test_unusable_pe_and_growth_are_missing(aws, monkeypatch, pe, eps, growth):
+    monkeypatch.setattr(fmp, "ratios_ttm", lambda _: {**RATIOS, "priceToEarningsRatioTTM": pe, "netIncomePerShareTTM": eps})
+    monkeypatch.setattr(edgar, "revenue_growth", lambda _: growth)
+    status, body = call(handler, "GET", "/market/compare-companies", query={"symbols": "AMD,NVDA"})
+    assert status == 200
+    assert all(row["pe"] is None and row["revenueGrowth"] is None for row in body["companies"])
+    assert_matches("/market/compare-companies", "get", 200, body)

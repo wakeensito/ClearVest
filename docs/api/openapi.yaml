@@ -20,6 +20,136 @@ tags:
   - name: Voice
 
 paths:
+  /market/company-research:
+    get:
+      operationId: getCompanyResearch
+      tags:
+      - Market
+      summary: Guided company research with independently cached financial sections.
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 12
+      responses:
+        '200':
+          description: Available provider data. Missing values are null; unavailable
+            sections are explicit. Example financial figures are illustrative.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResearch'
+              example:
+                symbol: AAPL
+                profile:
+                  name: Example company (illustrative data)
+                  description: An example business selling products and services.
+                  sector: Technology
+                  industry: Consumer electronics
+                  currency: USD
+                  isFund: false
+                income:
+                - date: '2025-12-31'
+                  year: '2025'
+                  currency: USD
+                  revenue: 100000000
+                  costOfRevenue: 60000000.0
+                  grossProfit: 40000000.0
+                  operatingIncome: 24000000.0
+                  netIncome: 20000000
+                  epsDiluted: 5
+                - date: '2024-12-31'
+                  year: '2024'
+                  currency: USD
+                  revenue: 90000000
+                  costOfRevenue: 54000000.0
+                  grossProfit: 36000000.0
+                  operatingIncome: 21600000.0
+                  netIncome: 18000000
+                  epsDiluted: 4.5
+                - date: '2023-12-31'
+                  year: '2023'
+                  currency: USD
+                  revenue: 85000000
+                  costOfRevenue: 51000000.0
+                  grossProfit: 34000000.0
+                  operatingIncome: 19200000.0
+                  netIncome: 16000000
+                  epsDiluted: 4
+                valuation:
+                  pe: 20
+                  eps: 5
+                  ps: 4
+                history:
+                - date: '2025-12-31'
+                  year: '2025'
+                  pe: 20
+                - date: '2024-12-31'
+                  year: '2024'
+                  pe: 18
+                - date: '2023-12-31'
+                  year: '2023'
+                  pe: 22
+                unavailable: []
+                sources:
+                - section: profile
+                  provider: FMP
+                  fetchedAt: '2026-09-26T12:00:00Z'
+                  stale: false
+                - section: income
+                  provider: FMP
+                  fetchedAt: '2026-09-26T12:00:00Z'
+                  stale: false
+                - section: valuation
+                  provider: FMP
+                  fetchedAt: '2026-09-26T12:00:00Z'
+                  stale: false
+                - section: history
+                  provider: FMP
+                  fetchedAt: '2026-09-26T12:00:00Z'
+                  stale: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '502':
+          $ref: '#/components/responses/Upstream'
+  /market/search:
+    get:
+      operationId: searchCompanies
+      tags:
+      - Market
+      summary: Find securities by company name or ticker.
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - name: query
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 80
+      responses:
+        '200':
+          description: Available provider data. Missing values are null; unavailable
+            sections are explicit. Example financial figures are illustrative.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanySearch'
+              example:
+                results:
+                - symbol: AAPL
+                  name: Apple Inc.
+                  exchange: NASDAQ
+                stale: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '502':
+          $ref: '#/components/responses/Upstream'
+
   /health:
     get:
       operationId: getHealth
@@ -294,6 +424,80 @@ paths:
                         close: 492.33
                     returnPct: 0.0245
                     volatility: 0.198
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /market/news:
+    get:
+      operationId: getMarketNews
+      tags: [Market]
+      description: Up to six publisher headlines, cached for one hour. Omit symbols for market-wide stock news. publishedAt retains the provider's timestamp without assuming a timezone; fetchedAt is API retrieval time.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - in: query
+          name: symbols
+          description: One or two comma-separated ticker symbols.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: News headlines with publisher links and optional images.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketNews"
+              example:
+                articles:
+                  - {title: "Example headline: investors look ahead to the next earnings release", url: "https://example.com/market-news/earnings", image: null, publisher: "Example publisher", publishedAt: "2026-09-25 15:00:00", symbol: AAPL}
+                  - {title: "Example headline: new products draw attention across the technology sector", url: "https://example.com/market-news/products", image: null, publisher: "Example publisher", publishedAt: "2026-09-25 13:00:00", symbol: MSFT}
+                  - {title: "Example headline: market participants assess the latest economic data", url: "https://example.com/market-news/economy", image: null, publisher: "Example publisher", publishedAt: "2026-09-25 12:00:00", symbol: AAPL}
+                symbols: []
+                source: FMP
+                fetchedAt: "2026-09-25T20:00:00Z"
+                stale: false
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "502":
+          $ref: "#/components/responses/Upstream"
+
+  /market/movers:
+    get:
+      operationId: getMarketMovers
+      tags: [Market]
+      description: Up to ten stocks from FMP's active, daily gainers or daily losers list. Cached for one hour; fetchedAt is retrieval time, not quote time. Active retains provider ranking by trading activity. Price is in the security's quote currency; changePct is a fraction.
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - in: query
+          name: category
+          schema:
+            type: string
+            enum: [active, gainers, losers]
+            default: active
+      responses:
+        "200":
+          description: A ranked market discovery list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketMovers"
+              example:
+                category: active
+                stocks:
+                  - {symbol: NVDA, name: NVIDIA Corporation, price: 140.52, changePct: 0.0234, exchange: NASDAQ}
+                  - {symbol: TSLA, name: Tesla Inc., price: 250.12, changePct: -0.0121, exchange: NASDAQ}
+                  - {symbol: AAPL, name: Apple Inc., price: 225.4, changePct: 0.0056, exchange: NASDAQ}
+                  - {symbol: AMD, name: Advanced Micro Devices Inc., price: 160.3, changePct: 0.0182, exchange: NASDAQ}
+                  - {symbol: INTC, name: Intel Corporation, price: 22.5, changePct: -0.024, exchange: NASDAQ}
+                  - {symbol: PLTR, name: Palantir Technologies Inc., price: 35.2, changePct: 0.0345, exchange: NASDAQ}
+                  - {symbol: AMZN, name: Amazon.com Inc., price: 190.8, changePct: 0.0098, exchange: NASDAQ}
+                  - {symbol: F, name: Ford Motor Company, price: 10.7, changePct: -0.0074, exchange: NYSE}
+                  - {symbol: SOFI, name: SoFi Technologies Inc., price: 8.3, changePct: 0.0412, exchange: NASDAQ}
+                  - {symbol: MSFT, name: Microsoft Corporation, price: 430.6, changePct: 0.0067, exchange: NASDAQ}
+                fetchedAt: "2026-09-25T20:00:00Z"
+                source: FMP
+                stale: false
         "400":
           $ref: "#/components/responses/BadRequest"
         "502":
@@ -675,6 +879,158 @@ components:
               requestId: "9a1e6b2e-0000-4c00-8000-000000000003"
 
   schemas:
+    ResearchProfile:
+      type:
+      - object
+      - 'null'
+      required:
+      - name
+      - description
+      - sector
+      - industry
+      - currency
+      - isFund
+      properties:
+        name:
+          type: string
+        description: &id001
+          type:
+          - string
+          - 'null'
+        sector: *id001
+        industry: *id001
+        currency: *id001
+        isFund:
+          type: boolean
+    AnnualIncome:
+      type: object
+      required:
+      - date
+      - year
+      - currency
+      - revenue
+      - costOfRevenue
+      - grossProfit
+      - operatingIncome
+      - netIncome
+      - epsDiluted
+      properties:
+        date:
+          type: string
+          format: date
+        year:
+          type: string
+        currency: *id001
+        revenue: &id002
+          type:
+          - number
+          - 'null'
+        costOfRevenue: *id002
+        grossProfit: *id002
+        operatingIncome: *id002
+        netIncome: *id002
+        epsDiluted: *id002
+    ResearchValuation:
+      type:
+      - object
+      - 'null'
+      required:
+      - pe
+      - eps
+      - ps
+      properties:
+        pe: *id002
+        eps: *id002
+        ps: *id002
+    AnnualValuation:
+      type: object
+      required:
+      - date
+      - year
+      - pe
+      properties:
+        date:
+          type: string
+          format: date
+        year:
+          type: string
+        pe: *id002
+    ResearchSource:
+      type: object
+      required:
+      - section
+      - provider
+      - fetchedAt
+      - stale
+      properties:
+        section: &id003
+          type: string
+          enum:
+          - profile
+          - income
+          - valuation
+          - history
+        provider:
+          type: string
+        fetchedAt:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+    CompanyResearch:
+      type: object
+      required:
+      - symbol
+      - profile
+      - income
+      - valuation
+      - history
+      - unavailable
+      - sources
+      properties:
+        symbol:
+          type: string
+        profile:
+          $ref: '#/components/schemas/ResearchProfile'
+        income:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnnualIncome'
+        valuation:
+          $ref: '#/components/schemas/ResearchValuation'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnnualValuation'
+        unavailable:
+          type: array
+          items: *id003
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchSource'
+    CompanySearch:
+      type: object
+      required:
+      - results
+      - stale
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required:
+            - symbol
+            - name
+            - exchange
+            properties:
+              symbol:
+                type: string
+              name:
+                type: string
+              exchange: *id001
+        stale:
+          type: boolean
     Error:
       type: object
       required: [error]
@@ -802,6 +1158,84 @@ components:
         stale:
           type: boolean
 
+    MarketNews:
+      type: object
+      required: [articles, symbols, source, fetchedAt, stale]
+      properties:
+        articles:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/NewsArticle"
+        symbols:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+          enum: [FMP]
+        fetchedAt:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+
+    NewsArticle:
+      type: object
+      required: [title, url, image, publisher, publishedAt, symbol]
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        image:
+          type: [string, "null"]
+        publisher:
+          type: string
+        publishedAt:
+          type: string
+        symbol:
+          type: string
+
+    MarketMovers:
+      type: object
+      required: [category, stocks, fetchedAt, source, stale]
+      properties:
+        category:
+          type: string
+          enum: [active, gainers, losers]
+        stocks:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/MarketStock"
+        fetchedAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+          enum: [FMP]
+        stale:
+          type: boolean
+
+    MarketStock:
+      type: object
+      required: [symbol, name, price, changePct, exchange]
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+          exclusiveMinimum: 0
+        changePct:
+          type: number
+          description: Daily percentage change expressed as a fraction (0.025 means 2.5%).
+        exchange:
+          type: string
+
     Company:
       type: object
       required: [symbol, pe, ps, grossMargin, revenueGrowth, epsTTM, fcfPerShare, debtToEquity]
@@ -809,6 +1243,7 @@ components:
         symbol:
           type: string
         pe:
+          description: Trailing P/E; null for nonpositive ratios or known nonpositive earnings.
           type: [number, "null"]
         ps:
           type: [number, "null"]
@@ -817,8 +1252,10 @@ components:
         revenueGrowth:
           type: [number, "null"]
         epsTTM:
+          description: Trailing earnings per share. Currency is not supplied; do not assume USD.
           type: [number, "null"]
         fcfPerShare:
+          description: Free cash flow per share. Currency is not supplied; do not assume USD.
           type: [number, "null"]
         debtToEquity:
           type: [number, "null"]

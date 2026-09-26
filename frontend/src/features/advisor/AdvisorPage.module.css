@@ -41,8 +41,11 @@
 }
 
 .prompt {
-  height: 36px;
-  padding: 0 14px;
+  min-height: 44px;
+  height: auto;
+  max-width: 100%;
+  padding: 8px 14px;
+  text-align: left;
   background: var(--cv-surface);
   border: 1px solid var(--cv-border-strong);
   color: var(--cv-text);
@@ -218,7 +221,7 @@
 
 @media (max-width: 1023px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .chat {
@@ -228,10 +231,13 @@
 
 @media (max-width: 767px) {
   .composer {
-    bottom: 64px;
+    bottom: calc(64px + env(safe-area-inset-bottom));
   }
 
   .user {
     max-width: 90%;
   }
 }
+
+.page, .chat, .thread, .empty, .composer, .inputRow { min-width: 0; }
+.input { min-width: 0; width: 100%; font-size: 16px; }

@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/market/company-research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guided company research with independently cached financial sections. */
+        get: operations["getCompanyResearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Find securities by company name or ticker. */
+        get: operations["searchCompanies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -127,6 +161,40 @@ export interface paths {
         };
         /** @description Takes 1 to 5 symbols; fewer or more is a 400. */
         get: operations["getMarketHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Up to six publisher headlines, cached for one hour. Omit symbols for market-wide stock news. publishedAt retains the provider's timestamp without assuming a timezone; fetchedAt is API retrieval time. */
+        get: operations["getMarketNews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/movers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Up to ten stocks from FMP's active, daily gainers or daily losers list. Cached for one hour; fetchedAt is retrieval time, not quote time. Active retains provider ranking by trading activity. Price is in the security's quote currency; changePct is a fraction. */
+        get: operations["getMarketMovers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -293,6 +361,62 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ResearchProfile: {
+            name: string;
+            description: string | null;
+            sector: string | null;
+            industry: string | null;
+            currency: string | null;
+            isFund: boolean;
+        } | null;
+        AnnualIncome: {
+            /** Format: date */
+            date: string;
+            year: string;
+            currency: string | null;
+            revenue: number | null;
+            costOfRevenue: number | null;
+            grossProfit: number | null;
+            operatingIncome: number | null;
+            netIncome: number | null;
+            epsDiluted: number | null;
+        };
+        ResearchValuation: {
+            pe: number | null;
+            eps: number | null;
+            ps: number | null;
+        } | null;
+        AnnualValuation: {
+            /** Format: date */
+            date: string;
+            year: string;
+            pe: number | null;
+        };
+        ResearchSource: {
+            /** @enum {string} */
+            section: "profile" | "income" | "valuation" | "history";
+            provider: string;
+            /** Format: date-time */
+            fetchedAt: string;
+            stale: boolean;
+        };
+        CompanyResearch: {
+            symbol: string;
+            profile: components["schemas"]["ResearchProfile"];
+            income: components["schemas"]["AnnualIncome"][];
+            valuation: components["schemas"]["ResearchValuation"];
+            history: components["schemas"]["AnnualValuation"][];
+            unavailable: ("profile" | "income" | "valuation" | "history")[];
+            sources: components["schemas"]["ResearchSource"][];
+        };
+        CompanySearch: {
+            results: {
+                symbol: string;
+                name: string;
+                exchange: string | null;
+            }[];
+            stale: boolean;
+        };
         Error: {
             error: {
                 /** @enum {string} */
@@ -346,13 +470,52 @@ export interface components {
             series: components["schemas"]["HistorySeries"][];
             stale?: boolean;
         };
+        MarketNews: {
+            articles: components["schemas"]["NewsArticle"][];
+            symbols: string[];
+            /** @enum {string} */
+            source: "FMP";
+            /** Format: date-time */
+            fetchedAt: string;
+            stale: boolean;
+        };
+        NewsArticle: {
+            title: string;
+            /** Format: uri */
+            url: string;
+            image: string | null;
+            publisher: string;
+            publishedAt: string;
+            symbol: string;
+        };
+        MarketMovers: {
+            /** @enum {string} */
+            category: "active" | "gainers" | "losers";
+            stocks: components["schemas"]["MarketStock"][];
+            /** Format: date-time */
+            fetchedAt: string;
+            /** @enum {string} */
+            source: "FMP";
+            stale: boolean;
+        };
+        MarketStock: {
+            symbol: string;
+            name: string;
+            price: number;
+            /** @description Daily percentage change expressed as a fraction (0.025 means 2.5%). */
+            changePct: number;
+            exchange: string;
+        };
         Company: {
             symbol: string;
+            /** @description Trailing P/E; null for nonpositive ratios or known nonpositive earnings. */
             pe: number | null;
             ps: number | null;
             grossMargin: number | null;
             revenueGrowth: number | null;
+            /** @description Trailing earnings per share. Currency is not supplied; do not assume USD. */
             epsTTM: number | null;
+            /** @description Free cash flow per share. Currency is not supplied; do not assume USD. */
             fcfPerShare: number | null;
             debtToEquity: number | null;
         };
@@ -501,6 +664,169 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getCompanyResearch: {
+        parameters: {
+            query: {
+                symbol: string;
+            };
+            header: {
+                /** @description The user's id. Required on every route except /health. */
+                "X-User-Id": components["parameters"]["UserId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Available provider data. Missing values are null; unavailable sections are explicit. Example financial figures are illustrative. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "symbol": "AAPL",
+                     *       "profile": {
+                     *         "name": "Example company (illustrative data)",
+                     *         "description": "An example business selling products and services.",
+                     *         "sector": "Technology",
+                     *         "industry": "Consumer electronics",
+                     *         "currency": "USD",
+                     *         "isFund": false
+                     *       },
+                     *       "income": [
+                     *         {
+                     *           "date": "2025-12-31",
+                     *           "year": "2025",
+                     *           "currency": "USD",
+                     *           "revenue": 100000000,
+                     *           "costOfRevenue": 60000000,
+                     *           "grossProfit": 40000000,
+                     *           "operatingIncome": 24000000,
+                     *           "netIncome": 20000000,
+                     *           "epsDiluted": 5
+                     *         },
+                     *         {
+                     *           "date": "2024-12-31",
+                     *           "year": "2024",
+                     *           "currency": "USD",
+                     *           "revenue": 90000000,
+                     *           "costOfRevenue": 54000000,
+                     *           "grossProfit": 36000000,
+                     *           "operatingIncome": 21600000,
+                     *           "netIncome": 18000000,
+                     *           "epsDiluted": 4.5
+                     *         },
+                     *         {
+                     *           "date": "2023-12-31",
+                     *           "year": "2023",
+                     *           "currency": "USD",
+                     *           "revenue": 85000000,
+                     *           "costOfRevenue": 51000000,
+                     *           "grossProfit": 34000000,
+                     *           "operatingIncome": 19200000,
+                     *           "netIncome": 16000000,
+                     *           "epsDiluted": 4
+                     *         }
+                     *       ],
+                     *       "valuation": {
+                     *         "pe": 20,
+                     *         "eps": 5,
+                     *         "ps": 4
+                     *       },
+                     *       "history": [
+                     *         {
+                     *           "date": "2025-12-31",
+                     *           "year": "2025",
+                     *           "pe": 20
+                     *         },
+                     *         {
+                     *           "date": "2024-12-31",
+                     *           "year": "2024",
+                     *           "pe": 18
+                     *         },
+                     *         {
+                     *           "date": "2023-12-31",
+                     *           "year": "2023",
+                     *           "pe": 22
+                     *         }
+                     *       ],
+                     *       "unavailable": [],
+                     *       "sources": [
+                     *         {
+                     *           "section": "profile",
+                     *           "provider": "FMP",
+                     *           "fetchedAt": "2026-09-26T12:00:00Z",
+                     *           "stale": false
+                     *         },
+                     *         {
+                     *           "section": "income",
+                     *           "provider": "FMP",
+                     *           "fetchedAt": "2026-09-26T12:00:00Z",
+                     *           "stale": false
+                     *         },
+                     *         {
+                     *           "section": "valuation",
+                     *           "provider": "FMP",
+                     *           "fetchedAt": "2026-09-26T12:00:00Z",
+                     *           "stale": false
+                     *         },
+                     *         {
+                     *           "section": "history",
+                     *           "provider": "FMP",
+                     *           "fetchedAt": "2026-09-26T12:00:00Z",
+                     *           "stale": false
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CompanyResearch"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            502: components["responses"]["Upstream"];
+        };
+    };
+    searchCompanies: {
+        parameters: {
+            query: {
+                query: string;
+            };
+            header: {
+                /** @description The user's id. Required on every route except /health. */
+                "X-User-Id": components["parameters"]["UserId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Available provider data. Missing values are null; unavailable sections are explicit. Example financial figures are illustrative. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "results": [
+                     *         {
+                     *           "symbol": "AAPL",
+                     *           "name": "Apple Inc.",
+                     *           "exchange": "NASDAQ"
+                     *         }
+                     *       ],
+                     *       "stale": false
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CompanySearch"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            502: components["responses"]["Upstream"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -896,6 +1222,175 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["History"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            502: components["responses"]["Upstream"];
+        };
+    };
+    getMarketNews: {
+        parameters: {
+            query?: {
+                /** @description One or two comma-separated ticker symbols. */
+                symbols?: string;
+            };
+            header: {
+                /** @description The user's id. Required on every route except /health. */
+                "X-User-Id": components["parameters"]["UserId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description News headlines with publisher links and optional images. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "articles": [
+                     *         {
+                     *           "title": "Example headline: investors look ahead to the next earnings release",
+                     *           "url": "https://example.com/market-news/earnings",
+                     *           "image": null,
+                     *           "publisher": "Example publisher",
+                     *           "publishedAt": "2026-09-25 15:00:00",
+                     *           "symbol": "AAPL"
+                     *         },
+                     *         {
+                     *           "title": "Example headline: new products draw attention across the technology sector",
+                     *           "url": "https://example.com/market-news/products",
+                     *           "image": null,
+                     *           "publisher": "Example publisher",
+                     *           "publishedAt": "2026-09-25 13:00:00",
+                     *           "symbol": "MSFT"
+                     *         },
+                     *         {
+                     *           "title": "Example headline: market participants assess the latest economic data",
+                     *           "url": "https://example.com/market-news/economy",
+                     *           "image": null,
+                     *           "publisher": "Example publisher",
+                     *           "publishedAt": "2026-09-25 12:00:00",
+                     *           "symbol": "AAPL"
+                     *         }
+                     *       ],
+                     *       "symbols": [],
+                     *       "source": "FMP",
+                     *       "fetchedAt": "2026-09-25T20:00:00Z",
+                     *       "stale": false
+                     *     }
+                     */
+                    "application/json": components["schemas"]["MarketNews"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            502: components["responses"]["Upstream"];
+        };
+    };
+    getMarketMovers: {
+        parameters: {
+            query?: {
+                category?: "active" | "gainers" | "losers";
+            };
+            header: {
+                /** @description The user's id. Required on every route except /health. */
+                "X-User-Id": components["parameters"]["UserId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A ranked market discovery list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "category": "active",
+                     *       "stocks": [
+                     *         {
+                     *           "symbol": "NVDA",
+                     *           "name": "NVIDIA Corporation",
+                     *           "price": 140.52,
+                     *           "changePct": 0.0234,
+                     *           "exchange": "NASDAQ"
+                     *         },
+                     *         {
+                     *           "symbol": "TSLA",
+                     *           "name": "Tesla Inc.",
+                     *           "price": 250.12,
+                     *           "changePct": -0.0121,
+                     *           "exchange": "NASDAQ"
+                     *         },
+                     *         {
+                     *           "symbol": "AAPL",
+                     *           "name": "Apple Inc.",
+                     *           "price": 225.4,
+                     *           "changePct": 0.0056,
+                     *           "exchange": "NASDAQ"
+                     *         },
+                     *         {
+                     *           "symbol": "AMD",
+                     *           "name": "Advanced Micro Devices Inc.",
+                     *           "price": 160.3,
+                     *           "changePct": 0.0182,
+                     *           "exchange": "NASDAQ"
+                     *         },
+                     *         {
+                     *           "symbol": "INTC",
+                     *           "name": "Intel Corporation",
+                     *           "price": 22.5,
+                     *           "changePct": -0.024,
+                     *           "exchange": "NASDAQ"
+                     *         },
+                     *         {
+                     *           "symbol": "PLTR",
+                     *           "name": "Palantir Technologies Inc.",
+                     *           "price": 35.2,
+                     *           "changePct": 0.0345,
+                     *           "exchange": "NASDAQ"
+                     *         },
+                     *         {
+                     *           "symbol": "AMZN",
+                     *           "name": "Amazon.com Inc.",
+                     *           "price": 190.8,
+                     *           "changePct": 0.0098,
+                     *           "exchange": "NASDAQ"
+                     *         },
+                     *         {
+                     *           "symbol": "F",
+                     *           "name": "Ford Motor Company",
+                     *           "price": 10.7,
+                     *           "changePct": -0.0074,
+                     *           "exchange": "NYSE"
+                     *         },
+                     *         {
+                     *           "symbol": "SOFI",
+                     *           "name": "SoFi Technologies Inc.",
+                     *           "price": 8.3,
+                     *           "changePct": 0.0412,
+                     *           "exchange": "NASDAQ"
+                     *         },
+                     *         {
+                     *           "symbol": "MSFT",
+                     *           "name": "Microsoft Corporation",
+                     *           "price": 430.6,
+                     *           "changePct": 0.0067,
+                     *           "exchange": "NASDAQ"
+                     *         }
+                     *       ],
+                     *       "fetchedAt": "2026-09-25T20:00:00Z",
+                     *       "source": "FMP",
+                     *       "stale": false
+                     *     }
+                     */
+                    "application/json": components["schemas"]["MarketMovers"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -24,10 +24,10 @@ export const FALLBACK_DISCLAIMER =
   'Consider a licensed professional before making investment decisions.'
 
 export const SUGGESTED_PROMPTS = [
-  'How risky is my portfolio?',
-  'Which retirement account fits me?',
-  'How does inflation affect my bonds?',
-  'Am I too concentrated in one position?',
+  'What does it mean to own a stock?',
+  'How are sales different from profit?',
+  'Explain an ETF in simple words.',
+  'How can I understand the risks in my portfolio?',
 ]
 
 export const ChatContext = createContext<ChatState | null>(null)

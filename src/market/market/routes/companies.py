@@ -1,5 +1,7 @@
 """GET /market/compare-companies: size-adjusted comparison (ratios, per-share), never raw dollars."""
 
+import math
+
 from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, cache
 from clearvest.errors import UpstreamError
@@ -21,10 +23,15 @@ def _company(symbol: str) -> tuple[dict, bool]:
     except UpstreamError:
         growth = None  # EDGAR down never breaks the comparison; FMP growth stands in
     if growth is None:
-        growth, _ = cache.get_or_fetch("fmp", f"growth:{symbol}", TTL, lambda: fmp.revenue_growth(symbol))
+        growth, growth_stale = cache.get_or_fetch("fmp", f"growth:{symbol}", TTL, lambda: fmp.revenue_growth(symbol))
+        stale |= growth_stale
+    ratios = {key: value if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) else None for key, value in ratios.items()}
+    growth = growth if isinstance(growth, (int, float)) and not isinstance(growth, bool) and math.isfinite(growth) else None
+    pe = ratios.get("priceToEarningsRatioTTM")
+    eps = ratios.get("netIncomePerShareTTM")
     return {
         "symbol": symbol,
-        "pe": ratios.get("priceToEarningsRatioTTM"),
+        "pe": pe if pe is not None and pe > 0 and (eps is None or eps > 0) else None,
         "ps": ratios.get("priceToSalesRatioTTM"),
         "grossMargin": ratios.get("grossProfitMarginTTM"),
         "revenueGrowth": growth,

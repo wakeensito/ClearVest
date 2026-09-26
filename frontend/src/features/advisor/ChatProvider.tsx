@@ -11,8 +11,12 @@ const storageKey = () => `cv-chat:${getUserId()}`
 
 function load(): { messages: ChatMessage[]; disclaimer: string } {
   try {
-    const saved = JSON.parse(read(storageKey()) ?? 'null') as { messages?: ChatMessage[]; disclaimer?: string } | null
-    return { messages: saved?.messages ?? [], disclaimer: saved?.disclaimer ?? FALLBACK_DISCLAIMER }
+    const saved = JSON.parse(read(storageKey()) ?? 'null') as { messages?: unknown; disclaimer?: unknown } | null
+    const messages = Array.isArray(saved?.messages) ? saved.messages.filter((message): message is ChatMessage =>
+      message && typeof message === 'object' && typeof message.id === 'string' && typeof message.text === 'string' &&
+      (message.role === 'user' || message.role === 'advisor'),
+    ).slice(-MAX_KEPT) : []
+    return { messages, disclaimer: typeof saved?.disclaimer === 'string' && saved.disclaimer.trim() ? saved.disclaimer : FALLBACK_DISCLAIMER }
   } catch {
     return { messages: [], disclaimer: FALLBACK_DISCLAIMER }
   }

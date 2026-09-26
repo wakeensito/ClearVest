@@ -20,16 +20,16 @@ const HORIZONS: Choice<Profile['horizon']>[] = [
 
 const TOLERANCES: Choice<Profile['riskTolerance']>[] = [
   { value: 'low', label: 'Low', description: 'Steady matters more than growth.' },
-  { value: 'medium', label: 'Medium', description: 'Some ups and downs for more growth.' },
-  { value: 'high', label: 'High', description: 'Comfortable with large swings.' },
+  { value: 'medium', label: 'Medium', description: 'I can accept some drops in value. Growth is not guaranteed.' },
+  { value: 'high', label: 'High', description: 'I can accept large drops and the chance of losing money.' },
 ]
 
 const GOAL_SUGGESTIONS = ['Retire early', 'Buy a home', 'Build an emergency fund', 'Pay for education']
 
 const POINTS = [
   { image: 'your-goals', title: 'Tell us your situation', body: 'Your age, time horizon and goals shape every explanation.' },
-  { image: 'linked-account', title: 'Link a brokerage account', body: 'Holdings are read through Plaid. ClearVest cannot place trades.' },
-  { image: 'clear-conversation', title: 'Ask in plain language', body: 'Figures are calculated by ClearVest, then explained, never guessed.' },
+  { image: 'linked-account', title: 'Explore at your pace', body: 'Learning and company research do not need a linked account.' },
+  { image: 'clear-conversation', title: 'Ask in plain language', body: 'Ask one question at a time. You do not need to know the investing terms.' },
 ]
 
 export function WelcomePage() {
@@ -41,7 +41,7 @@ export function WelcomePage() {
   // Only return to known app pages; direct visits to the editor return to the portfolio.
   const requestedReturn = location.state?.returnTo
   const returnTo = typeof requestedReturn === 'string' && /^\/(portfolio|advisor|markets|learn)([?#]|$)/.test(requestedReturn)
-    ? requestedReturn : '/portfolio'
+    ? requestedReturn : editing ? '/portfolio' : '/'
   const leaveEditing = () => navigate(returnTo, { replace: true })
   const profile = useProfile()
   const isNew = hasCode(profile.error, 'NOT_FOUND')
@@ -69,10 +69,11 @@ export function WelcomePage() {
       <main className={styles.content}>
         <header className={styles.top}>
           <Wordmark />
-          <ButtonLink to="/learn" variant="tertiary">Explore first</ButtonLink>
+          <ButtonLink to="/" variant="tertiary">Explore first</ButtonLink>
         </header>
 
         <div className={`${styles.form} reveal`}>
+          {!editing && <p className={styles.lede}>This profile is for explanations tailored to you. You can <ButtonLink to="/" variant="tertiary">start learning without a profile</ButtonLink>.</p>}
           {!editing && <Steps current={step === 'profile' ? 1 : 2} />}
 
           {step === 'profile' ? (
@@ -84,7 +85,7 @@ export function WelcomePage() {
                 initial={profile.data}
                 editing={editing}
                 loadError={!isNew && profile.isError ? profile.error : null}
-                onSaved={() => (editing ? leaveEditing() : setStep('link'))}
+                onSaved={() => (editing || returnTo.startsWith('/advisor') ? leaveEditing() : setStep('link'))}
                 onCancel={leaveEditing}
               />
             )
@@ -93,12 +94,12 @@ export function WelcomePage() {
               <div>
                 <h1 className="t-h1">Link your account</h1>
                 <p className={`t-body c-secondary ${styles.lede}`}>
-                  With your holdings, ClearVest can show your allocation, score your risk and ground every answer in
+                  With your holdings, ClearVest can show your allocation, explain how it is spread out and put your questions in context with
                   your actual numbers.
                 </p>
               </div>
               <LinkAccountCard onLinked={() => navigate('/portfolio')} />
-              <ButtonLink to="/portfolio" variant="tertiary" arrow>
+              <ButtonLink to="/" variant="tertiary" arrow>
                 Skip for now
               </ButtonLink>
             </div>
@@ -157,7 +158,11 @@ function ProfileForm({ initial, editing, loadError, onSaved, onCancel }: {
     e.preventDefault()
     const found = validate(age, horizon, risk)
     setErrors(found)
-    if (Object.keys(found).length || !horizon || !risk) return
+    if (Object.keys(found).length || !horizon || !risk) {
+      const form = e.currentTarget
+      requestAnimationFrame(() => form.querySelector<HTMLInputElement>(found.age ? 'input[inputmode="numeric"]' : found.horizon ? 'input[name="horizon"]' : 'input[name="risk"]')?.focus())
+      return
+    }
     save.mutate({ age: Number(age), horizon, riskTolerance: risk, goals }, { onSuccess: onSaved })
   }
 

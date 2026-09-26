@@ -1,5 +1,5 @@
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type Profile, type HistoryRange } from './client'
+import { api, type Profile, type HistoryRange, type MarketCategory } from './client'
 import { isApiError } from './errors'
 
 export const queryClient = new QueryClient({
@@ -50,7 +50,42 @@ export function useOnLinked() {
 }
 
 export const useHistory = (symbol: string, range: HistoryRange) => useQuery({
+  enabled: /^[A-Z0-9.^-]{1,12}$/.test(symbol),
   queryKey: ['history', symbol, range],
   queryFn: () => api.getHistory(symbol, range),
+  staleTime: 15 * 60_000,
+})
+
+export const useCompanies = (symbols: string[]) => useQuery({
+  queryKey: ['companies', ...symbols],
+  queryFn: () => api.compareCompanies(symbols),
+  enabled: symbols.length >= 2,
+  staleTime: 15 * 60_000,
+})
+
+export const useMarketMovers = (category: MarketCategory) => useQuery({
+  queryKey: ['market-movers', category],
+  queryFn: () => api.getMarketMovers(category),
+  staleTime: 15 * 60_000,
+})
+
+export const useMarketNews = (symbols: string[], enabled = true) => useQuery({
+  queryKey: ['market-news', ...[...new Set(symbols)].sort()],
+  queryFn: () => api.getMarketNews([...new Set(symbols)].sort()),
+  enabled,
+  staleTime: 15 * 60_000,
+})
+
+export const useCompanyResearch = (symbol: string) => useQuery({
+  queryKey: ['company-research', symbol],
+  queryFn: () => api.getCompanyResearch(symbol),
+  enabled: /^[A-Z0-9.^-]{1,12}$/.test(symbol),
+  staleTime: 15 * 60_000,
+})
+
+export const useCompanySearch = (query: string) => useQuery({
+  queryKey: ['company-search', query.toLowerCase()],
+  queryFn: () => api.searchCompanies(query),
+  enabled: query.trim().length > 0,
   staleTime: 15 * 60_000,
 })
