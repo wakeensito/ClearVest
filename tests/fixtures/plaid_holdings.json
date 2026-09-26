@@ -1,0 +1,13 @@
+{
+  "accounts": [{"account_id": "acc1", "name": "Brokerage"}],
+  "holdings": [
+    {"account_id": "acc1", "security_id": "s1", "quantity": 10, "institution_price": 300.0, "institution_value": 3000.0},
+    {"account_id": "acc1", "security_id": "s2", "quantity": 5, "institution_price": 200.0, "institution_value": 1000.0},
+    {"account_id": "acc1", "security_id": "s3", "quantity": 1000, "institution_price": 1.0, "institution_value": 1000.0}
+  ],
+  "securities": [
+    {"security_id": "s1", "ticker_symbol": "VTI", "name": "Vanguard Total Stock Market ETF", "type": "etf"},
+    {"security_id": "s2", "ticker_symbol": "AAPL", "name": "Apple Inc.", "type": "equity"},
+    {"security_id": "s3", "ticker_symbol": null, "name": "Cash Sweep", "type": "cash", "is_cash_equivalent": true}
+  ]
+}
