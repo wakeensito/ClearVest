@@ -54,3 +54,11 @@ export const useHistory = (symbol: string, range: HistoryRange) => useQuery({
   queryFn: () => api.getHistory(symbol, range),
   staleTime: 15 * 60_000,
 })
+
+/** Pass normalized tickers (lib/compare.ts). Disabled outside 2–4 symbols, so an incomplete set never hits the API. */
+export const useCompareCompanies = (symbols: readonly string[]) => useQuery({
+  queryKey: ['compare', ...symbols],
+  queryFn: () => api.compareCompanies(symbols),
+  enabled: symbols.length >= 2 && symbols.length <= 4,
+  staleTime: 15 * 60_000,
+})
