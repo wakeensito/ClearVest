@@ -62,6 +62,8 @@ paths:
                 riskTolerance: medium
         "400":
           $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     put:
       operationId: putProfile
       tags: [Portfolio]
@@ -251,11 +253,14 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "409":
           $ref: "#/components/responses/NotLinked"
+        "502":
+          $ref: "#/components/responses/Upstream"
 
   /market/history:
     get:
       operationId: getMarketHistory
       tags: [Market]
+      description: Takes 1 to 5 symbols; fewer or more is a 400.
       parameters:
         - $ref: "#/components/parameters/UserId"
         - $ref: "#/components/parameters/Symbols"
@@ -298,6 +303,7 @@ paths:
     get:
       operationId: compareCompanies
       tags: [Market]
+      description: Takes 2 to 4 symbols; fewer or more is a 400.
       parameters:
         - $ref: "#/components/parameters/UserId"
         - $ref: "#/components/parameters/Symbols"
@@ -488,6 +494,9 @@ paths:
       operationId: createVoiceUploadUrl
       tags: [Voice]
       summary: A presigned S3 PUT so audio never passes through API Gateway.
+      description: >
+        The Content-Type is part of the signature: the PUT to uploadUrl must send the same
+        Content-Type header that was requested here, or S3 rejects it with 403.
       parameters:
         - $ref: "#/components/parameters/UserId"
       requestBody:
@@ -557,6 +566,9 @@ paths:
       operationId: postVoiceSpeak
       tags: [Voice]
       summary: Text-to-speech into S3, returned as a presigned GET.
+      description: >
+        Accepts up to 5000 characters so a full advisor reply can be sent as-is; it is trimmed
+        to about 2000 characters at a sentence boundary before speech.
       parameters:
         - $ref: "#/components/parameters/UserId"
       requestBody:
@@ -570,7 +582,7 @@ paths:
                 text:
                   type: string
                   minLength: 1
-                  maxLength: 2000
+                  maxLength: 5000
               example:
                 text: "At 24, a Roth IRA is worth considering."
       responses:
@@ -639,6 +651,17 @@ components:
               code: NOT_LINKED
               message: "No linked account. Send the user to Plaid Link."
               requestId: "9a1e6b2e-0000-4c00-8000-000000000002"
+    NotFound:
+      description: The requested resource does not exist (e.g. no profile saved yet).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: NOT_FOUND
+              message: "No profile yet"
+              requestId: "9a1e6b2e-0000-4c00-8000-000000000004"
     Upstream:
       description: A data provider is down.
       content:
@@ -674,13 +697,18 @@ components:
       properties:
         age:
           type: integer
+          minimum: 13
+          maximum: 120
         horizon:
           type: string
           enum: [short, medium, long]
         goals:
           type: array
+          maxItems: 10
           items:
             type: string
+            minLength: 1
+            maxLength: 200
         riskTolerance:
           type: string
           enum: [low, medium, high]
