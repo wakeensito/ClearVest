@@ -91,7 +91,7 @@ read action CloudFormation turned out to need), re-run the bootstrap `cloudforma
 The frontend is hosted on a private S3 bucket behind CloudFront (same stack) at the stack's `FrontendUrl`
 output. CD builds it on every push to `main`, right after `sam deploy`, with the stack's `ApiUrl` baked in as
 `VITE_API_BASE_URL` (build time only, so an API URL change needs a rebuild), then syncs it to the bucket and
-invalidates `/index.html`. Client-side routes work on refresh: CloudFront serves `index.html` for 403/404.
+invalidates `/index.html` and `/`. Client-side routes work on refresh: CloudFront serves `index.html` for 403/404.
 
 ```bash
 aws cloudformation describe-stacks --stack-name ClearVest --region us-east-1 \

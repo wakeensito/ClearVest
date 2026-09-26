@@ -232,11 +232,31 @@ Resources:
               # never derived from the stack name, so they can't be prefix-scoped like
               # the resources above; they are limited to this account's distributions
               # and OACs. CloudFront is global, so the ARNs have no region.
-              - Sid: AppCloudFront
+              # Create actions support NO resource-level permissions (no resource type in
+              # the Service Authorization Reference): scoped to distribution/* or
+              # origin-access-control/* they are implicitly denied, so '*' is required.
+              - Sid: AppCloudFrontCreate
                 Effect: Allow
                 Action:
                   - cloudfront:CreateDistribution
+                  - cloudfront:CreateDistributionWithTags
+                  - cloudfront:CreateOriginAccessControl
+                  - cloudfront:CreateConnectionGroup
+                Resource: '*'
+              # Read-only lookups the AWS::CloudFront::Distribution create/update handler
+              # declares in the CloudFormation registry; unused features here, but a
+              # missing permission fails the handler.
+              - Sid: AppCloudFrontHandlerReads
+                Effect: Allow
+                Action:
+                  - cloudfront:GetConnectionGroup
+                  - cloudfront:GetVpcOrigin
+                Resource: '*'
+              - Sid: AppCloudFront
+                Effect: Allow
+                Action:
                   - cloudfront:UpdateDistribution
+                  - cloudfront:UpdateDistributionWithStagingConfig
                   - cloudfront:DeleteDistribution
                   - cloudfront:GetDistribution
                   - cloudfront:GetDistributionConfig
@@ -249,7 +269,6 @@ Resources:
               - Sid: AppCloudFrontOAC
                 Effect: Allow
                 Action:
-                  - cloudfront:CreateOriginAccessControl
                   - cloudfront:GetOriginAccessControl
                   - cloudfront:UpdateOriginAccessControl
                   - cloudfront:DeleteOriginAccessControl

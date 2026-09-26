@@ -5,9 +5,9 @@
 #    private frontend bucket + CloudFront distribution (template.yaml).
 # 2. Reads the stack outputs (ApiUrl, FrontendBucketName, FrontendDistributionId).
 # 3. Builds the frontend with VITE_API_BASE_URL=<ApiUrl> baked in (build time only).
-# 4. Syncs frontend/dist to the bucket with a cache split: hashed assets and
-#    other files get a 1-year immutable Cache-Control (with --delete), index.html
-#    gets no-cache so each deploy is picked up; then invalidates /index.html.
+# 4. Syncs frontend/dist to the bucket with a cache split: hashed assets/ get a
+#    1-year immutable Cache-Control, unhashed public/ files max-age=0 +
+#    must-revalidate, index.html no-cache; then invalidates /index.html and /.
 #
 # One-time bootstrap (README "Deploy"): deploy infra/cicd-role.yaml, then
 #   gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn output>"
@@ -100,19 +100,22 @@ jobs:
       - name: Publish frontend to S3
         run: |
           test -f frontend/dist/index.html
-          # Everything but index.html: Vite fingerprints assets/, so they're cached for a year.
-          aws s3 sync frontend/dist "s3://$FRONTEND_BUCKET" --delete \
-            --exclude index.html \
+          # Only assets/ is content-hashed by Vite: cache it for a year.
+          aws s3 sync frontend/dist/assets "s3://$FRONTEND_BUCKET/assets" --delete \
             --cache-control "public, max-age=31536000, immutable"
+          # Files copied from frontend/public keep their names: always revalidate.
+          aws s3 sync frontend/dist "s3://$FRONTEND_BUCKET" --delete \
+            --exclude index.html --exclude "assets/*" \
+            --cache-control "public, max-age=0, must-revalidate"
           # index.html points at the current hashes: never cached, so a deploy shows up at once.
           aws s3 cp frontend/dist/index.html "s3://$FRONTEND_BUCKET/index.html" \
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/html; charset=utf-8"
 
-      - name: Invalidate index.html
+      - name: Invalidate index.html and /
         run: |
           aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" \
-            --paths "/index.html" --query Invalidation.Id --output text
+            --paths "/index.html" "/" --query Invalidation.Id --output text
 
       - name: Frontend URL
         run: |
