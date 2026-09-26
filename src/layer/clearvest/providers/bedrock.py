@@ -16,6 +16,9 @@ def converse(system: str, messages: list[dict], max_tokens: int = 600) -> str:
             messages=messages,
             inferenceConfig={"maxTokens": max_tokens, "temperature": 0.3},
         )
-        return resp["output"]["message"]["content"][0]["text"].strip()
+        text = resp["output"]["message"]["content"][0]["text"].strip()
     except (ClientError, BotoCoreError, KeyError, IndexError) as err:
         raise UpstreamError("bedrock", f"{type(err).__name__}: {err}") from err
+    if not text:
+        raise UpstreamError("bedrock", "empty response")
+    return text
