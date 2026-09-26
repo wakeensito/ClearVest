@@ -63,6 +63,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [ask],
   )
 
+  const addTurn = useCallback((userText: string, reply: string, disclaimer?: string) => {
+    if (disclaimer) setDisclaimer(disclaimer)
+    setMessages((m) => [
+      ...m,
+      { id: crypto.randomUUID(), role: 'user', text: userText },
+      { id: crypto.randomUUID(), role: 'advisor', text: reply },
+    ])
+  }, [])
+
   const retry = useCallback(
     (id: string) => {
       const msg = messages.find((m) => m.id === id)
@@ -78,8 +87,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<ChatState>(
-    () => ({ messages, disclaimer, pending, error, send, retry, clear }),
-    [messages, disclaimer, pending, error, send, retry, clear],
+    () => ({ messages, disclaimer, pending, error, send, addTurn, retry, clear }),
+    [messages, disclaimer, pending, error, send, addTurn, retry, clear],
   )
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
