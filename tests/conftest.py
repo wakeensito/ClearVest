@@ -20,7 +20,6 @@ os.environ.update(
     PLAID_SECRET_PARAM="clearvest-plaid-secret",
     FMP_KEY_PARAM="clearvest-fmp",
     ALPHAVANTAGE_KEY_PARAM="clearvest-alphavantage",
-    FRED_KEY_PARAM="clearvest-fred",
     SEC_USER_AGENT_PARAM="clearvest-sec-user-agent",
     ELEVENLABS_KEY_PARAM="clearvest-elevenlabs",
     ELEVENLABS_VOICE_ID="voice-test",
@@ -33,7 +32,6 @@ PARAMS = {
     "clearvest-plaid-secret": "plaid-secret",
     "clearvest-fmp": "fmp-key",
     "clearvest-alphavantage": "av-key",
-    "clearvest-fred": "fred-key",
     "clearvest-sec-user-agent": "ClearVest test@example.com",
     "clearvest-elevenlabs": "el-key",
 }

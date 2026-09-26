@@ -34,7 +34,7 @@ Layer for provider clients, SSM config, DynamoDB, cache and error handling. IaC 
 | Function | Routes | Can access |
 |---|---|---|
 | `PortfolioFn` | `/health`, `/profile`, `/plaid/*`, `/portfolio/*` | DynamoDB table; Plaid keys |
-| `MarketFn` | `/market/*` | DynamoDB table (cache rows); FMP, Alpha Vantage, FRED keys; SEC User-Agent param; yfinance (keyless) |
+| `MarketFn` | `/market/*` | DynamoDB table (cache rows); FMP, Alpha Vantage keys; SEC User-Agent param; FRED and yfinance (keyless) |
 | `AdvisorFn` | `/advisor/*` | DynamoDB table; Bedrock (Nova model only) |
 | `VoiceFn` | `/voice/*` | S3 audio bucket; ElevenLabs key; DynamoDB table; Bedrock (Nova) |
 
@@ -86,12 +86,12 @@ read action CloudFormation turned out to need), re-run the bootstrap `cloudforma
 ### Plugging in keys
 
 Every provider key lives in SSM Parameter Store (SecureString) and is read at request time, cached per warm
-container. `clearvest-fmp` already exists; the other six still need values:
+container. `clearvest-fmp` already exists; the other five still need values. FRED needs no key: macro data comes
+from FRED's public `fredgraph.csv` download, so there is no `clearvest-fred` parameter.
 
 ```bash
 aws ssm put-parameter --name clearvest-fmp --type SecureString --value '<fmp-key>' --region us-east-1 --overwrite
 aws ssm put-parameter --name clearvest-alphavantage --type SecureString --value '<alphavantage-key>' --region us-east-1
-aws ssm put-parameter --name clearvest-fred --type SecureString --value '<fred-key>' --region us-east-1
 aws ssm put-parameter --name clearvest-plaid-client-id --type SecureString --value '<plaid-client-id>' --region us-east-1
 aws ssm put-parameter --name clearvest-plaid-secret --type SecureString --value '<plaid-secret>' --region us-east-1
 aws ssm put-parameter --name clearvest-elevenlabs --type SecureString --value '<elevenlabs-key>' --region us-east-1
@@ -104,7 +104,7 @@ Renaming a parameter (e.g. to a hierarchical name) needs no code change, only a 
 override. Hierarchical names are given **without** the leading slash — the loader and the IAM policy both add it:
 
 ```bash
-sam deploy --parameter-overrides FredKeyParam=clearvest/fred
+sam deploy --parameter-overrides FmpKeyParam=clearvest/fmp
 ```
 
 ### Verify a deploy

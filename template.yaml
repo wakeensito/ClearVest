@@ -5,14 +5,13 @@ Description: >
   Advisor, Voice) sharing one layer. Spec: docs/superpowers/specs/2026-09-26-backend-architecture-design.md
 
 # SSM parameter NAMES (not values). Hierarchical names go without the leading
-# slash (clearvest/fred), because the ARN and the loader both add it.
+# slash (clearvest/fmp), because the ARN and the loader both add it.
 Parameters:
   PlaidClientIdParam: {Type: String, Default: clearvest-plaid-client-id}
   PlaidSecretParam: {Type: String, Default: clearvest-plaid-secret}
   PlaidEnv: {Type: String, Default: sandbox, AllowedValues: [sandbox, production]}
   FmpKeyParam: {Type: String, Default: clearvest-fmp}
   AlphaVantageKeyParam: {Type: String, Default: clearvest-alphavantage}
-  FredKeyParam: {Type: String, Default: clearvest-fred}
   SecUserAgentParam: {Type: String, Default: clearvest-sec-user-agent}
   ElevenLabsKeyParam: {Type: String, Default: clearvest-elevenlabs}
   ElevenLabsVoiceId: {Type: String, Default: JBFqnCBsd6RMkjVDRZzb}
@@ -141,7 +140,6 @@ Resources:
           POWERTOOLS_SERVICE_NAME: market
           FMP_KEY_PARAM: !Ref FmpKeyParam
           ALPHAVANTAGE_KEY_PARAM: !Ref AlphaVantageKeyParam
-          FRED_KEY_PARAM: !Ref FredKeyParam
           SEC_USER_AGENT_PARAM: !Ref SecUserAgentParam
       Policies:
         - DynamoDBCrudPolicy: {TableName: !Ref Table}
@@ -151,7 +149,6 @@ Resources:
               Resource:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${FmpKeyParam}'
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AlphaVantageKeyParam}'
-                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${FredKeyParam}'
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SecUserAgentParam}'
       Events:
         Market: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/market/{proxy+}', Method: ANY}}

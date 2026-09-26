@@ -34,8 +34,9 @@ source .venv/bin/activate
 pytest -q tests/layer/test_risk.py tests/market
 ```
 
-Env vars needed (names only): `FMP_KEY_PARAM`, `ALPHAVANTAGE_KEY_PARAM`, `FRED_KEY_PARAM`,
-`SEC_USER_AGENT_PARAM`.
+Env vars needed (names only): `FMP_KEY_PARAM`, `ALPHAVANTAGE_KEY_PARAM`, `SEC_USER_AGENT_PARAM`.
+FRED is keyless (public `fredgraph.csv` download, bounded with `cosd` to ~16 months), so there is no FRED
+parameter.
 
 ## Decisions & why
 
@@ -86,8 +87,8 @@ Env vars needed (names only): `FMP_KEY_PARAM`, `ALPHAVANTAGE_KEY_PARAM`, `FRED_K
 
 ## Next steps
 
-1. Plug `clearvest-fmp` (exists), `clearvest-alphavantage`, `clearvest-fred`, `clearvest-sec-user-agent`
-   into SSM (see README **Plugging in keys**), deploy, run `scripts/smoke.sh`.
+1. Plug `clearvest-fmp` (exists), `clearvest-alphavantage`, `clearvest-sec-user-agent` into SSM
+   (FRED needs no key) (see README **Plugging in keys**), deploy, run `scripts/smoke.sh`.
 2. 13F-based "who else holds this" is a stretch item — pick up post-freeze if there's time (#26 follow-up).
 
 ## Open questions / blockers

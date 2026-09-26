@@ -71,3 +71,9 @@ def test_ai_routes_have_tighter_throttles():
 
 def test_market_fn_fits_api_gateway_timeout():
     assert load()["Resources"]["MarketFn"]["Properties"]["Timeout"] == 29
+
+
+def test_fred_is_keyless():
+    text = TEMPLATE.read_text()
+    assert "FredKeyParam" not in text
+    assert "FRED_KEY_PARAM" not in text
