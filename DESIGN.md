@@ -110,6 +110,29 @@ scrolling available to the page. Enable pointer/touch inspection, left/right key
 previous/next observation buttons and a scrollable table alternative. Remove the chart on unmount.
 Disable the in-chart TradingView logo with `attributionLogo: false`. Keep the NOTICE credit and TradingView link in the application footer, as permitted by the library’s attribution option.
 
+### 4.8 Advisor replies
+
+Replies render a small markdown subset as React nodes, never `innerHTML` (`features/advisor/parseMarkdown.ts`,
+`Markdown.tsx`): paragraphs, `-`/`*`/`•` and numbered lists, `**bold**`, headings and comparison tables.
+Lists and tables may start directly after a sentence; a line without a pipe ends a table.
+
+Headings (`#` to `######`) render as a semibold 15/24 lead-in paragraph, not an `h1`–`h6`, so a reply never
+adds to the page outline. Surrounding `**` is dropped. It has 20px above and the reply's 12px gap below,
+grouping it with what follows. A bare `###` stays text.
+
+A GFM table needs a header, a delimiter row with the same cell count and at least one body row; otherwise
+it stays text. Outer pipes are optional, `\|` is a literal pipe, and ragged rows are padded or truncated
+to the header. It renders as a semantic table (`th scope="col"`; each row's first cell is `th scope="row"`)
+on a white surface with a 1px rule border, 6px radius, 13/20 text, 8px cells and rule-coloured row
+separators. The wrapper is a focusable region labelled "Comparison table" with a visible focus ring.
+
+Phone behavior: up to three columns fit the reply at 320px with no scrolling. The layout is fixed, the
+label column is 34% wide, and cells wrap. Only words of ten or more letters hyphenate. Four or more
+columns scroll inside the wrapper (momentum, overscroll contained). The first column stays pinned on the
+surface, and a 12px shade on the right edge hints at more content until the end is reached.
+`contain: inline-size` keeps a wide table from widening the page. The advisor prompt asks for at most
+three columns and six rows.
+
 ## 5. Layout and routes
 
 Desktop: 76px navigation, slim workspace information row, centered content up to 1440px with 40px

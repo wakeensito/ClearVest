@@ -31,7 +31,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [messages, disclaimer])
 
   const ask = useCallback(async (id: string, text: string) => {
-    // One request at a time: /advisor/* is capped at 2 req/s (DESIGN.md §4.8).
+    // One request at a time: /advisor/* is capped at 2 req/s (template.yaml RouteSettings; 429 copy in DESIGN.md §11).
     if (inFlight.current) return
     inFlight.current = true
     setPending(true)
