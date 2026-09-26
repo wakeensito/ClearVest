@@ -12,6 +12,8 @@ def weekly(symbol: str) -> list[tuple[str, float]]:
     })
     series = data.get("Weekly Time Series")
     if not series:
-        # Rate limits come back as HTTP 200 with a "Note"/"Information" field.
-        raise UpstreamError("alphavantage", str(data)[:200])
+        # Rate limits/errors come back as HTTP 200 with a "Note"/"Information"/"Error Message"
+        # field. Never surface the raw payload (it can include the request's own API key).
+        reason = next((data[k] for k in ("Note", "Information", "Error Message") if k in data), "no series")
+        raise UpstreamError("alphavantage", f"no weekly series ({reason})")
     return sorted((d, float(v["4. close"])) for d, v in series.items())

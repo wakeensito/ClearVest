@@ -18,13 +18,39 @@ def test_put_get_query_delete(aws):
     assert db.query(pk, "CHAT#") == []
 
 
-def test_delete_single_item(aws):
-    db.put("USER#1", "HOLDINGS", {"a": 1})
-    db.put("USER#1", "HOLDINGS#old", {"b": 2})
-    db.delete("USER#1", "HOLDINGS")
-    db.delete("USER#1", "missing")  # deleting an absent key is a no-op
-    assert db.get("USER#1", "HOLDINGS") is None
-    assert db.get("USER#1", "HOLDINGS#old") == {"b": 2}
+def test_delete_prefix_paginates_all_items(aws, monkeypatch):
+    from clearvest import aws as aws_mod
+
+    pk = db.user_pk("u2")
+    pages = [
+        {"Items": [{"pk": pk, "sk": "CHAT#0"}], "LastEvaluatedKey": {"pk": pk, "sk": "CHAT#0"}},
+        {"Items": [{"pk": pk, "sk": "CHAT#1"}]},
+    ]
+    calls = []
+    deleted = []
+
+    def fake_query(**kwargs):
+        calls.append(kwargs)
+        return pages.pop(0)
+
+    class FakeBatch:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            return False
+
+        def delete_item(self, Key):
+            deleted.append(Key)
+
+    table = aws_mod.table()
+    monkeypatch.setattr(table, "query", fake_query)
+    monkeypatch.setattr(table, "batch_writer", lambda: FakeBatch())
+
+    assert db.delete_prefix(pk, "CHAT#") == 2
+    assert deleted == [{"pk": pk, "sk": "CHAT#0"}, {"pk": pk, "sk": "CHAT#1"}]
+    assert len(calls) == 2 and calls[1]["ExclusiveStartKey"] == {"pk": pk, "sk": "CHAT#0"}
+    assert "ExclusiveStartKey" not in calls[0]
 
 
 def test_cache_fetches_then_serves_fresh(aws):

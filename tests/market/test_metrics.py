@@ -26,3 +26,7 @@ def test_downsample_keeps_last_point():
 
 def test_short_series():
     assert metrics.return_pct([5]) == 0.0 and metrics.volatility([5], 252) == 0.0
+
+
+def test_volatility_zero_when_per_year_zero():
+    assert metrics.volatility([100, 101, 100, 101], 0) == 0.0

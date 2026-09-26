@@ -28,25 +28,33 @@ def get(pk: str, sk: str) -> Any | None:
     return json.loads(item["data"]) if item else None
 
 
-def query(pk: str, sk_prefix: str, limit: int = 50, newest_first: bool = False) -> list:
+def query(
+    pk: str, sk_prefix: str, limit: int = 50, newest_first: bool = False, consistent: bool = False
+) -> list:
     resp = aws.table().query(
         KeyConditionExpression=Key("pk").eq(pk) & Key("sk").begins_with(sk_prefix),
         ScanIndexForward=not newest_first,
         Limit=limit,
+        ConsistentRead=consistent,
     )
     return [json.loads(i["data"]) for i in resp.get("Items", [])]
 
 
-def delete(pk: str, sk: str) -> None:
-    aws.table().delete_item(Key={"pk": pk, "sk": sk})
-
-
 def delete_prefix(pk: str, sk_prefix: str) -> int:
-    resp = aws.table().query(
-        KeyConditionExpression=Key("pk").eq(pk) & Key("sk").begins_with(sk_prefix),
-        ProjectionExpression="pk, sk",
-    )
-    items = resp.get("Items", [])
+    items: list = []
+    start_key = None
+    while True:
+        kwargs: dict[str, Any] = {
+            "KeyConditionExpression": Key("pk").eq(pk) & Key("sk").begins_with(sk_prefix),
+            "ProjectionExpression": "pk, sk",
+        }
+        if start_key:
+            kwargs["ExclusiveStartKey"] = start_key
+        resp = aws.table().query(**kwargs)
+        items.extend(resp.get("Items", []))
+        start_key = resp.get("LastEvaluatedKey")
+        if not start_key:
+            break
     with aws.table().batch_writer() as batch:
         for i in items:
             batch.delete_item(Key={"pk": i["pk"], "sk": i["sk"]})

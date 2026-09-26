@@ -87,6 +87,18 @@ def test_parallel_fetch_keeps_request_order(aws, monkeypatch):
 
 
 
+def test_volatility_annualizes_from_actual_span_not_requested_range(aws, monkeypatch):
+    import datetime as dt
+
+    start = dt.date(2025, 9, 26)
+    points = [((start + dt.timedelta(days=i)).isoformat(), 100 + (i % 5) * 0.3) for i in range(366)]
+    monkeypatch.setattr(yahoo, "history", lambda s, start: points)
+    _, body_1y = call(handler, "GET", "/market/history", query={"symbols": "VOO", "range": "1y"})
+    _, body_10y = call(handler, "GET", "/market/history", query={"symbols": "VOO", "range": "10y"})
+    assert body_1y["series"][0]["volatility"] == body_10y["series"][0]["volatility"]
+    assert body_1y["series"][0]["volatility"] > 0
+
+
 def test_yahoo_passes_short_timeout(monkeypatch):
     import sys
     import types

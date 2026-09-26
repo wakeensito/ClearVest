@@ -2,7 +2,7 @@
 
 import re
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, cache
@@ -54,6 +54,23 @@ def _cached(symbol: str, rng: str):
     return cache.get_or_fetch("history", f"{symbol}:{rng}", TTL, lambda: _fetch(symbol, YEARS[rng]))
 
 
+def _periods_per_year(points: list) -> float:
+    """Annualization factor from the series' actual date span, not the requested range.
+
+    A 1-year daily series requested as "10y" (because a provider only had a year of history)
+    must annualize the same as if it had been requested as "1y" — using the requested range's
+    YEARS value here would silently under-annualize young tickers.
+    """
+    if len(points) < 2:
+        return 0
+    first = date.fromisoformat(points[0][0])
+    last = date.fromisoformat(points[-1][0])
+    span_days = (last - first).days
+    if span_days <= 0:
+        return 0
+    return (len(points) - 1) / (span_days / 365.25)
+
+
 @router.get("/market/history")
 def get_history():
     api.user_id(router)
@@ -65,7 +82,7 @@ def get_history():
     for symbol, (points, stale) in zip(symbols, fetch_all(symbols, lambda s: _cached(s, rng)), strict=True):
         any_stale |= stale
         closes = [c for _, c in points]
-        per_year = len(points) / YEARS[rng]
+        per_year = _periods_per_year(points)
         series.append({
             "symbol": symbol,
             "points": [{"date": d, "close": c} for d, c in metrics.downsample(points)],

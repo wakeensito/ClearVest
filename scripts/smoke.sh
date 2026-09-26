@@ -8,16 +8,18 @@ API="${1:?usage: smoke.sh <ApiUrl> [--allow-upstream]}"
 API="${API%/}"
 ALLOW_UPSTREAM="${2:-}"
 USER_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+OUT="$(mktemp)"
+trap 'rm -f "$OUT"' EXIT
 fail=0
 last_ok=0
 
 step() {  # step <name> <method> <path> [json-body]
   local name="$1" method="$2" path="$3" body="${4:-}" code
   if [[ -n "$body" ]]; then
-    code=$(curl -s -o /tmp/smoke.out -w '%{http_code}' -X "$method" "$API$path" \
+    code=$(curl -s -o "$OUT" -w '%{http_code}' -X "$method" "$API$path" \
       -H "x-user-id: $USER_ID" -H 'content-type: application/json' -d "$body")
   else
-    code=$(curl -s -o /tmp/smoke.out -w '%{http_code}' -X "$method" "$API$path" -H "x-user-id: $USER_ID")
+    code=$(curl -s -o "$OUT" -w '%{http_code}' -X "$method" "$API$path" -H "x-user-id: $USER_ID")
   fi
   last_ok=0
   if [[ "$code" =~ ^2 ]]; then
@@ -26,7 +28,7 @@ step() {  # step <name> <method> <path> [json-body]
   elif [[ "$code" == "502" && "$ALLOW_UPSTREAM" == "--allow-upstream" ]]; then
     echo "WARN  $name (502: provider key missing or provider down)"
   else
-    echo "FAIL  $name ($code): $(head -c 300 /tmp/smoke.out)"
+    echo "FAIL  $name ($code): $(head -c 300 "$OUT")"
     fail=1
   fi
 }
