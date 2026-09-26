@@ -1,0 +1,58 @@
+[
+  {
+    "id": "sixty-forty",
+    "name": "Classic 60/40",
+    "description": "A traditional balanced portfolio: 60% total US stock market, 40% total US bond market.",
+    "allocations": [
+      {"asset": "VTI", "weight": 0.6},
+      {"asset": "BND", "weight": 0.4}
+    ],
+    "source": "https://www.bogleheads.org/wiki/Asset_allocation"
+  },
+  {
+    "id": "three-fund",
+    "name": "Bogleheads three-fund",
+    "description": "US stocks, international stocks and US bonds in one example weighting; the Bogleheads wiki treats the exact split as a matter of personal risk tolerance.",
+    "allocations": [
+      {"asset": "VTI", "weight": 0.5},
+      {"asset": "VXUS", "weight": 0.3},
+      {"asset": "BND", "weight": 0.2}
+    ],
+    "source": "https://www.bogleheads.org/wiki/Three-fund_portfolio"
+  },
+  {
+    "id": "all-weather",
+    "name": "All Weather (Ray Dalio, popularized)",
+    "description": "A risk-balanced mix of stocks, long-term bonds, intermediate bonds, gold and commodities meant to hold up across growth and inflation regimes.",
+    "allocations": [
+      {"asset": "VTI", "weight": 0.30},
+      {"asset": "TLT", "weight": 0.40},
+      {"asset": "IEI", "weight": 0.15},
+      {"asset": "GLD", "weight": 0.075},
+      {"asset": "DBC", "weight": 0.075}
+    ],
+    "source": "https://www.bridgewater.com/research-and-insights/the-all-weather-story"
+  },
+  {
+    "id": "buffett-90-10",
+    "name": "Buffett 90/10",
+    "description": "Warren Buffett's suggestion for his estate: 90% in a low-cost S&P 500 fund, 10% in short-term government bonds.",
+    "allocations": [
+      {"asset": "VOO", "weight": 0.9},
+      {"asset": "SHV", "weight": 0.1}
+    ],
+    "source": "https://www.berkshirehathaway.com/letters/2013ltr.pdf"
+  },
+  {
+    "id": "target-date-2065",
+    "name": "Target-date style (young investor)",
+    "description": "An approximate glide-path starting point for a decades-long horizon, weighted toward US and international stocks with a small bond allocation.",
+    "allocations": [
+      {"asset": "VTI", "weight": 0.54},
+      {"asset": "VXUS", "weight": 0.36},
+      {"asset": "BND", "weight": 0.07},
+      {"asset": "BNDX", "weight": 0.03}
+    ],
+    "source": "https://investor.vanguard.com/investment-products/mutual-funds/target-retirement-funds"
+  }
+]
