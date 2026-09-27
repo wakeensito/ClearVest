@@ -35,7 +35,7 @@ describe('company research advisor lines', () => {
 
   it('adds one neutral P/E-versus-usual sentence to the price step', () => {
     const text = render(research(), 2)
-    expect(text).toContain('Investors are paying more than usual for each dollar of profit: 28.0× today vs about 24.0× over the last 5 years.')
+    expect(text).toContain('Investors are paying more than usual for each dollar of profit: 28.0× today vs about 24.0× across 5 recent years.')
     const sentence = /data-pe-comparison="[^"]*">([^<]*)</.exec(renderHtml(research(), 2))?.[1] ?? ''
     expect(sentence).toContain('more than usual')
     expect(sentence).not.toMatch(/cheap|expensive|bargain|overvalued|undervalued/i)
@@ -48,10 +48,21 @@ describe('company research advisor lines', () => {
     expect(text).toContain('Does it pay you to wait?')
     expect(text).toContain('0.45%')
     expect(text).toContain('Each year the company pays out about 0.45% of its share price in cash.')
-    expect(render(research({ valuation: { dividendYield: null } }), 3)).toContain('No dividend')
-    const missing = render(research({ valuation: null }), 3)
-    expect(missing).toContain('Dividend information is not available')
-    expect(missing).not.toContain('No dividend')
+    const none = render(research({ valuation: { dividendYield: 0 } }), 3)
+    expect(none).toContain('No dividend')
+    expect(none).toContain('has not paid a cash dividend over the last 12 months')
+    for (const unknown of [render(research({ valuation: { dividendYield: null } }), 3), render(research({ valuation: null }), 3)]) {
+      expect(unknown).toContain('Dividend information isn’t available for this company.')
+      expect(unknown).not.toContain('No dividend')
+      expect(unknown).not.toContain('has not paid')
+    }
+  })
+
+  it('shows the next earnings date as one quiet line, only when known and not for funds', () => {
+    const html = renderHtml(research({ profile: { nextEarningsDate: '2026-10-29' } }))
+    expect(html).toMatch(/<p class="[^"]*earnings[^"]*" data-next-earnings="true">Next earnings report: Oct 29, 2026<\/p>/)
+    expect(render(research())).not.toContain('Next earnings report')
+    expect(render(research({ profile: { nextEarningsDate: '2026-10-29', isFund: true } }))).not.toContain('Next earnings report')
   })
 
   it('clamps an out-of-range initial step', () => {

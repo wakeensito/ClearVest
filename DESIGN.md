@@ -486,7 +486,7 @@ Use `format.ts` for shared display rules and `researchEducation.ts` for financia
 | `Company.epsTTM`, `.fcfPerShare` | per share; currency not supplied | `1.90`, never imply USD |
 | `AnnualIncome.revenue`, `.netIncome`, other statement totals | full amounts in `currency` | `USD 100M`; full amounts in tables |
 | `AnnualIncome.epsDiluted` | reported currency per diluted share | `USD 5.00` |
-| `ResearchValuation.dividendYield` | fraction (`0.0045`), null = no dividend | ×100, 2 decimals → `0.45%` |
+| `ResearchValuation.dividendYield` | fraction (`0.0045`); `0` = no dividend; null = unknown (never "no dividend") | ×100, 2 decimals → `0.45%` |
 | `ResearchProfile.marketCap` | full amount in `profile.currency` | compact → `USD 3.4T` |
 | `ResearchProfile.beta` | ratio vs the market | data only; not shown |
 | `Macro.fedFunds`, `cpiYoY`, `unemployment`, `wageGrowth`, `tenYear` | **already percent** (`4.33`) | **do not** ×100 → `4.33%` |

@@ -2,8 +2,8 @@ import { useId, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import type { AnnualIncome, CompanyResearch } from '../../api/client'
 import { useCompanyResearch } from '../../api/queries'
-import { dividendSentence, financialAmount, historicalPE, marketCapSentence, peVersusUsual, revenueChange, usablePE } from '../../lib/researchEducation'
-import { date, multiple, percentFromFraction, timestamp } from '../../lib/format'
+import { dividendSentence, dividendYieldLabel, financialAmount, historicalPE, marketCapSentence, peVersusUsual, revenueChange, usablePE } from '../../lib/researchEducation'
+import { date, MISSING, multiple, percentFromFraction, timestamp } from '../../lib/format'
 import { QuickCheck } from '../education/QuickCheck'
 import { QueryView } from '../QueryView'
 import { CompanyLogo } from './CompanyLogo'
@@ -36,10 +36,10 @@ function FinancialStory({ data, initialStep, retry, retrying }: { data: CompanyR
   const comparison = history && peVersusUsual(pe, history.median, history.count)
   const worth = profile && !profile.isFund ? marketCapSentence(profile.marketCap, profile.currency) : null
   const dividendYield = valuation?.dividendYield
-  const pays = dividendYield != null && dividendYield > 0
+  const earnings = profile && !profile.isFund && profile.nextEarningsDate ? date(profile.nextEarningsDate) : null
   const next = () => { setStep(value => value + 1); requestAnimationFrame(() => heading.current?.focus()) }
   return <>
-    <header className={styles.header}><CompanyLogo symbol={data.symbol} /><div><h2>Understand {profile?.name ?? data.symbol}</h2><p>{data.symbol}{profile?.sector ? ` · ${profile.sector}` : ''} · A guided look at the business</p>{worth && <p data-market-cap>{worth}</p>}</div></header>
+    <header className={styles.header}><CompanyLogo symbol={data.symbol} /><div><h2>Understand {profile?.name ?? data.symbol}</h2><p>{data.symbol}{profile?.sector ? ` · ${profile.sector}` : ''} · A guided look at the business</p>{worth && <p data-market-cap>{worth}</p>}{earnings && earnings !== MISSING && <p className={styles.earnings} data-next-earnings>Next earnings report: {earnings}</p>}</div></header>
     <nav className={styles.steps} aria-label="Company research steps">{steps.map((label, index) => <button key={label} onClick={() => setStep(index)} aria-pressed={step === index}><span>{index + 1}</span>{label}</button>)}</nav>
     {data.unavailable.length > 0 && <p className={styles.notice} role="status">Some company information could not load. You can explore the available figures. <button onClick={retry} disabled={retrying}>{retrying ? 'Retrying…' : 'Retry missing data'}</button></p>}
     {data.sources.some(source => source.stale) && <p className={styles.notice}>Showing some previously saved figures while the provider is unavailable. Check the dates below.</p>}
@@ -76,7 +76,7 @@ function FinancialStory({ data, initialStep, retry, retrying }: { data: CompanyR
         </>}
         {step === 3 && <>
           <p className={styles.lede}>Some companies share part of their profit with shareholders as cash. This payment is called a dividend.</p>
-          {valuation ? <div className={styles.valuation} data-dividend><div><span>Dividend yield</span><strong>{pays ? percentFromFraction(dividendYield, { digits: 2 }) : 'No dividend'}</strong><span>Provider ratio · Trailing 12 months</span></div><p>{pays ? dividendSentence(dividendYield) : 'This company has not paid a cash dividend over the last 12 months. Any return would come from the share price changing.'}</p></div> : <p className={styles.empty}>Dividend information is not available for {data.symbol} right now. Missing data does not mean the company pays nothing.</p>}
+          {dividendYield != null ? <div className={styles.valuation} data-dividend><div><span>Dividend yield</span><strong>{dividendYieldLabel(dividendYield)}</strong><span>Provider ratio · Trailing 12 months</span></div><p>{dividendSentence(dividendYield)}</p></div> : <p className={styles.empty} data-dividend>{dividendSentence(null)}</p>}
           <div className={styles.prompt}><strong>Ask yourself</strong><p>A dividend is not promised. Companies can raise, cut or stop it. A yield can also look high because the share price fell, so check why before counting on the cash.</p></div>
         </>}
         {step < last && <button className={styles.next} onClick={next}>Next: {steps[step + 1]}</button>}

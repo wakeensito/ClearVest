@@ -45,13 +45,18 @@ def _positive(value):
 
 def _dividend_yield(value):
     """FMP ratios-ttm `dividendYieldTTM` is a FRACTION (verified live 2026-09-26: AAPL 0.0031 =
-    1.06 / 341). Stored as-is; anything over 25% is a unit bug or garbage, never divided or shown."""
-    number = _positive(value)
-    return number if number is not None and number <= 0.25 else None
+    1.06 / 341). Stored as-is. A reported 0 stays 0 (pays no dividend); null means unknown: missing,
+    negative, or over 25% (a unit bug or garbage, never divided or shown)."""
+    number = _number(value)
+    return number if number is not None and 0 <= number <= 0.25 else None
+
+
+def _today():
+    return datetime.now(UTC).date().isoformat()
 
 
 def _next_earnings(symbol, rows):
-    today = datetime.now(UTC).date().isoformat()
+    today = _today()
     dates = [_date(r.get("date")) for r in rows
              if isinstance(r, dict) and str(r.get("symbol", "")).upper() == symbol]
     return min((d for d in dates if d and d >= today), default=None)
@@ -132,6 +137,11 @@ def research():
             body["unavailable"].append(section)
         else:
             body[section] = snapshot["value"]
+            if section == "profile" and snapshot["value"]:
+                # A cached snapshot can outlive its earnings date; never report a past date as "next".
+                upcoming = snapshot["value"].get("nextEarningsDate")
+                body[section] = {**snapshot["value"],
+                                 "nextEarningsDate": upcoming if upcoming and upcoming >= _today() else None}
             body["sources"].append({"section": section, "provider": "FMP",
                                     "fetchedAt": snapshot["fetchedAt"], "stale": stale})
     return body
