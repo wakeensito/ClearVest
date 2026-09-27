@@ -42,7 +42,7 @@ export function ContextRail() {
               {profile.data.goals.length > 0 ? <ul className={styles.goals}>
                 {profile.data.goals.map((goal, index) => <li key={`${goal}-${index}`}>{goal}</li>)}
               </ul> : <p className={styles.note}>Add your goals in your profile.</p>}
-            </> : <p className={styles.note}>{profile.isPending ? 'Loading your profile…' : hasCode(profile.error, 'NOT_FOUND') ? 'No profile yet. You can still ask about investing. Add a profile only when you want more personal context.' : 'Your profile is unavailable.'}</p>}
+            </> : <p className={styles.note}>{profile.isPending ? 'Loading your profile…' : hasCode(profile.error, 'NOT_FOUND') ? 'No profile yet. Add one for more personal context.' : 'Your profile is unavailable.'}</p>}
           </section>
 
           <section className={styles.section} aria-labelledby="context-portfolio">

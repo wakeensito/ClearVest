@@ -18,7 +18,15 @@
     "test:security-search": "node scripts/security-search-smoke.cjs",
     "test:markets-advisor": "node scripts/markets-advisor-smoke.cjs",
     "test:portfolio-xray": "node scripts/portfolio-xray-smoke.cjs",
-    "test:explain": "node scripts/explain-terms-smoke.cjs"
+    "test:explain": "node scripts/explain-terms-smoke.cjs",
+    "test:scout": "node scripts/scout-smoke.cjs",
+    "test:scout-actions": "node scripts/scout-actions-smoke.cjs",
+    "test:scout-safety": "node scripts/scout-safety-smoke.cjs",
+    "test:scout-workspace": "node scripts/scout-workspace-smoke.cjs",
+    "test:scout-voice": "node scripts/scout-voice-smoke.cjs",
+    "test:scout-ownership": "node scripts/scout-ownership-smoke.cjs",
+    "test:scout-learning": "node scripts/scout-learning-smoke.cjs",
+    "test:bundle": "node scripts/bundle-smoke.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.0",

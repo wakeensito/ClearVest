@@ -1,3 +1,5 @@
+import { ExplainThis } from '../../features/advisor/ExplainThis'
+import { ScoutTarget } from '../../features/advisor/ScoutTarget'
 import { useRisk } from '../../api/queries'
 import { ExplainText } from '../education/Term'
 import { RelatedLesson } from '../education/RelatedLesson'
@@ -22,7 +24,7 @@ export function RiskCard({ hideDetails = false }: { hideDetails?: boolean }) {
     <Card title="Risk score">
       <QueryView query={query} label="Loading risk score" noun="The risk score" skeleton={<RiskSkeleton />}>
         {(risk) => (
-          <div className={styles.risk}>
+          <ScoutTarget name="risk"><div className={styles.risk}>
             <p className={styles.score}>
               <span className="t-display">{risk.score}</span>
               <span className="t-body c-tertiary num">/100</span>
@@ -57,7 +59,8 @@ export function RiskCard({ hideDetails = false }: { hideDetails?: boolean }) {
             </dl>
             </details>}
             <RelatedLesson text={hideDetails ? '' : risk.summary} fallback={{ id: 'diversification', title: DIVERSIFICATION_TITLE }} />
-          </div>
+            {!hideDetails && <ExplainThis context={{ page: 'portfolio', metric: 'risk' }} question="Explain my saved portfolio risk score and its main risk driver in plain language." label="Explain this score" />}
+          </div></ScoutTarget>
         )}
       </QueryView>
     </Card>

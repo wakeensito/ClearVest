@@ -1,0 +1,9 @@
+.learning { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--cv-border); font-size: 14px; line-height: 23px; color: var(--cv-text); }
+.learning h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.learning h3 svg { color: var(--cv-accent); }
+.intro { margin-top: 6px; color: var(--cv-text-secondary); }
+.lesson { display: block; padding: 12px 0; color: var(--cv-accent); text-decoration: underline; text-underline-offset: 3px; }
+.lesson span { display: block; font-size: 12px; color: var(--cv-text-secondary); }
+.learning summary { min-height: 44px; padding: 10px 0; cursor: pointer; color: var(--cv-accent); }
+.learning details[open] > summary { margin-bottom: 12px; }
+.learning :is(a,summary):focus-visible { outline: 2px solid var(--cv-accent); outline-offset: 3px; }

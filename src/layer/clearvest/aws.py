@@ -36,13 +36,10 @@ def s3():
 
 @cache
 def bedrock():
-    # Lambda's hard timeout is 29s (API Gateway's is 30s), so total_attempts * read_timeout
-    # must stay under that with room for everything else in the handler (S3, ElevenLabs,
-    # ...). BEDROCK_MAX_ATTEMPTS is the TOTAL number of attempts (initial + retries) --
-    # botocore's own `max_attempts` config key counts retries only, so we pass it as
-    # `total_max_attempts` instead to get the semantics we want. Advisor: default 2 total
-    # attempts * 12s = 24s. Voice sets BEDROCK_MAX_ATTEMPTS=1 (one Nova attempt, no retry)
-    # since it also spends up to ~12s on ElevenLabs STT before this call: 12 + 12 = 24s.
+    # API Lambdas have 29s total. SAM sets one attempt with an 8s read for Advisor
+    # and 7s for Voice, leaving room for input screening, optional source checks,
+    # and STT. The provider also checks the remaining invocation budget.
+    # total_max_attempts includes the initial request; max_attempts would not.
     read_timeout = int(os.environ.get("BEDROCK_READ_TIMEOUT", "12"))
     total_max_attempts = int(os.environ.get("BEDROCK_MAX_ATTEMPTS", "2"))
     return boto3.client(
@@ -55,10 +52,18 @@ def bedrock():
 
 
 @cache
+def guardrails():
+    return boto3.client("bedrock-runtime", config=Config(
+        connect_timeout=1, read_timeout=3,
+        retries={"mode": "standard", "total_max_attempts": 1},
+    ))
+
+
+@cache
 def table():
     return boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
 
 
 def reset() -> None:
-    for fn in (ssm, sqs, s3, bedrock, table):
+    for fn in (ssm, sqs, s3, bedrock, guardrails, table):
         fn.cache_clear()

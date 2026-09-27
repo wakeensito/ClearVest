@@ -49,6 +49,7 @@ export function useOnLinked() {
     Promise.all([
       qc.invalidateQueries({ queryKey: keys.holdings }),
       qc.invalidateQueries({ queryKey: keys.risk }),
+      qc.invalidateQueries({ queryKey: ['portfolio-exposure'] }),
     ])
 }
 
@@ -127,3 +128,21 @@ export const useFunds = (symbols: readonly string[]) => useQueries({ queries: sy
 /** Error wins over stale data so a failed refetch hides the identity line rather than lying. */
 export const toFundState = (query: UseQueryResult<Fund>): FundState =>
   query.isError ? { status: 'error' } : query.data ? { status: 'success', fund: query.data } : { status: 'pending' }
+
+/** Fund data is public; exposure is recomputed from the server's caller-owned snapshot. */
+export function usePortfolioExposure() {
+  const holdings = useHoldings()
+  const fundValues = new Map<string, number>()
+  for (const holding of holdings.data?.holdings ?? []) {
+    if (['etf', 'mutual fund', 'mutual_fund', 'fund'].includes(holding.type) && holding.value > 0 && /^[A-Z0-9.^-]{1,12}$/.test(holding.symbol)) {
+      fundValues.set(holding.symbol, (fundValues.get(holding.symbol) ?? 0) + holding.value)
+    }
+  }
+  const funds = [...fundValues].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([symbol]) => symbol)
+  const sources = useQueries({ queries: funds.map(symbol => ({ queryKey: ['fund-holdings', symbol], queryFn: () => api.getFundHoldings(symbol), staleTime: 15*60_000, retry: false })) })
+  const loadingSources = sources.some(q => q.isFetching)
+  const revision = sources.map(q => `${q.dataUpdatedAt}:${q.errorUpdatedAt}`).join(',')
+  const exposure = useQuery({ queryKey: ['portfolio-exposure', holdings.dataUpdatedAt, revision], queryFn: api.getPortfolioExposure, enabled: !!holdings.data && !loadingSources, retry: false })
+  return { holdings, exposure, loading: holdings.isPending || loadingSources || (!!holdings.data && exposure.isPending),
+    refresh: async () => { await holdings.refetch(); await Promise.allSettled(sources.map(q=>q.refetch())); await exposure.refetch() } }
+}

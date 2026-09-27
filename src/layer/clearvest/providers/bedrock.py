@@ -5,8 +5,9 @@ import re
 
 from botocore.exceptions import BotoCoreError, ClientError
 
-from clearvest import aws
+from clearvest import api, aws
 from clearvest.errors import UpstreamError
+from clearvest.providers import guardrails
 
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+")
 _DELIM_CHARS_RE = re.compile(r"^[\s|:-]+$")
@@ -54,17 +55,29 @@ def _trim_truncated(text: str) -> str:
 
 
 def converse(system: str, messages: list[dict], max_tokens: int = 600, model_id: str | None = None) -> str:
+    policy = guardrails.config()
+    timeout = int(os.environ.get("BEDROCK_READ_TIMEOUT", "12"))
+    attempts = int(os.environ.get("BEDROCK_MAX_ATTEMPTS", "2"))
+    if api.remaining_seconds() < (timeout + 3) * attempts + 1:
+        raise UpstreamError("bedrock", "insufficient time for guarded inference")
     try:
         resp = aws.bedrock().converse(
             modelId=model_id or os.environ["MODEL_ID"],
+            guardrailConfig={**policy, "trace": "disabled"},
             system=[{"text": system}],
-            messages=messages,
+            # Explicit guard_content also enables prompt-attack evaluation on user text.
+            messages=[{**m, "content": [
+                {"guardContent": {"text": {"text": block["text"], "qualifiers": ["guard_content"]}}}
+                if "text" in block else block for block in m["content"]
+            ]} for m in messages],
             inferenceConfig={"maxTokens": max_tokens, "temperature": 0.3},
         )
-        text = resp["output"]["message"]["content"][0]["text"].strip()
+        if resp.get("stopReason") in {"guardrail_intervened", "content_filtered"}:
+            raise guardrails.Intervention()
+        text = "\n".join(block["text"] for block in resp["output"]["message"]["content"] if "text" in block).strip()
         stop_reason = resp.get("stopReason")
     except (ClientError, BotoCoreError, KeyError, IndexError) as err:
-        raise UpstreamError("bedrock", f"{type(err).__name__}: {err}") from err
+        raise UpstreamError("bedrock", type(err).__name__) from err
     if not text:
         raise UpstreamError("bedrock", "empty response")
     if stop_reason == "max_tokens":

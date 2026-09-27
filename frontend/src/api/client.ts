@@ -7,6 +7,8 @@ import type { components, paths } from './schema'
 // Types come from docs/api/openapi.yaml (`npm run gen:api`); the contract wins over this file.
 export type Schemas = components['schemas']
 export type Profile = Schemas['Profile']
+export type PortfolioExposure = Schemas['PortfolioExposure']
+export type FundHoldings = Schemas['FundHoldings']
 export type Holdings = Schemas['Holdings']
 export type Holding = Schemas['Holding']
 export type Risk = Schemas['Risk']
@@ -65,6 +67,8 @@ export const api = {
   sandboxLink: () => unwrap(client.POST('/plaid/sandbox-link', { params: user() })),
 
   getHoldings: () => unwrap(client.GET('/portfolio/holdings', { params: user() })),
+  getPortfolioExposure: () => unwrap(client.GET('/portfolio/exposure', { params: user() })),
+  getFundHoldings: (symbol: string) => unwrap(client.GET('/market/fund-holdings', { params: { ...user(), query: { symbol } } })),
   getRisk: () => unwrap(client.GET('/portfolio/risk', { params: user() })),
 
   getCompanyResearch: (symbol: string) =>
@@ -91,13 +95,13 @@ export const api = {
   compareCompanies: (symbols: readonly string[]) =>
     unwrap(client.GET('/market/compare-companies', { params: { ...user(), query: { symbols: symbols.join(',') } } })),
 
-  chat: (message: string) => unwrap(client.POST('/advisor/chat', { params: user(), body: { message } })),
+  chat: (message: string, grounded = false, context?: Schemas['ScoutPageContext']) => unwrap(client.POST('/advisor/chat', { params: user(), body: { message, grounded, context } })),
   clearChatHistory: () => unwrap(client.DELETE('/advisor/history', { params: user() })),
 
   // Voice (docs/api/README.md "Voice flow"): upload-url -> PUT to S3 -> turn -> speak.
   createVoiceUploadUrl: (contentType: VoiceContentType) =>
     unwrap(client.POST('/voice/upload-url', { params: user(), body: { contentType } })),
-  voiceTurn: (key: string) => unwrap(client.POST('/voice/turn', { params: user(), body: { key } })),
+  voiceTurn: (key: string, context?: Schemas['ScoutPageContext']) => unwrap(client.POST('/voice/turn', { params: user(), body: { key, context } })),
   speak: (text: string) => unwrap(client.POST('/voice/speak', { params: user(), body: { text } })),
   /** PUT straight to S3. The Content-Type must match what upload-url was asked for; it is in the signature. */
   uploadRecording: async (uploadUrl: string, blob: Blob, contentType: VoiceContentType): Promise<void> => {

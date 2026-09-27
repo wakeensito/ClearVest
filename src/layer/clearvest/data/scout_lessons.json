@@ -1,0 +1,228 @@
+{
+  "what-is-investing": {
+    "title": "What investing actually is",
+    "cards": [
+      {
+        "heading": "Saving keeps money safe. Investing puts it to work.",
+        "body": "Money in a savings account stays put and earns a little interest. When you invest, you buy something, like a small piece of a company, that can grow in value over time.",
+        "example": "A savings account is a parking spot. An investment is a vehicle that can take you further, but it can also break down along the way."
+      },
+      {
+        "heading": "The value goes up and down",
+        "body": "Investments do not grow in a straight line. Some years they rise, some years they fall. That up-and-down movement is the price you pay for the chance of higher growth."
+      },
+      {
+        "heading": "Risk and reward travel together",
+        "body": "Investments with the chance of bigger gains usually come with bigger swings. Anything promising high returns with no risk is a warning sign.",
+        "example": "A government savings bond moves very little. A single tech stock can double or be cut in half in a year."
+      }
+    ]
+  },
+  "safety-net-first": {
+    "title": "Build your safety net first",
+    "cards": [
+      {
+        "heading": "Start with an emergency fund",
+        "body": "An emergency fund is cash set aside for surprises like a car repair or a lost job. A common guideline is three to six months of essential expenses, kept somewhere easy to reach.",
+        "example": "If your rent, food and bills add up to $2,000 a month, a three-month cushion is about $6,000."
+      },
+      {
+        "heading": "High-interest debt often comes first",
+        "body": "Credit card debt can charge 20% interest or more a year. Paying it down is a guaranteed saving that investing is unlikely to beat."
+      },
+      {
+        "heading": "Money you need soon should not be in stocks",
+        "body": "If you will need the money within about three years, for a deposit or tuition, a sudden drop could leave you short. Many people keep short-term money in savings instead."
+      }
+    ]
+  },
+  "starting-early": {
+    "title": "Why starting early matters",
+    "cards": [
+      {
+        "heading": "Growth on top of growth",
+        "body": "When your investments earn money, those earnings can start earning too. This snowball effect is called compound growth."
+      },
+      {
+        "heading": "Time does most of the work",
+        "body": "The longer money stays invested, the more room it has to compound. Small amounts invested early can end up larger than bigger amounts invested later.",
+        "example": "Try the growth calculator on the Learn page: compare 10 years with 30 years at the same monthly amount."
+      },
+      {
+        "heading": "Consistency beats timing",
+        "body": "You do not need a lot to start. Investing a steady amount regularly matters more than finding the perfect moment."
+      }
+    ]
+  },
+  "stocks-and-bonds": {
+    "title": "Stocks and bonds",
+    "cards": [
+      {
+        "heading": "A stock is a small piece of a company",
+        "body": "When you buy a share, you own a tiny slice of that business. If the company grows, your share can become more valuable. If it struggles, the price can fall."
+      },
+      {
+        "heading": "A bond is a loan you make",
+        "body": "When you buy a bond, you lend money to a government or company. The issuer promises interest and repayment, but may fail to pay. Bonds often have smaller price swings than stocks."
+      },
+      {
+        "heading": "Bonds are steadier, not risk-free",
+        "body": "Bond prices can fall, especially when interest rates rise. Stocks have historically grown more over long periods, with bigger swings along the way."
+      }
+    ]
+  },
+  "funds": {
+    "title": "Funds: index funds and ETFs",
+    "cards": [
+      {
+        "heading": "A fund is a basket of investments",
+        "body": "Instead of buying one company, a fund pools money from many people to buy many investments at once. One purchase can give you hundreds of companies."
+      },
+      {
+        "heading": "Index funds follow a list",
+        "body": "An index fund copies a market index, like the S&P 500, a list of about 500 large US companies. It does not try to pick winners, which usually keeps costs low.",
+        "example": "VOO is one fund that tracks the S&P 500."
+      },
+      {
+        "heading": "Exchange-traded funds trade like stocks",
+        "body": "An exchange-traded fund can be bought and sold any time the market is open. A mutual fund is priced once a day. Many index funds come in both forms."
+      },
+      {
+        "heading": "Watch the expense ratio",
+        "body": "Funds charge a yearly fee called the expense ratio. Small differences add up over decades.",
+        "example": "On $10,000, a 0.03% fee costs about $3 a year. A 1% fee costs about $100 a year."
+      }
+    ]
+  },
+  "be-the-fund": {
+    "title": "Be the fund for 60 seconds",
+    "cards": [
+      {
+        "heading": "You are VOO now.",
+        "body": "VOO is one fund that tracks the S&P 500. It holds money from millions of people, spread across about 500 US companies. Today you run it. Below are your ten biggest holdings, and you have three calls to make. Each one is a call the fund makes in real life."
+      }
+    ]
+  },
+  "diversification": {
+    "title": "Don't put all your eggs in one basket",
+    "cards": [
+      {
+        "heading": "One company can fall a lot",
+        "body": "Even well-known companies can lose most of their value. If all your money is in one stock, one bad year for that company is a bad year for you."
+      },
+      {
+        "heading": "Spreading out softens the bumps",
+        "body": "Diversification means owning many different investments, so one loss has a smaller effect. It reduces risk, but it cannot prevent every loss."
+      },
+      {
+        "heading": "More funds is not always more variety",
+        "body": "Two funds can own many of the same companies. Large companies such as Apple and Microsoft appear in many popular funds, so owning several funds can still leave you concentrated.",
+        "example": "Your Portfolio tab shows your largest holdings, so you can spot concentration."
+      }
+    ]
+  },
+  "account-types": {
+    "title": "Brokerage vs. retirement accounts",
+    "cards": [
+      {
+        "heading": "An account holds your investments",
+        "body": "People usually use a brokerage account to buy and hold investments. Think of the account as a container: the investments are what goes inside, and the account type affects the tax rules."
+      },
+      {
+        "heading": "A brokerage account is flexible",
+        "body": "You can put money in and take it out any time. You generally pay taxes on dividends and on profits when you sell."
+      },
+      {
+        "heading": "Retirement accounts trade flexibility for tax breaks",
+        "body": "Accounts like a 401(k) or IRA offer tax advantages. In return, taking money out before age 59½ usually means taxes plus a 10% penalty, with some exceptions."
+      }
+    ]
+  },
+  "employer-plans": {
+    "title": "401(k), TSP and the employer match",
+    "cards": [
+      {
+        "heading": "Workplace plans take money straight from your paycheck",
+        "body": "A 401(k) is offered by many employers. The TSP (Thrift Savings Plan) is the federal version for government employees and members of the uniformed services."
+      },
+      {
+        "heading": "The match is extra money",
+        "body": "Many employers add money when you contribute, called a match. It is part of your pay, so many people contribute at least enough to get the full match.",
+        "example": "A common setup: your employer adds 50 cents for every dollar you put in, up to 6% of your pay."
+      },
+      {
+        "heading": "There is a yearly limit",
+        "body": "For 2026 you can contribute up to $24,500 of your own pay to a 401(k) or TSP, with a usual extra $8,000 catch-up at age 50 and up. A higher catch-up can apply at ages 60–63; check your plan’s rules."
+      }
+    ]
+  },
+  "roth-vs-traditional": {
+    "title": "Roth vs. traditional",
+    "cards": [
+      {
+        "heading": "Pay taxes now or later",
+        "body": "Traditional accounts may give you a tax break today, with taxes due on withdrawals later. Whether an IRA contribution is deductible depends on your situation. Roth accounts use money you already paid taxes on, and qualified withdrawals in retirement are tax-free."
+      },
+      {
+        "heading": "The key question is your tax rate",
+        "body": "If you expect to be in a higher tax bracket later, Roth often comes out ahead. If you expect a lower bracket in retirement, traditional often does. Age alone does not decide it."
+      },
+      {
+        "heading": "Roth IRA basics",
+        "body": "For 2026 the combined limit across your traditional and Roth IRAs is $7,500, plus $1,100 at age 50 and up, and cannot exceed eligible earned income. Roth eligibility also depends on income. Withdrawal rules differ for contributions and earnings."
+      }
+    ]
+  },
+  "steady-investing": {
+    "title": "Investing a little at a time",
+    "cards": [
+      {
+        "heading": "Set it and repeat it",
+        "body": "Investing the same amount on a schedule, like every payday, is called dollar-cost averaging. It builds a habit and takes the guesswork out of timing."
+      },
+      {
+        "heading": "You buy more when prices are low",
+        "body": "A fixed amount buys more shares when prices drop and fewer when they rise. It smooths out your purchase price over time.",
+        "example": "$100 buys 2 shares at $50, or 4 shares at $25."
+      },
+      {
+        "heading": "Automation helps",
+        "body": "Most accounts can move money in automatically. It does not guarantee a profit, but it makes staying consistent easier."
+      }
+    ]
+  },
+  "market-drops": {
+    "title": "What to do when the market drops",
+    "cards": [
+      {
+        "heading": "Drops are normal",
+        "body": "Markets have fallen many times and recovered over the long run, though recoveries can take years and past results do not guarantee the future."
+      },
+      {
+        "heading": "Pause and check what changed",
+        "body": "A falling price means your investment is worth less, even before you sell. Selling after a drop can mean missing a later recovery, but recovery is never guaranteed. Check your goals, timeline and the investment itself."
+      },
+      {
+        "heading": "Your timeline is your guide",
+        "body": "A longer timeline gives you more time to handle ups and downs, but a company can still fail. Money you need soon has less time to recover from a drop."
+      }
+    ]
+  },
+  "hype-and-scams": {
+    "title": "Spotting hype and scams",
+    "cards": [
+      {
+        "heading": "Know the red flags",
+        "body": "Guaranteed returns, pressure to act now, secret strategies and requests to pay in gift cards or crypto are classic warning signs."
+      },
+      {
+        "heading": "Hot tips are not a plan",
+        "body": "A stock trending on social media may already be priced for the hype. Ask what you would own, why, and what could go wrong."
+      },
+      {
+        "heading": "Check before you trust",
+        "body": "Use FINRA BrokerCheck and Investor.gov to check registration and disciplinary history. Registration is a check to make, not a promise that advice is good or an investment is safe."
+      }
+    ]
+  }
+}

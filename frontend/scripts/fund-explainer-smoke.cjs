@@ -58,7 +58,7 @@ const FUNDS = {
 };
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true });
   let fundMode = 'ok';
   await context.route('http://127.0.0.1:4010/**', async route => {

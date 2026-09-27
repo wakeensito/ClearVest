@@ -260,6 +260,80 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
+  AdvisorGuardrail:
+    Type: AWS::Bedrock::Guardrail
+    Properties:
+      Name: clearvest-advisor
+      Description: Beginner finance education boundaries and personal identifier masking
+      BlockedInputMessaging: I can explain investing risks, but cannot help with illegal financial activity or choose trades for you.
+      BlockedOutputsMessaging: I cannot provide that recommendation. I can explain diversification and investment risk instead.
+      Tags: [{Key: clearvest-stack, Value: !Ref 'AWS::StackName'}]
+      TopicPolicyConfig:
+        TopicsConfig:
+          - Name: SpecificTradingRecommendations
+            Type: DENY
+            InputEnabled: false
+            OutputEnabled: true
+            Definition: Recommendations instructing a person to buy, sell, hold, short, or allocate a specific amount to a named security, token, or derivative. Excludes neutral explanations of holdings, investment concepts, and refusals to recommend trades.
+            Examples: ['Buy NVDA with your savings today.', 'Sell all your AAPL shares.', 'Put 80 percent of your emergency fund into Bitcoin.']
+          - Name: GuaranteedInvestmentReturns
+            Type: DENY
+            InputEnabled: false
+            OutputEnabled: true
+            Definition: Claims that an investment guarantees a profit, a particular future return, or cannot lose money. Excludes warnings that returns are not guaranteed and explanations of investment risk.
+            Examples: ['This stock will definitely double your money.', 'You cannot lose with this investment.']
+          - Name: IllegalFinancialConduct
+            Type: DENY
+            Definition: Instructions facilitating insider trading, securities fraud, market manipulation, money laundering, or tax evasion. Excludes general education about why these activities are illegal and how to avoid them.
+            Examples: ['Tell me how to hide insider trades.', 'Help me manipulate a stock price without getting caught.']
+      SensitiveInformationPolicyConfig:
+        PiiEntitiesConfig:
+          - {Type: EMAIL, Action: ANONYMIZE}
+          - {Type: PHONE, Action: ANONYMIZE}
+          - {Type: NAME, Action: ANONYMIZE}
+          - {Type: ADDRESS, Action: ANONYMIZE}
+          - {Type: US_SOCIAL_SECURITY_NUMBER, Action: ANONYMIZE}
+          - {Type: US_BANK_ACCOUNT_NUMBER, Action: ANONYMIZE}
+          - {Type: CREDIT_DEBIT_CARD_NUMBER, Action: ANONYMIZE}
+          - {Type: CREDIT_DEBIT_CARD_CVV, Action: ANONYMIZE}
+          - {Type: PASSWORD, Action: ANONYMIZE}
+          - {Type: AWS_ACCESS_KEY, Action: ANONYMIZE}
+          - {Type: AWS_SECRET_KEY, Action: ANONYMIZE}
+      ContentPolicyConfig:
+        FiltersConfig:
+          - {Type: HATE, InputStrength: HIGH, OutputStrength: HIGH}
+          - {Type: SEXUAL, InputStrength: HIGH, OutputStrength: HIGH}
+          - {Type: VIOLENCE, InputStrength: HIGH, OutputStrength: HIGH}
+          - {Type: INSULTS, InputStrength: MEDIUM, OutputStrength: MEDIUM}
+          - {Type: MISCONDUCT, InputStrength: HIGH, OutputStrength: HIGH}
+          - {Type: PROMPT_ATTACK, InputStrength: HIGH, OutputStrength: NONE}
+
+  AdvisorGuardrailVersion:
+    Type: AWS::Bedrock::GuardrailVersion
+    Properties:
+      GuardrailIdentifier: !GetAtt AdvisorGuardrail.GuardrailId
+      # Bump this description whenever its policy changes: replacement publishes a new snapshot.
+      Description: advisor-policy-v1
+
+  PortfolioGroundingGuardrail:
+    Type: AWS::Bedrock::Guardrail
+    Properties:
+      Name: clearvest-portfolio-grounding
+      Description: Standalone source QA for portfolios, scenarios, companies and lessons, never conversational history
+      BlockedInputMessaging: A portfolio reference is required.
+      BlockedOutputsMessaging: This explanation could not be verified against the supplied portfolio facts.
+      Tags: [{Key: clearvest-stack, Value: !Ref 'AWS::StackName'}]
+      ContextualGroundingPolicyConfig:
+        FiltersConfig:
+          - {Type: GROUNDING, Threshold: 0.75}
+          - {Type: RELEVANCE, Threshold: 0.75}
+
+  PortfolioGroundingGuardrailVersion:
+    Type: AWS::Bedrock::GuardrailVersion
+    Properties:
+      GuardrailIdentifier: !GetAtt PortfolioGroundingGuardrail.GuardrailId
+      Description: source-grounding-v2
+
   AdvisorFn:
     Type: AWS::Serverless::Function
     Properties:
@@ -269,16 +343,28 @@ Resources:
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: advisor
+          GROUNDING_GUARDRAIL_ID: !GetAtt PortfolioGroundingGuardrail.GuardrailId
+          GROUNDING_GUARDRAIL_VERSION: !GetAtt PortfolioGroundingGuardrailVersion.Version
+          BEDROCK_MAX_ATTEMPTS: '1'
+          BEDROCK_READ_TIMEOUT: '8'
           MODEL_ID: !Ref ModelId
+          ADVISOR_GUARDRAIL_ID: !GetAtt AdvisorGuardrail.GuardrailId
+          ADVISOR_GUARDRAIL_VERSION: !GetAtt AdvisorGuardrailVersion.Version
       Policies:
         - DynamoDBCrudPolicy: {TableName: !Ref Table}
         - Statement:
             - Effect: Allow
               Action: bedrock:InvokeModel
+              Condition:
+                StringEquals:
+                  bedrock:GuardrailIdentifier: !Sub '${AdvisorGuardrail.GuardrailArn}:${AdvisorGuardrailVersion.Version}'
               Resource:
                 - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}'
                 # A us.* profile routes to any US region, so the model ARN needs a region wildcard.
                 - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/${FoundationModelId}'
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: [!GetAtt AdvisorGuardrail.GuardrailArn, !GetAtt PortfolioGroundingGuardrail.GuardrailArn]
       Events:
         Advisor: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/advisor/{proxy+}', Method: ANY}}
 
@@ -293,7 +379,10 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: voice
           MODEL_ID: !Ref ModelId
+          ADVISOR_GUARDRAIL_ID: !GetAtt AdvisorGuardrail.GuardrailId
+          ADVISOR_GUARDRAIL_VERSION: !GetAtt AdvisorGuardrailVersion.Version
           BEDROCK_MAX_ATTEMPTS: '1'
+          BEDROCK_READ_TIMEOUT: '7'
           AUDIO_BUCKET: !Ref AudioBucket
           ELEVENLABS_KEY_PARAM: !Ref ElevenLabsKeyParam
           ELEVENLABS_VOICE_ID: !Ref ElevenLabsVoiceId
@@ -308,9 +397,15 @@ Resources:
               Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ElevenLabsKeyParam}'
             - Effect: Allow
               Action: bedrock:InvokeModel
+              Condition:
+                StringEquals:
+                  bedrock:GuardrailIdentifier: !Sub '${AdvisorGuardrail.GuardrailArn}:${AdvisorGuardrailVersion.Version}'
               Resource:
                 - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}'
                 - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/${FoundationModelId}'
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: !GetAtt AdvisorGuardrail.GuardrailArn
       Events:
         Voice: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/voice/{proxy+}', Method: ANY}}
 

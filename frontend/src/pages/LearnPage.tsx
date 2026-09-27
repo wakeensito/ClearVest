@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { ButtonLink } from '../components/ui/Button'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
+import { PracticeReview } from '../features/learn/PracticeReview'
 import { Flashcards } from '../features/learn/Flashcards'
 import { GrowthCalculator } from '../features/learn/GrowthCalculator'
 import { examplesFor } from '../lib/curatedFunds'
@@ -60,6 +61,7 @@ export function LearnPage() {
       <ButtonLink to={`/learn/${PLAY_LESSON.id}`} arrow>{played ? 'Play it again' : 'Play'}</ButtonLink>
     </section>}
 
+    <PracticeReview />
     <section aria-labelledby="path-title">
       <div className={styles.sectionHead}>
         <div><h2 id="path-title" className="t-h2">Your starter path</h2><p>Four short units. Go in order or jump to what you’re curious about.</p></div>

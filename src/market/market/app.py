@@ -5,6 +5,7 @@ from clearvest.api import create_app, make_handler
 from market.routes import (
     companies,
     fund,
+    funds,
     history,
     macro,
     movers,
@@ -15,7 +16,7 @@ from market.routes import (
 )
 
 app = create_app(
-    history.router, companies.router, fund.router, macro.router, movers.router, news.router,
+    history.router, companies.router, fund.router, funds.router, macro.router, movers.router, news.router,
     research.router, search.router, templates.router,
 )
 handler = make_handler(app)

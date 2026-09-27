@@ -1,3 +1,6 @@
+import { ExplainThis } from '../../features/advisor/ExplainThis'
+import { ScoutTarget } from '../../features/advisor/ScoutTarget'
+import { useScoutContext } from '../../features/advisor/scoutContext'
 import { useId, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import type { AnnualIncome, CompanyResearch } from '../../api/client'
@@ -23,7 +26,9 @@ export function CompanyFinancials({ symbol, initialStep = 0 }: { symbol: string;
 }
 
 function FinancialStory({ data, initialStep, retry, retrying }: { data: CompanyResearch; initialStep: number; retry: () => void; retrying: boolean }) {
-  const [step, setStep] = useState(Math.min(Math.max(0, Math.trunc(initialStep) || 0), last))
+  const context = useScoutContext()
+  const linkedStep = context.symbol === data.symbol ? context.metric === 'valuation' ? 2 : context.metric === 'revenue' || context.metric === 'profit' ? 1 : undefined : undefined
+  const [step, setStep] = useState(linkedStep ?? Math.min(Math.max(0, Math.trunc(initialStep) || 0), last))
   const id = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const { profile, income, valuation } = data
@@ -43,7 +48,7 @@ function FinancialStory({ data, initialStep, retry, retrying }: { data: CompanyR
     <nav className={styles.steps} aria-label="Company research steps">{steps.map((label, index) => <button key={label} onClick={() => setStep(index)} aria-pressed={step === index}><span>{index + 1}</span>{label}</button>)}</nav>
     {data.unavailable.length > 0 && <p className={styles.notice} role="status">Some company information could not load. You can explore the available figures. <button onClick={retry} disabled={retrying}>{retrying ? 'Retrying…' : 'Retry missing data'}</button></p>}
     {data.sources.some(source => source.stale) && <p className={styles.notice}>Showing some previously saved figures while the provider is unavailable. Check the dates below.</p>}
-    <div className={styles.story}>
+    <ScoutTarget name="company" selected={context.symbol === data.symbol}><div className={styles.story}>
       <h3 ref={heading} tabIndex={-1}>{headings[step]}</h3>
       {profile?.isFund ? <div className={styles.fund}><p><strong>{profile.name} is a fund.</strong> A fund holds a collection of investments. It does not have company sales or earnings in the same way as a single business.</p><p>Start with what it owns, its fees and how widely it spreads its investments. A fund’s P/E can describe its holdings, so it should not be read as one company’s earnings.</p><Link to="/learn/funds">Explore funds in Learn</Link><p>To practice reading company statements, search for a company such as Apple (AAPL) or Microsoft (MSFT).</p></div> : <>
         {step === 0 && <>
@@ -81,7 +86,8 @@ function FinancialStory({ data, initialStep, retry, retrying }: { data: CompanyR
         </>}
         {step < last && <button className={styles.next} onClick={next}>Next: {steps[step + 1]}</button>}
       </>}
-    </div>
+      <ExplainThis label={step === 0 ? 'Explain this business' : step === 1 ? 'Explain these figures' : step === 2 ? 'Explain this ratio' : 'Explain these payouts'} context={{ page: context.page, symbol: data.symbol, metric: step === 0 ? 'business' : step === 1 ? 'revenue' : 'valuation' }} question={`Explain ${data.symbol} ${step === 0 ? 'business' : step === 1 ? 'latest reported revenue and net profit' : step === 2 ? 'price-to-earnings ratio' : 'reported dividend yield'} in plain language using its available source facts. State any missing figures.`} />
+    </div></ScoutTarget>
     <details className={styles.sources}><summary>Sources & dates</summary><p>Financial data from FMP. These are reported figures, not forecasts. Retrieved dates below are not the dates a company reported its results.</p><ul>{data.sources.map(source => <li key={source.section}>{({ profile: 'Company description', income: 'Income statements', valuation: 'Current ratios', history: 'Historical ratios' })[source.section]}: {timestamp(source.fetchedAt)}{source.stale ? ' · Saved data (provider unavailable)' : ''}</li>)}</ul><p>Learn more: <a href="https://www.sec.gov/about/reports-publications/investorpubsbegfinstmtguide" target="_blank" rel="noreferrer">SEC guide to financial statements</a> and <a href="https://www.finra.org/investors/investing/investment-products/stocks/evaluating-stocks" target="_blank" rel="noreferrer">FINRA guide to evaluating stocks</a>.</p></details>
     <p id={id} className={styles.small}>Start with one question. You do not need to understand every number today.</p>
   </>

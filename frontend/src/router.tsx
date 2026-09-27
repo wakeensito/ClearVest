@@ -1,27 +1,28 @@
 import { createBrowserRouter } from 'react-router'
 import { AppShell } from './components/AppShell'
-import { AdvisorPage } from './features/advisor/AdvisorPage'
-import { LessonPage } from './features/learn/LessonPage'
-import { NotFoundPage } from './pages/NotFoundPage'
-import { MarketsPage } from './pages/MarketsPage'
-import { PortfolioPage } from './pages/PortfolioPage'
-import { HomePage } from './pages/HomePage'
-import { LearnPage } from './pages/LearnPage'
-import { WelcomePage } from './pages/WelcomePage'
+import { PageLoading, RouteFailure } from './components/RouteFeedback'
 
-// Screen map: DESIGN.md §5. The host must serve index.html for unknown paths (SPA fallback).
+// Load each page only when it is visited. Chat and voice providers stay above the
+// router, so downloading a route never starts a second conversation/controller.
 export const router = createBrowserRouter([
-  { path: '/welcome', element: <WelcomePage /> },
   {
-    element: <AppShell />,
+    path: '/welcome',
+    lazy: async () => ({ Component: (await import('./pages/WelcomePage')).WelcomePage }),
+    HydrateFallback: PageLoading,
+    ErrorBoundary: RouteFailure,
+  },
+  {
+    Component: AppShell,
+    HydrateFallback: PageLoading,
+    ErrorBoundary: RouteFailure,
     children: [
-      { index: true, element: <HomePage /> },
-      { path: '/portfolio', element: <PortfolioPage /> },
-      { path: '/advisor', element: <AdvisorPage /> },
-      { path: '/markets', element: <MarketsPage /> },
-      { path: '/learn', element: <LearnPage /> },
-      { path: '/learn/:lessonId', element: <LessonPage /> },
-      { path: '*', element: <NotFoundPage /> },
+      { index: true, lazy: async () => ({ Component: (await import('./pages/HomePage')).HomePage }) },
+      { path: '/portfolio', lazy: async () => ({ Component: (await import('./pages/PortfolioPage')).PortfolioPage }) },
+      { path: '/advisor', lazy: async () => ({ Component: (await import('./features/advisor/AdvisorPage')).AdvisorPage }) },
+      { path: '/markets', lazy: async () => ({ Component: (await import('./pages/MarketsPage')).MarketsPage }) },
+      { path: '/learn', lazy: async () => ({ Component: (await import('./pages/LearnPage')).LearnPage }) },
+      { path: '/learn/:lessonId', lazy: async () => ({ Component: (await import('./features/learn/LessonPage')).LessonPage }) },
+      { path: '*', lazy: async () => ({ Component: (await import('./pages/NotFoundPage')).NotFoundPage }) },
     ],
   },
 ])

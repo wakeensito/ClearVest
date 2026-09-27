@@ -116,7 +116,7 @@ const TEMPLATES_FIXTURE = [
   await page.getByText('No holdings match your search. Try a name or symbol.').waitFor();
   await page.getByRole('textbox',{name:'Filter holdings'}).fill(holdings[0].symbol);
   await page.getByRole('link',{name:holdings[0].symbol,exact:true}).first().click();
-  assert(new URL(page.url()).searchParams.get('symbol')===holdings[0].symbol);
+  await page.waitForURL(url=>url.searchParams.get('symbol')===holdings[0].symbol);
   await page.goto(previewUrl + '/markets?symbol=QQQ');
   await page.getByRole('group',{name:'QQQ interactive price chart'}).waitFor();
   await page.getByRole('combobox',{name:'Find a stock or fund'}).fill('');
@@ -165,6 +165,10 @@ const TEMPLATES_FIXTURE = [
   await mobileRail.locator('summary').focus();
   await mobileContext.keyboard.press('Enter');
   await mobileRail.getByRole('meter').waitFor({state:'hidden'});
+  const emptyHeading=mobileContext.getByRole('heading',{name:'What would you like to understand?'});
+  assert(await emptyHeading.evaluate(el=>el.closest('[aria-live]').scrollTop===0),'Empty conversation starts at the introduction');
+  const sendBox=await mobileContext.getByRole('button',{name:'Send',exact:true}).boundingBox();
+  assert(sendBox.y+sendBox.height<=836,'Advisor send control stays above the mobile navigation at 320×900');
   await mobileContext.screenshot({path:path.join(output,'advisor-mobile.png'),fullPage:true});
   await mobileContext.close();
   await contextRail.getByRole('link',{name:'Edit profile'}).click();

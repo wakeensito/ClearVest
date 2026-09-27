@@ -218,3 +218,25 @@ def test_deploy_role_restricts_mapping_mutations_to_refresh_worker():
     for stmt in statements:
         if stmt["Sid"] in ("AppRefreshMappingCreate", "AppRefreshMappings"):
             assert stmt["Condition"]["ArnLike"]["lambda:FunctionArn"].endswith(":function:${AppStackName}-MarketRefreshFn-*")
+
+
+def test_advisor_guardrail_version_and_model_permission_are_bound_together():
+    resources = load()["Resources"]
+    assert resources["AdvisorGuardrail"]["Type"] == "AWS::Bedrock::Guardrail"
+    assert resources["AdvisorGuardrailVersion"]["Type"] == "AWS::Bedrock::GuardrailVersion"
+    topics = resources["AdvisorGuardrail"]["Properties"]["TopicPolicyConfig"]["TopicsConfig"]
+    assert {t["Name"] for t in topics} == {"SpecificTradingRecommendations", "GuaranteedInvestmentReturns", "IllegalFinancialConduct"}
+    assert all(t.get("InputEnabled", True) is False for t in topics[:2])  # allow educational reframing
+    for name in ["AdvisorFn", "VoiceFn"]:
+        props = resources[name]["Properties"]
+        env = props["Environment"]["Variables"]
+        assert env["ADVISOR_GUARDRAIL_VERSION"] == "AdvisorGuardrailVersion.Version"
+        assert env["BEDROCK_MAX_ATTEMPTS"] == "1"
+        statements = [s for p in props["Policies"] if "Statement" in p for s in p["Statement"]]
+        invoke = next(s for s in statements if s["Action"] == "bedrock:InvokeModel")
+        assert invoke["Condition"]["StringEquals"]["bedrock:GuardrailIdentifier"] == "${AdvisorGuardrail.GuardrailArn}:${AdvisorGuardrailVersion.Version}"
+        apply = next(s for s in statements if s["Action"] == "bedrock:ApplyGuardrail")
+        assert "*" not in str(apply["Resource"])
+    assert "GROUNDING_GUARDRAIL_ID" not in resources["VoiceFn"]["Properties"]["Environment"]["Variables"]
+    grounding = resources["PortfolioGroundingGuardrail"]["Properties"]["ContextualGroundingPolicyConfig"]["FiltersConfig"]
+    assert {f["Type"] for f in grounding} == {"GROUNDING", "RELEVANCE"}

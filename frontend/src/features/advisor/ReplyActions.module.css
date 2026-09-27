@@ -1,0 +1,7 @@
+.actions { display:flex; align-items:center; gap:8px 18px; flex-wrap:wrap; margin-top:14px; font-size:13px; }
+.actions a, .actions button, .explain { display:inline-flex; align-items:center; gap:6px; color:var(--cv-accent); background:none; border:0; padding:6px 0; cursor:pointer; font:inherit; text-decoration:none; min-height:36px; }
+.actions a:hover, .actions button:hover, .explain:hover { text-decoration:underline; text-underline-offset:4px; }
+.actions button:disabled, .explain:disabled { opacity:.55; cursor:default; }
+.explain { font-size:12px; line-height:18px; text-align:left; }
+.target { outline:2px solid var(--cv-accent); outline-offset:7px; scroll-margin:100px 0 120px; }
+@media (pointer:coarse) { .actions a, .actions button, .explain { min-height:44px; } }

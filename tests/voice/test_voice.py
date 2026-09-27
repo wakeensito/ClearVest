@@ -34,7 +34,7 @@ def test_turn_transcribes_and_answers(aws, monkeypatch):
 
     def fake_answer(uid, msg, mode="chat"):
         seen["mode"] = mode
-        return {"reply": f"echo {msg}", "disclaimer": "d"}
+        return {"reply": f"echo {msg}", "disclaimer": "d", "userMessage": msg}
 
     monkeypatch.setattr(advisor, "answer", fake_answer)
     status, body = call(handler, "POST", "/voice/turn", {"key": key})
@@ -81,6 +81,7 @@ def test_speak_stores_mp3_and_returns_url(aws, monkeypatch):
 
 def test_speak_validates_text(aws):
     assert call(handler, "POST", "/voice/speak", {"text": ""})[0] == 400
+    assert call(handler, "POST", "/voice/speak", {"text": " [1] [2] "})[0] == 400
     assert call(handler, "POST", "/voice/speak", {"text": "x" * 5001})[0] == 400
 
 
@@ -122,3 +123,39 @@ def test_elevenlabs_clients(aws):
     assert elevenlabs.synthesize("hi") == b"MP3"
     assert responses.calls[0].request.headers["xi-api-key"] == "el-key"
     assert b"scribe_v1" in responses.calls[0].request.body
+
+
+def test_turn_never_returns_unchecked_raw_transcript(aws, monkeypatch):
+    key = f"audio/in/{USER}/private"
+    aws_mod.s3().put_object(Bucket=BUCKET, Key=key, Body=b"fake-audio", ContentType="audio/webm")
+    monkeypatch.setattr(elevenlabs, "transcribe", lambda *_: "My email is private@example.com")
+    monkeypatch.setattr(advisor, "answer", lambda *a, **kw: {"reply": advisor.FALLBACK_REPLY, "disclaimer": "d"})
+    status, body = call(handler, "POST", "/voice/turn", {"key": key})
+    assert status == 200 and "private@example.com" not in str(body)
+
+
+def test_turn_preserves_validated_page_context_and_source_receipt(aws, monkeypatch):
+    key = f"audio/in/{USER}/context"
+    aws_mod.s3().put_object(Bucket=BUCKET, Key=key, Body=b"audio", ContentType="audio/webm")
+    monkeypatch.setattr(elevenlabs, "transcribe", lambda *_: "Explain the company on this page")
+    source = {"label": "NVDA company profile", "kind": "company", "asOf": "2026-09-26", "text": "Company facts"}
+
+    def fake_answer(uid, msg, mode="chat", context=None):
+        assert uid == USER and mode == "voice"
+        assert context.model_dump(exclude_none=True) == {"page": "markets", "symbol": "NVDA", "range": "5y"}
+        return {"reply": "An educational explanation", "disclaimer": "d", "userMessage": msg,
+                "safety": {"status": "passed", "grounding": "not_requested"}, "sources": [source]}
+
+    monkeypatch.setattr(advisor, "answer", fake_answer)
+    status, body = call(handler, "POST", "/voice/turn", {"key": key, "context": {"page": "markets", "symbol": "NVDA", "range": "5y"}})
+    assert status == 200 and body["sources"] == [source]
+    assert body["safety"]["grounding"] == "not_requested"
+    assert_matches("/voice/turn", "post", 200, body)
+    assert call(handler, "POST", "/voice/turn", {"key": key, "context": {"page": "markets", "balance": 100}})[0] == 400
+
+
+def test_speakable_keeps_evidence_on_screen_instead_of_reading_citation_syntax():
+    from voice.routes.speak import speakable
+
+    assert speakable("Sales rose. [1] Read the [company filing](https://example.com/filing).") == "Sales rose. Read the company filing."
+    assert speakable("A 20% drop means a 12% decline. [2][3]") == "A 20% drop means a 12% decline."

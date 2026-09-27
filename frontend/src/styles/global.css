@@ -132,3 +132,6 @@ a:hover {
 }
 
 button, input, select, textarea { border-radius: var(--cv-radius); }
+
+/* An explicit Scout destination remains visibly identified without animation. */
+tr[data-scout-highlight], li[data-scout-highlight], details[data-scout-highlight] { background:var(--cv-accent-subtle); box-shadow:inset 3px 0 var(--cv-accent); }

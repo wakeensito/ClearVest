@@ -165,6 +165,31 @@ Resources:
                   - cloudwatch:TagResource
                   - cloudwatch:UntagResource
                 Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AppStackName}-market-refresh*'
+              # Bedrock generates guardrail IDs. Ownership tags scope writes; reads let
+              # CloudFormation stabilize/delete version resources during rollbacks.
+              - Sid: AppGuardrailCreate
+                Effect: Allow
+                Action: bedrock:CreateGuardrail
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/clearvest-stack: !Ref AppStackName
+              - Sid: AppGuardrailLifecycle
+                Effect: Allow
+                Action:
+                  - bedrock:UpdateGuardrail
+                  - bedrock:DeleteGuardrail
+                  - bedrock:CreateGuardrailVersion
+                  - bedrock:TagResource
+                  - bedrock:UntagResource
+                Resource: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/*'
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/clearvest-stack: !Ref AppStackName
+              - Sid: AppGuardrailReads
+                Effect: Allow
+                Action: [bedrock:GetGuardrail, bedrock:ListTagsForResource]
+                Resource: !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/*'
               - Sid: AppTable
                 Effect: Allow
                 Action:

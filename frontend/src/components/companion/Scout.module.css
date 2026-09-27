@@ -1,0 +1,27 @@
+.scout { display: block; width: 100%; height: auto; overflow: visible; clip-path: inset(0 -5% 0 0); }
+.body { opacity: 0; transform: translateY(100px); transition: transform 560ms cubic-bezier(.22,1,.36,1), opacity 180ms; }
+.scout[data-loaded='true'] .body { opacity: 1; }
+.scout:not([data-pose='peek']) .body { transform: translateY(0); }
+.pose { opacity: 0; transition: opacity 280ms ease; }
+.scout[data-pose='peek'] [data-art='peek'], .scout[data-pose='listen'] [data-art='listen'], .scout[data-pose='think'] [data-art='think'], .scout[data-pose='ready'] [data-art='ready'] { opacity: 1; }
+.pupils { transform: translate(-6px, 0); transition: transform 600ms cubic-bezier(.22,1,.36,1); }
+.eyeMotion { animation: gaze 20s ease-in-out 1; }
+.lid { transform: scaleY(0); animation: blink 20s ease-in-out 1; }
+.scout[data-pose='listen'] .pupils { transform: translate(0, -3px); }
+.scout[data-pointing='true'] .pupils { transform: translate(var(--gaze-x), var(--gaze-y)); }
+.scout[data-pose='think'] .pupils { transform: translate(-6px, -3px); transition: none; }
+.scout[data-pose='think'] .eyeMotion { animation: none; transform: none; }
+.scout[data-pose='think'] .lid { animation: none; transform: scaleY(0); }
+.reaction { transform-origin: 315px 590px; }
+.scout[data-pose='ready'] .reaction { animation: acknowledge 850ms ease-in-out 1; }
+.scout[data-state='unavailable'] .eyeMotion, .scout[data-pointing='true']:not([data-pose='think']) .eyeMotion { animation: none; }
+.scout[data-paused='true'] * { animation-play-state: paused !important; }
+@keyframes gaze {
+  0%, 14%, 39%, 64%, 100% { transform: translate(0, 0); }
+  22%, 32% { transform: translate(-12px, -2px); }
+  47% { transform: translate(-5px, -8px); }
+  53%, 59% { transform: translate(11px, -2px); }
+}
+@keyframes blink { 0%, 17%, 19%, 52%, 54%, 83%, 85%, 100% { transform: scaleY(0); } 18%, 53%, 84% { transform: scaleY(1); } }
+@keyframes acknowledge { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(7px); } }
+@media (prefers-reduced-motion: reduce) { .scout * { animation: none !important; transition: none !important; } }
