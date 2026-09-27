@@ -15,6 +15,7 @@
     "test:browser": "node scripts/browser-smoke.cjs",
     "test:history-refresh": "node scripts/history-refresh-smoke.cjs",
     "test:fund-explainer": "node scripts/fund-explainer-smoke.cjs",
+    "test:security-search": "node scripts/security-search-smoke.cjs",
     "test:markets-advisor": "node scripts/markets-advisor-smoke.cjs",
     "test:portfolio-xray": "node scripts/portfolio-xray-smoke.cjs",
     "test:explain": "node scripts/explain-terms-smoke.cjs"

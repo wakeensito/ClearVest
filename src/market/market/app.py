@@ -10,11 +10,12 @@ from market.routes import (
     movers,
     news,
     research,
+    search,
     templates,
 )
 
 app = create_app(
     history.router, companies.router, fund.router, macro.router, movers.router, news.router,
-    research.router, templates.router,
+    research.router, search.router, templates.router,
 )
 handler = make_handler(app)

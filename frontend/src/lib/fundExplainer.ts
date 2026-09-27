@@ -151,6 +151,26 @@ export function withExplain(params: URLSearchParams, open: boolean): URLSearchPa
   return next
 }
 
+/**
+ * Compare securities opened from search is `compare=FXAIX` beside `symbol`, so a link or the phone Back
+ * button opens and closes it. Invalid tickers, or the researched symbol itself, read as closed.
+ */
+export const COMPARE_PARAM = 'compare'
+const TICKER_PARAM = /^[A-Z0-9.^-]{1,12}$/
+export function compareWith(params: URLSearchParams): string | null {
+  const other = params.get(COMPARE_PARAM)?.trim().toUpperCase() ?? ''
+  if (!TICKER_PARAM.test(other)) return null
+  const symbol = params.get('symbol')?.trim().toUpperCase()
+  return other === symbol ? null : other
+}
+export function withCompare(params: URLSearchParams, symbol: string | null): URLSearchParams {
+  const next = new URLSearchParams(params)
+  const other = symbol?.trim().toUpperCase()
+  if (other) next.set(COMPARE_PARAM, other)
+  else next.delete(COMPARE_PARAM)
+  return next
+}
+
 // ---------- "Keep learning" topics ----------
 
 const key = (text: string) => text.toLowerCase().replace(/-cap\b/g, '').replace(/[^a-z]+/g, ' ').trim()
@@ -167,6 +187,8 @@ const CATEGORIES: Record<string, string> = {
   'small growth': 'small U.S. companies expected to grow fast',
   'small value': 'small, established U.S. companies that look inexpensive',
   'foreign large blend': 'big companies outside the U.S.',
+  'global large stock blend': 'big companies in the U.S. and around the world',
+  'short government': 'short-term loans to the U.S. government (bonds)',
   'intermediate core bond': 'loans to governments and companies (bonds)',
   technology: 'technology companies only',
 }

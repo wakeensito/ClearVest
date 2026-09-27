@@ -46,6 +46,42 @@ def _text(value) -> str | None:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
+def search(query: str) -> list[dict]:
+    """Keyless Yahoo Finance search (yfinance 1.7.0's `yf.Search`).
+
+    Good for names ("apple" -> AAPL) but noisy for bare category words ("fidelity index" ->
+    UK funds) - callers pair this with a curated map for that case (see the unified-search
+    handoff). `quoteType`s with no mapping in `_QUOTE_KIND` (FUTURE, OPTION, CURRENCY, ...) are
+    silently dropped rather than surfaced as an "other" kind - they're never useful search hits.
+    """
+    import yfinance as yf  # heavy (pandas); import only when a request needs it
+
+    # Lambda's filesystem is read-only except /tmp; yfinance caches timezones on disk.
+    yf.set_tz_cache_location("/tmp/yfinance")
+    try:
+        # timeout=4, no fuzzy matching: this feeds a merged multi-provider search that must fit
+        # inside API Gateway's 30s limit alongside FMP, and fuzzy results are noise, not signal.
+        quotes = yf.Search(
+            query, max_results=8, news_count=0, lists_count=0, include_cb=False,
+            enable_fuzzy_query=False, timeout=4,
+        ).quotes
+    except Exception as err:  # yfinance raises many types; all mean "Yahoo failed"
+        raise UpstreamError("yahoo", f"{type(err).__name__}: {err}") from err
+    rows = []
+    for quote in quotes or []:
+        if not isinstance(quote, dict):
+            continue
+        kind = _QUOTE_KIND.get(str(quote.get("quoteType", "")).upper())
+        if kind is None:  # FUTURE/OPTION/CURRENCY/etc: never a useful search hit
+            continue
+        symbol = _text(quote.get("symbol"))
+        name = _text(quote.get("longname")) or _text(quote.get("shortname"))
+        if not symbol or not name:
+            continue
+        rows.append({"symbol": symbol, "name": name, "exchange": _text(quote.get("exchange")), "kind": kind})
+    return rows
+
+
 def _expense_ratio(info: dict) -> float | None:
     """netExpenseRatio is a PERCENT (0.03 means 0.03%); annualReportExpenseRatio is already a
     FRACTION (0.0004 means 0.04%). Prefer netExpenseRatio (the more current figure) when present."""

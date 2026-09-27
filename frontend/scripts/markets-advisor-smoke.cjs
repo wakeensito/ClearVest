@@ -88,7 +88,7 @@ const SEARCH_RESULTS = { results: [{ symbol: 'AAPL', name: 'Apple Inc.', exchang
     await record('watchlist has NVDA', width);
 
     // Typing "apple" lists AAPL and APLE; Enter selects AAPL (the URL symbol changes).
-    const search = page.getByLabel('Search a ticker or company');
+    const search = page.getByLabel('Find a stock or fund');
     await search.fill('apple');
     await page.getByRole('option', { name: /AAPL/ }).waitFor();
     const optionText = await page.getByRole('listbox', { name: 'Suggestions' }).innerText();
