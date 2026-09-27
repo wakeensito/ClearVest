@@ -322,6 +322,12 @@
 
 .shell[data-advisor='true'] { background: #0C1E38; }
 .shell[data-advisor='true'] .main { max-width: 1440px; width: 100%; padding-top: 30px; }
+/* Advisor has no footer. While its conversation is open the shell is one screen tall, like a chat app. */
+.shell[data-advisor='true'] > .footer { display: none; }
+.shell[data-advisor='true']:has([data-fill]) { height: 100dvh; grid-template-rows: auto minmax(0,1fr); }
+.shell[data-advisor='true']:has([data-fill]) .main { display: flex; flex-direction: column; min-height: 0; padding-bottom: 24px; }
+@media (max-height: 500px) { .shell[data-advisor='true']:has([data-fill]) .main { padding-top: 8px; padding-bottom: 8px; } }
+@media (max-width: 767px) { .shell[data-advisor='true'] .main { padding-bottom: calc(64px + env(safe-area-inset-bottom) + 24px); } .shell[data-advisor='true']:has([data-fill]) .main { padding: 16px 16px calc(64px + env(safe-area-inset-bottom) + 8px); } }
 
 .routeStatus { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 20; padding: 8px 16px; border-radius: 6px; background: var(--cv-surface); color: var(--cv-text); box-shadow: var(--cv-shadow-overlay); font-size: 14px; }
 .routeStatus:empty { display: none; }
