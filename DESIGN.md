@@ -83,7 +83,8 @@ holdings; it does not recompute the account balance or allocation.
 
 A stacked bar and a vertical legend show asset-type composition in the context column. Long-position
 values are aggregated by type. If shorts exist, explain that the bar excludes them. Do not show a
-percentage-based asset mix for an empty account.
+percentage-based asset mix for an empty account. The rail card is titled “Your plan vs. today” (§4.14);
+this by-type bar sits under it as “By investment type”, the detail behind the plan comparison.
 
 ### 4.6 Risk and context
 
@@ -334,6 +335,61 @@ All targets are 44px. The explainer is a labelled `section`; the chips are a lab
 `aria-expanded`/`aria-controls`; answers are in a polite live region. No new colors, badges or
 illustrations beyond the strip.
 
+### 4.14 What you really own and your plan vs. today
+
+The two portfolio moments: who the money is really in once funds are opened up, and how the mix
+compares with a model plan. Math lives in `lib/lookThrough.ts` and `lib/targetMix.ts`; every sentence in
+`lib/xrayCopy.ts`; fund facts come from `lib/useFundMap.ts` (the same `['fund', SYMBOL]` query and
+one-day cache as `useFund`, `retry: 1`, at most the 8 largest funds; a failed fund is simply
+missing). Only shown when an account is linked.
+
+**What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, main column directly
+above Holdings). A 13px secondary heading, then the headline sentence at 20/28 medium (18/26 on
+phones): “Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT.” Whole percents;
+the fund part is the rounded total minus the rounded direct part, so the two parts add up on screen;
+“all of it inside VOO and QQQ.” with nothing direct, “all of it held directly.” with no fund; a sliver
+reads “under 1%”, never “0%”. Five company rows follow, each stacked at every width: name, symbol in
+12px tertiary, share right-aligned at 1 decimal; a full-width 8px track; then a 12px tertiary line
+“14% direct · VOO 3% · QQQ 2% · VGT 1%” (parts under 0.5% dropped). The track fills to share ÷ top
+share, solid `accent` for the direct part and a 45% `accent`/`surface` mix for the part held through
+funds. It is `aria-hidden`; the via line says the same thing. Every row is one category, so the accent
+ramp is used, never `viz-1..8` (§4.13 rationale). Then “Your top 7 companies are 47% of everything.”
+(fewer when fewer exist; nothing for one), and the 12px data line “Counting each fund's top 10 holdings
+(3 of 3 funds checked) · as of Sep 26, 2026”, plus “ · funds' smaller holdings aren't counted” when
+under half the fund money is covered by those top holdings. Stock-only accounts read “Based on your
+holdings as of …”.
+
+**What it costs** (inside the same card, under a rule, `t-h3` heading). “Your funds cost about $13 a
+year (0.08% of the money in them).” / “At the same balance that's about $130 over 10 years.” / only
+when it saves at least $1: “If every fund cost what your cheapest one does (0.03%), it would be about $5
+a year.” A three-column table (Fund, Expense ratio, Per year; symbol, `expenseRatioLabel`, full
+currency). Funds without a ratio: “Fee not available: XYZ”; none known: “Fee information isn't
+available for your funds.”; zero cost: “Your funds charge no yearly fee.”; no funds: no panel. No fund
+is ever recommended.
+
+**Plan vs. today** (`components/portfolio/PlanVsActual.tsx`, `[data-plan-vs-actual]`, in the rail card
+“Your plan vs. today”, above “By investment type” §4.5). A labelled native `select` “Compare with” (44px,
+6px radius, `border-input`) lists `/market/templates` names; the default is `suggestTemplate(profile)`,
+the pick lives in component state only. Beside the label: `Badge` “Suggested for you” (accent tone)
+when the pick is the suggestion, “Pick a plan” (neutral) with no profile. Two `aria-hidden` 12px bars,
+“Today” and the plan name, slices in stocks/bonds/cash/other order coloured as their asset category
+(stocks `viz-1`, bonds `viz-4`, cash `viz-7`, other `viz-8`), then a small table: kind, Today, Plan at
+1 decimal. Under a rule, the lead sentence “Your mix is 14 points more in stocks than the Bogleheads
+three-fund plan; nothing in bonds.” (from `drift()`, given a subject), the plan description in tertiary,
+and “Ask the advisor why this matters →”, a prefilled, never-sent `/advisor?q=My mix is …`. While funds
+load or fail: “2 of 3 funds checked · assumes unchecked funds hold stocks”.
+
+**States.** Holdings loading: the `#xray` surface with a skeleton. Funds all loading: skeleton;
+partial: render, `Dots` beside the heading, “N of M” in the data line. No stocks or funds: “Link an
+account with stocks or funds to see who you really own.” Plan card: profile or templates loading shows
+a skeleton; templates error shows only the Today bar and its percents; an empty account shows “Your mix
+will appear here once the account holds investments.” Hide portfolio values replaces every dollar
+figure (sentences drop the dollar clause, table cells read “Hidden”) and keeps every percent (§6.2).
+
+**Phone.** Single column, no overflow at 320/375/393px; long names wrap (`overflow-wrap: anywhere`),
+the fee table is fixed-layout within the card, the plan name on its bar truncates with an ellipsis
+(the select and legend still carry it in full).
+
 ## 5. Layout and routes
 
 Desktop: 76px navigation, slim workspace information row, centered content up to 1440px with 40px
@@ -502,7 +558,7 @@ Every data card handles all of these states. The API error envelope is `{error: 
 |---|---|---|
 | Loading | Card | Skeleton while loading. After 8s: "Still working. This can take up to 30 seconds." |
 | `404 NOT_FOUND` on `GET /profile` | App | No saved profile; continue learning, researching or asking general questions. Profile setup remains optional. |
-| `409 NOT_LINKED` | Card | The card is replaced by the Link account card (§4.14): "Link an account to see your holdings." |
+| `409 NOT_LINKED` | Card | The card is replaced by the Link account card (§4.3): "Link an account to see your holdings." |
 | `502 UPSTREAM_UNAVAILABLE` | Card | Warning banner: "Market data is temporarily unavailable." and a Retry button. Other cards are unaffected. |
 | `400 VALIDATION` | Field or form | Inline error under the field. Map the API `message` to the field when possible. |
 | `500 INTERNAL` | Card | "Something went wrong on our side." with Retry, plus `Reference: <requestId>` in `mono` `caption` |

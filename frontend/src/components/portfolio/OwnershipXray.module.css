@@ -1,0 +1,60 @@
+/* DESIGN.md §4.14. Work surface per §4.2; every company is the same category, so rows use the
+   accent ramp from §4.13, never the viz scale. */
+.card {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 24px;
+  background: var(--cv-surface);
+  border: 1px solid var(--cv-border);
+  border-radius: var(--cv-radius-panel);
+}
+
+.head { display: flex; align-items: center; gap: 12px; min-height: 24px; }
+.eyebrow { font-size: 13px; line-height: 20px; font-weight: 500; color: var(--cv-text-secondary); }
+
+/* The sentence is the headline: it states the number before any bar does. */
+.headline {
+  max-width: 44ch;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--cv-text);
+  font-variant-numeric: lining-nums tabular-nums;
+  text-wrap: pretty;
+}
+
+.rows { display: grid; gap: 14px; margin: 4px 0 0; padding: 0; list-style: none; }
+.row { display: grid; gap: 6px; min-width: 0; }
+.line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
+.name { min-width: 0; font-size: 15px; line-height: 24px; font-weight: 500; overflow-wrap: anywhere; }
+.symbol { margin-left: 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-tertiary); letter-spacing: 0.02em; }
+.share { flex-shrink: 0; font-size: 15px; line-height: 24px; font-weight: 500; font-variant-numeric: lining-nums tabular-nums; }
+
+/* Solid accent: owned directly. Lighter accent: the same company reached through funds. */
+.track { display: flex; gap: 2px; height: 8px; background: var(--cv-surface-sunken); border-radius: 2px; overflow: hidden; }
+.track span { min-width: 0; height: 100%; }
+.direct { background: var(--cv-accent); }
+.viaFill { background: color-mix(in srgb, var(--cv-accent) 45%, var(--cv-surface)); }
+
+.via { font-size: 12px; line-height: 16px; color: var(--cv-text-tertiary); font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
+
+.summary { font-size: 13px; line-height: 20px; font-weight: 500; color: var(--cv-text); }
+.dataLine { font-size: 12px; line-height: 18px; color: var(--cv-text-tertiary); overflow-wrap: anywhere; }
+
+.fees { display: grid; gap: 12px; margin-top: 8px; padding-top: 20px; border-top: 1px solid var(--cv-border); min-width: 0; }
+.sentences { display: grid; gap: 4px; }
+.feeLead { font-size: 15px; line-height: 24px; font-weight: 500; font-variant-numeric: lining-nums tabular-nums; }
+
+.feeTable { width: 100%; max-width: 420px; border-collapse: collapse; table-layout: fixed; font-size: 13px; line-height: 20px; }
+.feeTable th, .feeTable td { padding: 8px 0; border-bottom: 1px solid var(--cv-border); text-align: right; }
+.feeTable th:first-child { text-align: left; }
+.feeTable thead th { padding-top: 0; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-secondary); }
+.feeTable tbody th { font-weight: 500; letter-spacing: 0.02em; }
+.feeTable tbody tr:last-child > * { border-bottom: 0; }
+
+@media (max-width: 639px) {
+  .card { padding: 16px; }
+  .headline { font-size: 18px; line-height: 26px; }
+}
