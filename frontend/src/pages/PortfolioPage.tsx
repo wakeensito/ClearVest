@@ -1,6 +1,6 @@
 import { ArrowRight, Search, SlidersHorizontal, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { ContextHelp } from '../components/education/ContextHelp'
 import { WelcomeBanner } from '../components/WelcomeBanner'
 import { read, write } from '../lib/storage'
@@ -26,6 +26,7 @@ import styles from './PortfolioPage.module.css'
 
 export function PortfolioPage() {
   const holdings = useHoldings()
+  const navigate = useNavigate()
   const notLinked = hasCode(holdings.error, 'NOT_LINKED')
   const [filter, setFilter] = useState('')
   const [hidden, setHidden] = useState(() => read('cv-hide-balances') === 'true')
@@ -48,7 +49,8 @@ export function PortfolioPage() {
           {!notLinked && <QueryView query={holdings} label="Loading what you own" noun="Your holdings" skeleton={<OwnershipXraySkeleton />}>
             {(data) => <OwnershipXray data={data} hideValues={hidden} />}
           </QueryView>}
-          <SecurityResearch invite={false} />
+          {/* No compare dialog here: "Compare with …" goes to Markets, which opens it from ?compare=. */}
+          <SecurityResearch invite={false} onCompare={(other, current) => void navigate(`/markets?symbol=${encodeURIComponent(current)}&compare=${encodeURIComponent(other)}`)} />
           {!notLinked && <section className={styles.holdings} aria-labelledby="holdings-heading">
             <div className={styles.holdingsHeader}>
               <div><h2 id="holdings-heading" className="t-h2">Holdings</h2><p className="t-body-sm c-secondary">Holdings are investments you own. Select a symbol to learn about it.</p></div>
