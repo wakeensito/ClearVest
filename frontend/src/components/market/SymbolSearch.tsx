@@ -1,7 +1,8 @@
 import { Search } from 'lucide-react'
-import { useId, useState, type FormEvent, type KeyboardEvent, type Ref } from 'react'
-import { useCompanySearch } from '../../api/queries'
-import { MAX_SUGGESTIONS, moveHighlight, resolveSubmit, searchTerm, type Suggestion } from '../../lib/searchBox'
+import { useQueryClient } from '@tanstack/react-query'
+import { useId, useRef, useState, type FormEvent, type KeyboardEvent, type Ref } from 'react'
+import { companySearchQuery, useCompanySearch } from '../../api/queries'
+import { EMPTY_SEARCH_ERROR, MAX_SUGGESTIONS, moveHighlight, resolveSubmit, searchTerm, shouldAwaitSearch, TICKER, type Suggestion } from '../../lib/searchBox'
 import { useDebounce } from '../../lib/useDebounce'
 import styles from './SymbolSearch.module.css'
 
@@ -39,33 +40,57 @@ export function SymbolSearch({ value = '', onSelect, inputRef, clearOnSelect = f
     setSynced(value); setInput(value); setTyped(false); setOpen(false); setHighlighted(-1); setError('')
   }
   const term = searchTerm(input)
-  const settled = useDebounce(term)
+  const [settled, flush] = useDebounce(term)
   const query = useCompanySearch(typed ? settled : '')
+  const queryClient = useQueryClient()
+  // Bumped by every edit and pick, so an Enter still waiting on its search can tell it is outdated.
+  const edits = useRef(0)
   // Suggestions count only when they answer what is in the box now, never a draft from 300 ms ago.
   const current = typed && term !== '' && settled === term && !query.isError
   const suggestions = current && query.data ? query.data.results.slice(0, MAX_SUGGESTIONS) : []
   const status: SuggestionStatus = !open || !typed || !term || query.isError ? 'hidden'
     : !current || !query.data ? 'loading'
     : suggestions.length ? 'ready' : 'empty'
-  const expanded = status === 'ready'
-  const active = expanded && suggestions[highlighted] ? `${listId}-${highlighted}` : undefined
+  const expanded = status !== 'hidden'
+  const active = status === 'ready' && suggestions[highlighted] ? `${listId}-${highlighted}` : undefined
 
   const pick = (symbol: string) => {
+    edits.current += 1
     setError(''); setOpen(false); setHighlighted(-1); setTyped(false)
     setInput(clearOnSelect ? '' : symbol)
     onSelect(symbol)
   }
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    const result = resolveSubmit(input, suggestions, expanded ? highlighted : -1)
+  const finish = (result: { symbol: string } | { error: string }) => {
     if ('error' in result) { setError(result.error); return }
     pick(result.symbol)
+  }
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    const shown = status === 'ready' ? highlighted : -1
+    const loading = typed && (query.isFetching || (!query.data && !query.isError))
+    // Enter never races the search: settle the pause now and resolve against that search's answer.
+    if (shown === -1 && typed && shouldAwaitSearch(input, settled === term, loading, suggestions)) {
+      const draft = input
+      const edit = edits.current
+      flush(); setOpen(true)
+      queryClient.fetchQuery(companySearchQuery(term)).then(
+        (data) => { if (edits.current === edit) finish(resolveSubmit(draft, data.results.slice(0, MAX_SUGGESTIONS), -1)) },
+        // A failed search never blocks: a ticker-shaped draft goes straight to the chart.
+        () => {
+          if (edits.current !== edit) return
+          const upper = draft.trim().toUpperCase()
+          finish(TICKER.test(upper) ? { symbol: upper } : { error: EMPTY_SEARCH_ERROR })
+        },
+      )
+      return
+    }
+    finish(resolveSubmit(input, suggestions, shown))
   }
   const keyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && suggestions.length) {
       event.preventDefault()
       setOpen(true)
-      setHighlighted(moveHighlight(expanded ? highlighted : -1, event.key === 'ArrowDown' ? 1 : -1, suggestions.length))
+      setHighlighted(moveHighlight(status === 'ready' ? highlighted : -1, event.key === 'ArrowDown' ? 1 : -1, suggestions.length))
     } else if (event.key === 'Escape' && status !== 'hidden') {
       // Close the list only; a second Escape reaches the explainer (it skips handled events).
       event.preventDefault()
@@ -80,7 +105,7 @@ export function SymbolSearch({ value = '', onSelect, inputRef, clearOnSelect = f
         ref={inputRef} id={id} value={input} placeholder={placeholder} maxLength={80} spellCheck={false} autoComplete="off"
         role="combobox" aria-autocomplete="list" aria-expanded={expanded} aria-controls={listId} aria-activedescendant={active}
         aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined}
-        onChange={(event) => { setInput(event.target.value); setTyped(true); setOpen(true); setHighlighted(-1) }}
+        onChange={(event) => { edits.current += 1; setInput(event.target.value); setTyped(true); setOpen(true); setHighlighted(-1) }}
         onKeyDown={keyDown}
         onBlur={() => { setOpen(false); setHighlighted(-1) }}
       />
@@ -93,8 +118,8 @@ export function SymbolSearch({ value = '', onSelect, inputRef, clearOnSelect = f
 
 export function SuggestionList({ id, status, suggestions, highlighted, onPick }: { id: string; status: SuggestionStatus; suggestions: readonly Suggestion[]; highlighted: number; onPick: (symbol: string) => void }) {
   if (status === 'hidden') return null
-  if (status === 'loading') return <p role="status" className={styles.note}>Searching…</p>
-  if (status === 'empty') return <p role="status" className={styles.note}>No matches. Try a ticker such as VOO or a shorter name.</p>
+  if (status === 'loading') return <p id={id} role="status" className={styles.note}>Searching…</p>
+  if (status === 'empty') return <p id={id} role="status" className={styles.note}>No matches. Try a ticker such as VOO or a shorter name.</p>
   return <ul id={id} role="listbox" aria-label="Suggestions" className={styles.list}>
     {suggestions.map((item, index) => <li
       key={item.symbol} id={`${id}-${index}`} role="option" aria-selected={index === highlighted} className={styles.option}

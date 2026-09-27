@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EMPTY_SEARCH_ERROR, moveHighlight, resolveSubmit, searchTerm, type Suggestion } from './searchBox'
+import { EMPTY_SEARCH_ERROR, moveHighlight, resolveSubmit, searchTerm, shouldAwaitSearch, type Suggestion } from './searchBox'
 
 const apple: Suggestion = { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' }
 const voo: Suggestion = { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', exchange: 'NYSE Arca' }
@@ -23,6 +23,11 @@ describe('resolveSubmit', () => {
 
   it('a ticker that exactly matches a suggestion keeps the typed ticker', () => {
     expect(resolveSubmit('voo', [voog, voo], -1)).toEqual({ symbol: 'VOO' })
+  })
+
+  it('with no suggestions a ticker-shaped name still goes direct: callers must not call this while a search is pending', () => {
+    // "apple" is ticker-shaped. SymbolSearch only reaches this with [] once shouldAwaitSearch is false.
+    expect(resolveSubmit('apple', [], -1)).toEqual({ symbol: 'APPLE' })
   })
 
   it('ignores an out-of-range highlight', () => {
@@ -52,5 +57,34 @@ describe('moveHighlight', () => {
     expect(moveHighlight(-1, -1, 3)).toBe(2)
     expect(moveHighlight(0, -1, 3)).toBe(-1)
     expect(moveHighlight(-1, 1, 0)).toBe(-1)
+  })
+})
+
+describe('shouldAwaitSearch', () => {
+  it('waits while the pause has not settled on this draft', () => {
+    expect(shouldAwaitSearch('apple', false, false, [])).toBe(true)
+    expect(shouldAwaitSearch('voo', false, false, [])).toBe(true)
+  })
+
+  it('waits while the search for this draft is still loading', () => {
+    expect(shouldAwaitSearch('apple', true, true, [])).toBe(true)
+  })
+
+  it('waits for names too, so Enter never shows the alert for a name mid-search', () => {
+    expect(shouldAwaitSearch('apple inc', false, false, [])).toBe(true)
+  })
+
+  it('does not wait once the search has settled and loaded', () => {
+    expect(shouldAwaitSearch('apple', true, false, [])).toBe(false)
+    expect(shouldAwaitSearch('apple', true, false, [apple])).toBe(false)
+  })
+
+  it('does not wait when a listed suggestion is exactly the typed ticker', () => {
+    expect(shouldAwaitSearch('voo', false, true, [voog, voo])).toBe(false)
+  })
+
+  it('never waits on something that is never searched (empty or one character)', () => {
+    expect(shouldAwaitSearch('', false, true, [])).toBe(false)
+    expect(shouldAwaitSearch(' v ', false, true, [])).toBe(false)
   })
 })

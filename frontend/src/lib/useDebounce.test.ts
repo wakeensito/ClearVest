@@ -37,4 +37,16 @@ describe('createDebouncer', () => {
     vi.advanceTimersByTime(1000)
     expect(settled).toEqual([])
   })
+
+  it('flush settles the pending value now and cancels the timer (Enter before the pause ends)', () => {
+    const settled: string[] = []
+    const debouncer = createDebouncer<string>(300, (value) => settled.push(value))
+    debouncer.push('apple')
+    debouncer.flush()
+    expect(settled).toEqual(['apple'])
+    vi.advanceTimersByTime(1000)
+    expect(settled).toEqual(['apple'])
+    debouncer.flush()
+    expect(settled).toEqual(['apple'])
+  })
 })
