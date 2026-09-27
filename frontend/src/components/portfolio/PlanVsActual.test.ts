@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { createElement as h } from 'react'
 import { describe, expect, it } from 'vitest'
 import type { Holding, Profile } from '../../api/client'
+import { ApiError } from '../../api/errors'
 import { PICK_A_PLAN, PlanVsActual, SUGGESTED } from './PlanVsActual'
 import { renderSeeded, sampleHoldings, seedError, seedFunds, TEMPLATES, text } from './xray.fixtures'
 
@@ -86,6 +87,53 @@ describe('PlanVsActual', () => {
     expect(text(html)).toContain('Stocks 93.7%')
     expect(text(html)).not.toContain('Plan')
     expect(text(html)).not.toMatch(/Your mix is|Nothing in/)
+  })
+
+  // AGG is not a template ticker, so until its facts load it is assumed to hold stocks.
+  const withAgg = () => [...sampleHoldings().holdings, { symbol: 'AGG', name: 'iShares Core US Aggregate Bond ETF', type: 'etf', quantity: 10, price: 72, value: 720, weight: 0.03 }] as Holding[]
+
+  it('never says "Nothing in bonds" while a held bond fund is still unchecked', () => {
+    // VOO/QQQ/VGT loaded, AGG still loading.
+    const html = render({ holdings: withAgg() })
+    expect(text(html)).not.toMatch(/nothing in/i)
+    expect(text(html)).toMatch(/Stocks: \d+% today vs 80% in the Bogleheads three-fund plan\./)
+    const href = /href="(\/advisor\?q=[^"]+)"/.exec(html)?.[1] ?? ''
+    expect(decodeURIComponent(href)).not.toMatch(/nothing in/i)
+    expect(decodeURIComponent(href)).toContain('My mix has stocks at ')
+  })
+
+  it('a failed or unchecked fund also keeps the plan sentence unsure', () => {
+    const failed = render({ holdings: withAgg(), seed: (c) => { seedFunds(c); seedError(c, ['fund', 'AGG']) } })
+    expect(text(failed)).not.toMatch(/nothing in/i)
+    const odd = [...sampleHoldings().holdings, { symbol: 'NOT A TICKER', name: 'Mystery fund', type: 'etf', quantity: 1, price: 100, value: 100, weight: 0.004 }] as Holding[]
+    expect(text(render({ holdings: odd }))).not.toMatch(/nothing in/i)
+  })
+
+  it('a profile error other than "no profile" shows the default plan without asking the three questions', () => {
+    const html = renderSeeded(h(PlanVsActual, { holdings: sampleHoldings().holdings }), (c) => {
+      c.setQueryData(['templates'], TEMPLATES)
+      seedFunds(c)
+      c.getQueryCache().build(c, { queryKey: ['profile'] }).setState({ status: 'error', error: new ApiError(502, 'UPSTREAM_UNAVAILABLE', 'Upstream unavailable'), fetchStatus: 'idle' })
+    })
+    expect(selected(html)).toBe('three-fund')
+    expect(text(html)).not.toContain('Answer three questions')
+    expect(text(html)).not.toContain(SUGGESTED)
+  })
+
+  it('a NOT_FOUND profile error is "no profile": asks the three questions', () => {
+    const html = renderSeeded(h(PlanVsActual, { holdings: sampleHoldings().holdings }), (c) => {
+      c.setQueryData(['templates'], TEMPLATES)
+      seedFunds(c)
+      c.getQueryCache().build(c, { queryKey: ['profile'] }).setState({ status: 'error', error: new ApiError(404, 'NOT_FOUND', 'No profile'), fetchStatus: 'idle' })
+    })
+    expect(text(html)).toContain('Answer three questions in your investment profile to get a suggested plan.')
+  })
+
+  it('BND (a template ticker) counts as bonds even before its facts load', () => {
+    const holdings = [...sampleHoldings().holdings, { symbol: 'BND', name: 'Vanguard Total Bond Market ETF', type: 'etf', quantity: 10, price: 72, value: 720, weight: 0.03 }] as Holding[]
+    const t = text(render({ holdings }))
+    expect(t).not.toMatch(/nothing in/i)
+    expect(t).toMatch(/Bonds 2\.\d% 20\.0%/)
   })
 
   it('renders nothing for an empty account', () => {

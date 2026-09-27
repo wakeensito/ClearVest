@@ -2,6 +2,7 @@ import { ArrowRight, ChevronDown } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Link } from 'react-router'
 import type { Holding } from '../../api/client'
+import { hasCode } from '../../api/errors'
 import { useProfile, useTemplates } from '../../api/queries'
 import { typeColor } from '../../lib/assetTypes'
 import { percentFromFraction } from '../../lib/format'
@@ -36,12 +37,17 @@ export function PlanVsActual({ holdings }: { holdings: Holding[] }) {
   if (profile.isPending || templates.isPending) return <SkeletonBlock lines={4} label="Loading your plan comparison" />
 
   const hasProfile = Boolean(profile.data)
+  // Only "no profile saved" (404, or an empty answer) invites the three questions; any other
+  // profile error just shows the default plan.
+  const noProfile = profile.isError ? hasCode(profile.error, 'NOT_FOUND') : !profile.data
+  // A fund still loading, failed or never checked was assumed to be stocks: don't claim "nothing in bonds".
+  const unsure = fundMap.pending.length > 0 || fundMap.failed.length > 0 || fundMap.unchecked.length > 0
   const suggested = suggestTemplate(profile.data ?? null)
   const list: Template[] = templates.data ?? []
   const currentId = picked ?? suggested
   const template = list.find((t) => t.id === currentId) ?? list.find((t) => t.id === suggested) ?? list[0]
   const target = template ? templateMix(template) : null
-  const result = template && target ? drift(actual, target, template.name) : null
+  const result = template && target ? drift(actual, target, template.name, { unsure }) : null
   const badge = !hasProfile && picked === null ? PICK_A_PLAN : hasProfile && template?.id === suggested ? SUGGESTED : null
   const caption = fundsCheckedCaption({ loaded: fundMap.loaded, total: fundMap.total, pending: fundMap.pending.length > 0 })
 
@@ -61,7 +67,7 @@ export function PlanVsActual({ holdings }: { holdings: Holding[] }) {
           </div>
           {hasProfile ? (
             template.id === suggested && <p className="t-body-sm c-secondary">{SUGGESTED_WHY}</p>
-          ) : (
+          ) : noProfile && (
             <p className="t-body-sm c-secondary">
               Answer three questions in your{' '}
               <Link to="/welcome?edit=1" state={{ returnTo: '/portfolio' }}>investment profile</Link>

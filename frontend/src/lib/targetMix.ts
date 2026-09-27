@@ -25,10 +25,25 @@ export const MIX_LABEL: Record<MixClass, string> = {
 const zeroMix = (): Mix => ({ stocks: 0, bonds: 0, cash: 0, other: 0 })
 
 // Fund category text (yfinance-style strings, e.g. "Intermediate-Term Bond", "Money Market",
-// "Large Blend") — checked only for etf/mutual fund holdings, in this priority order.
-const BOND_CATEGORY = /bond|treasury|fixed income|income/i
+// "Large Blend") — checked only for etf/mutual fund holdings, in this priority order. "Income" on
+// its own is not bonds: "Derivative Income" (JEPI) and "Equity Income" funds hold stocks.
+const BOND_CATEGORY = /bond|treasury|fixed income|muni(cipal)?\b|aggregate/i
 const CASH_CATEGORY = /money market|cash/i
 const OTHER_CATEGORY = /commodit|gold|real estate|reit/i
+
+// Static ticker → class map for every ticker used across templates.json. Unknown ticker → other.
+const TICKER_CLASS: Record<string, MixClass> = {
+  VTI: 'stocks',
+  VXUS: 'stocks',
+  VOO: 'stocks',
+  BND: 'bonds',
+  BNDX: 'bonds',
+  TLT: 'bonds',
+  IEI: 'bonds',
+  SHV: 'cash',
+  GLD: 'other',
+  DBC: 'other',
+}
 
 /**
  * Plaid `type` decides most holdings outright. `etf`/`mutual fund` need the fund's `category` to
@@ -36,6 +51,9 @@ const OTHER_CATEGORY = /commodit|gold|real estate|reit/i
  * stock fund (the UI shows "N of M funds checked" while funds are still loading).
  */
 export function classify(holding: Holding, fund?: Fund | null): MixClass {
+  // The template tickers are known outright (SHV is cash even though its category says bond).
+  const known = TICKER_CLASS[holding.symbol.trim().toUpperCase()]
+  if (known) return known
   const type = normalizeType(holding.type)
   if (type === 'cash') return 'cash'
   if (type === 'fixed income') return 'bonds'
@@ -70,20 +88,6 @@ export function actualMix(holdings: readonly Holding[], funds: Record<string, Fu
     cash: totals.cash / total,
     other: totals.other / total,
   }
-}
-
-// Static ticker → class map for every ticker used across templates.json. Unknown ticker → other.
-const TICKER_CLASS: Record<string, MixClass> = {
-  VTI: 'stocks',
-  VXUS: 'stocks',
-  VOO: 'stocks',
-  BND: 'bonds',
-  BNDX: 'bonds',
-  TLT: 'bonds',
-  IEI: 'bonds',
-  SHV: 'cash',
-  GLD: 'other',
-  DBC: 'other',
 }
 
 /** Weights normalized to sum to 1 (templates.json entries already do, but don't assume it). */
@@ -138,8 +142,13 @@ const whole = (f: number) => percentFromFraction(f, { digits: 0 })
 const compare = (c: MixClass, actual: Mix, target: Mix, plan: string) =>
   `${MIX_LABEL[c]}: ${whole(actual[c])} today vs ${whole(target[c])} in ${plan}`
 
-/** `actual`/`target` are fractions (0..1); `templateName` is the plan's display name. */
-export function drift(actual: Mix, target: Mix, templateName: string): Drift {
+/**
+ * `actual`/`target` are fractions (0..1); `templateName` is the plan's display name. `unsure`: some
+ * fund in the account is still loading, failed or was never checked, so it was assumed to be a
+ * stock fund; "Nothing in bonds" could be false (it may be a bond fund), so neither "Nothing in"
+ * form is said and only the "X: A% today vs B% in the plan" comparison is used.
+ */
+export function drift(actual: Mix, target: Mix, templateName: string, { unsure = false }: { unsure?: boolean } = {}): Drift {
   const gaps = Object.fromEntries(MIX_ORDER.map((c) => [c, Math.round((actual[c] - target[c]) * 100)])) as Record<
     MixClass,
     number
@@ -178,6 +187,7 @@ export function drift(actual: Mix, target: Mix, templateName: string): Drift {
     if (Math.abs(gaps[c]) >= GAP_THRESHOLD && (biggest === null || Math.abs(gaps[c]) > Math.abs(gaps[biggest]))) biggest = c
   }
   if (
+    !unsure &&
     biggest !== null &&
     gaps[biggest] < 0 &&
     (CALLOUT_CLASSES as readonly MixClass[]).includes(biggest) &&
@@ -194,7 +204,7 @@ export function drift(actual: Mix, target: Mix, templateName: string): Drift {
 
   // Never repeat the lead clause's own class in the tail (saying "less in bonds ... nothing in
   // bonds" says the same thing twice).
-  const callouts = CALLOUT_CLASSES.filter((c) => c !== largest && actual[c] === 0 && target[c] >= 0.1).map(
+  const callouts = CALLOUT_CLASSES.filter((c) => !unsure && c !== largest && actual[c] === 0 && target[c] >= 0.1).map(
     (c) => `nothing in ${c}`,
   )
 

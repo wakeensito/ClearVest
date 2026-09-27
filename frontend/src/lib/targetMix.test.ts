@@ -132,7 +132,21 @@ describe('classify', () => {
     expect(classify(holding({ type: 'etf' }), fund({ category: 'Intermediate-Term Bond' }))).toBe('bonds')
     expect(classify(holding({ type: 'etf' }), fund({ category: 'Long Government Treasury' }))).toBe('bonds')
     expect(classify(holding({ type: 'etf' }), fund({ category: 'Fixed Income' }))).toBe('bonds')
-    expect(classify(holding({ type: 'etf' }), fund({ category: 'High Income' }))).toBe('bonds')
+    expect(classify(holding({ type: 'etf' }), fund({ category: 'High Yield Bond' }))).toBe('bonds')
+    expect(classify(holding({ type: 'etf' }), fund({ category: 'Muni National Interm' }))).toBe('bonds')
+    expect(classify(holding({ type: 'etf' }), fund({ category: 'Municipal Bond' }))).toBe('bonds')
+    expect(classify(holding({ type: 'etf' }), fund({ category: 'Ultrashort Bond' }))).toBe('bonds')
+  })
+
+  it('"income" alone is not bonds: derivative-income and equity-income funds stay stocks', () => {
+    expect(classify(holding({ symbol: 'JEPI', type: 'etf' }), fund({ category: 'Derivative Income' }))).toBe('stocks')
+    expect(classify(holding({ type: 'etf' }), fund({ category: 'Equity Income' }))).toBe('stocks')
+  })
+
+  it('a template ticker uses the static map first, whatever the category says or before it loads', () => {
+    expect(classify(holding({ symbol: 'SHV', type: 'etf' }))).toBe('cash')
+    expect(classify(holding({ symbol: 'SHV', type: 'etf' }), fund({ category: 'Ultrashort Bond' }))).toBe('cash')
+    expect(classify(holding({ symbol: 'bnd', type: 'etf' }))).toBe('bonds')
   })
 
   it('an etf whose fund category looks like a money market fund classifies as cash', () => {
@@ -375,5 +389,18 @@ describe('drift', () => {
     const target: Mix = { stocks: 0.9, bonds: 0.05, cash: 0.05, other: 0 }
     const result = drift(actual, target, 'Model X')
     expect(result.sentence).not.toContain('nothing in')
+  })
+
+  it('unsure (a fund not yet checked): never says "Nothing in", lead or tail — only the comparison', () => {
+    const sample: Mix = { stocks: 0.9368421052631579, bonds: 0, cash: 0.06315789473684211, other: 0 }
+    const lead = drift(sample, { stocks: 0.6, bonds: 0.4, cash: 0, other: 0 }, 'Classic 60/40', { unsure: true })
+    expect(lead.sentence).toBe('Stocks: 94% today vs 60% in the Classic 60/40 plan.')
+    expect(lead.largest).toBe('stocks')
+    const tail = drift({ stocks: 0.85, bonds: 0.15, cash: 0, other: 0 }, { stocks: 0.7, bonds: 0.15, cash: 0.15, other: 0 }, 'Model X', { unsure: true })
+    expect(tail.sentence).toBe('Stocks: 85% today vs 70% in the Model X plan.')
+    // Only an under-gap: the empty class is still named, but as a comparison.
+    const under = drift({ stocks: 0.62, bonds: 0, cash: 0.19, other: 0.19 }, { stocks: 0.6, bonds: 0.1, cash: 0.17, other: 0.17 }, 'Model Z', { unsure: true })
+    expect(under.sentence).toBe('Bonds: 0% today vs 10% in the Model Z plan.')
+    for (const r of [lead, tail, under]) expect(r.sentence).not.toMatch(/nothing in/i)
   })
 })
