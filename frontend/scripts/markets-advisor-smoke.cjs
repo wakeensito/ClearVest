@@ -19,7 +19,7 @@ fs.mkdirSync(output, { recursive: true });
 // src/lib/fundExplainer.fixtures.ts NVDA and AAPL; the identity line fetches every symbol shown).
 const FUNDS = {
   AAPL: { symbol: 'AAPL', name: 'Apple Inc.', kind: 'stock', isIndexFund: false, leveraged: false, tracks: null, expenseRatio: null, topHoldings: [], summary: 'Apple makes the iPhone, Mac and other devices, and sells services like iCloud.', summarySource: 'model', asOf: '2026-09-26', stale: false, fundFamily: null, category: null, sector: 'Technology' },
-  NVDA: { symbol: 'NVDA', name: 'NVIDIA Corp', kind: 'stock', isIndexFund: false, leveraged: false, tracks: null, expenseRatio: null, topHoldings: [], summary: 'NVIDIA designs graphics chips used for gaming, data centers and artificial intelligence.', summarySource: 'model', asOf: '2026-09-26', stale: false, fundFamily: null, category: null, sector: 'Technology' },
+  NVDA: { symbol: 'NVDA', name: 'NVIDIA Corp', kind: 'stock', isIndexFund: false, leveraged: false, tracks: null, expenseRatio: null, topHoldings: [], summary: 'NVIDIA designs graphics chips used for gaming, data centers and artificial intelligence.', summarySource: 'template', asOf: '2026-09-26', stale: false, fundFamily: null, category: null, sector: 'Technology' },
 };
 
 const SEARCH_RESULTS = { results: [{ symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' }, { symbol: 'APLE', name: 'Apple Hospitality REIT', exchange: 'NYSE' }], stale: false };

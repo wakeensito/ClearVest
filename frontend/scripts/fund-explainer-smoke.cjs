@@ -54,7 +54,7 @@ const FUNDS = {
     summary: 'VGT is a fund that owns shares of technology companies such as NVIDIA, Apple and Microsoft.',
   },
   // A single stock, not a fund: no holdings, no expense ratio.
-  NVDA: { symbol: 'NVDA', name: 'NVIDIA Corp', kind: 'stock', isIndexFund: false, leveraged: false, tracks: null, expenseRatio: null, topHoldings: [], summary: 'NVIDIA designs graphics chips used for gaming, data centers and artificial intelligence.', summarySource: 'model', asOf: '2026-09-26', stale: false, fundFamily: null, category: null, sector: 'Technology' },
+  NVDA: { symbol: 'NVDA', name: 'NVIDIA Corp', kind: 'stock', isIndexFund: false, leveraged: false, tracks: null, expenseRatio: null, topHoldings: [], summary: 'NVIDIA designs graphics chips used for gaming, data centers and artificial intelligence.', summarySource: 'template', asOf: '2026-09-26', stale: false, fundFamily: null, category: null, sector: 'Technology' },
 };
 
 (async () => {
