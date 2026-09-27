@@ -44,12 +44,6 @@ def market_movers(endpoint: str) -> list:
     return _get(endpoint)
 
 
-def stock_news(symbols: list[str]) -> list:
-    if symbols:
-        return _get("news/stock", symbols=",".join(symbols), limit=12)
-    return _get("news/stock-latest", limit=12)
-
-
 
 def research_section(symbol: str, section: str) -> list:
     """Small, explicitly allowlisted datasets for guided company research."""

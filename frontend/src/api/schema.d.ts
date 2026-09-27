@@ -193,7 +193,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Up to six publisher headlines, cached for one hour. Omit symbols for market-wide stock news. publishedAt retains the provider's timestamp without assuming a timezone; fetchedAt is API retrieval time. */
+        /** @description Up to six publisher headlines from Yahoo Finance, cached for one hour (five minutes when the provider returned no articles, since that may be a transient failure). Omit symbols for market-wide stock news, where each article's symbol is an empty string. publishedAt is the provider's timestamp as given (Yahoo sends ISO 8601 in UTC); fetchedAt is API retrieval time. */
         get: operations["getMarketNews"];
         put?: never;
         post?: never;
@@ -544,7 +544,7 @@ export interface components {
             articles: components["schemas"]["NewsArticle"][];
             symbols: string[];
             /** @enum {string} */
-            source: "FMP";
+            source: "Yahoo Finance";
             /** Format: date-time */
             fetchedAt: string;
             stale: boolean;
@@ -1420,28 +1420,28 @@ export interface operations {
                      *           "url": "https://example.com/market-news/earnings",
                      *           "image": null,
                      *           "publisher": "Example publisher",
-                     *           "publishedAt": "2026-09-25 15:00:00",
-                     *           "symbol": "AAPL"
+                     *           "publishedAt": "2026-09-25T15:00:00Z",
+                     *           "symbol": ""
                      *         },
                      *         {
                      *           "title": "Example headline: new products draw attention across the technology sector",
                      *           "url": "https://example.com/market-news/products",
                      *           "image": null,
                      *           "publisher": "Example publisher",
-                     *           "publishedAt": "2026-09-25 13:00:00",
-                     *           "symbol": "MSFT"
+                     *           "publishedAt": "2026-09-25T13:00:00Z",
+                     *           "symbol": ""
                      *         },
                      *         {
                      *           "title": "Example headline: market participants assess the latest economic data",
                      *           "url": "https://example.com/market-news/economy",
                      *           "image": null,
                      *           "publisher": "Example publisher",
-                     *           "publishedAt": "2026-09-25 12:00:00",
-                     *           "symbol": "AAPL"
+                     *           "publishedAt": "2026-09-25T12:00:00Z",
+                     *           "symbol": ""
                      *         }
                      *       ],
                      *       "symbols": [],
-                     *       "source": "FMP",
+                     *       "source": "Yahoo Finance",
                      *       "fetchedAt": "2026-09-25T20:00:00Z",
                      *       "stale": false
                      *     }
