@@ -69,9 +69,10 @@ def test_answer_stores_both_turns_and_sends_history(aws, monkeypatch):
         return f"reply {len(messages)}"
 
     monkeypatch.setattr(bedrock, "converse", fake)
-    assert advisor.answer(USER, "first")["reply"] == "reply 1"
+    note = "\n\n" + advisor.PROFILE_NOTE  # no profile seeded: shown, never stored
+    assert advisor.answer(USER, "first")["reply"] == "reply 1" + note
     out = advisor.answer(USER, "second")
-    assert out["reply"] == "reply 3" and out["disclaimer"] == advisor.DISCLAIMER
+    assert out["reply"] == "reply 3" + note and out["disclaimer"] == advisor.DISCLAIMER
     assert [m["role"] for m in seen["messages"]] == ["user", "assistant", "user"]
 
 
@@ -365,3 +366,12 @@ def test_converse_drops_table_header_and_delimiter_with_zero_body_rows(monkeypat
 def test_converse_raises_upstream_when_only_a_headerless_table_survives(monkeypatch):
     with pytest.raises(UpstreamError):
         _converse_with_truncated_text(monkeypatch, "| A | B |\n| --- | --- |")
+
+
+def test_profile_note_only_when_age_or_horizon_missing(aws, monkeypatch):
+    monkeypatch.setattr(bedrock, "converse", lambda s, m, max_tokens=600: "An ETF is a basket.")
+    assert advisor.answer(USER, "q")["reply"].endswith(advisor.PROFILE_NOTE)
+    assert advisor.answer(USER, "q", mode="voice")["reply"] == "An ETF is a basket."
+    db.put(db.user_pk(USER), "PROFILE", {"age": 30, "horizon": "10+ years", "riskTolerance": "medium", "goals": []})
+    assert advisor.answer(USER, "q")["reply"] == "An ETF is a basket."
+    assert "Never ask the user for their age" in advisor.system_prompt({"profile": None, "holdings": None, "risk": None, "macro": None})
