@@ -53,10 +53,10 @@ def _trim_truncated(text: str) -> str:
     return trimmed
 
 
-def converse(system: str, messages: list[dict], max_tokens: int = 600) -> str:
+def converse(system: str, messages: list[dict], max_tokens: int = 600, model_id: str | None = None) -> str:
     try:
         resp = aws.bedrock().converse(
-            modelId=os.environ["MODEL_ID"],
+            modelId=model_id or os.environ["MODEL_ID"],
             system=[{"text": system}],
             messages=messages,
             inferenceConfig={"maxTokens": max_tokens, "temperature": 0.3},

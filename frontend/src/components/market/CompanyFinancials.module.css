@@ -1,10 +1,12 @@
-.panel { background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); padding: 24px; min-width: 0; }
+/* The fund explainer's "See what this company earns" scrolls here and focuses the section. */
+.panel { scroll-margin-top: 90px; background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); padding: 24px; min-width: 0; }
 .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
 .header > div { min-width: 0; }
 .header h2 { font-size: 20px; line-height: 28px; font-weight: 600; overflow-wrap: anywhere; }
 .header p { font-size: 13px; line-height: 21px; color: var(--cv-text-secondary); }
+.header .earnings { font-size: 12px; line-height: 20px; color: var(--cv-text-tertiary); }
 .steps { display: flex; gap: 8px; border-bottom: 1px solid var(--cv-border); padding-bottom: 16px; margin-bottom: 24px; }
-.steps button { flex: 1; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--cv-radius); background: var(--cv-surface-sunken); color: var(--cv-text-secondary); font-size: 14px; text-align: left; }
+.steps button { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid transparent; border-radius: var(--cv-radius); background: var(--cv-surface-sunken); color: var(--cv-text-secondary); font-size: 14px; text-align: left; }
 .steps button span { border: 1px solid var(--cv-border-strong); min-width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; font-size: 12px; }
 .steps button[aria-pressed='true'] { background: var(--cv-accent-subtle); color: var(--cv-accent); border-color: var(--cv-accent); }
 .story { display: grid; gap: 20px; }

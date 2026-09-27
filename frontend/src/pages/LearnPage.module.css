@@ -67,3 +67,14 @@
 .more > summary { cursor: pointer; padding-block: 12px; min-height: 44px; color: var(--cv-accent); font-size: 14px; }
 .heroActions > a { display: inline-flex; white-space: normal; height: auto; min-height: 44px; padding-block: 10px; }
 .heroActions > a > svg { flex-shrink: 0; }
+
+/* "Be the fund" card: the one lesson you play, given its own door under the hero. */
+.play { display: flex; align-items: center; gap: 20px; padding: 20px 24px; background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); }
+.playIcon { flex-shrink: 0; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--cv-accent-subtle); color: var(--cv-accent); }
+.playText { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.playText h2 { font-size: 18px; line-height: 26px; font-weight: 600; }
+.playText p { font-size: 14px; line-height: 22px; color: var(--cv-text-secondary); }
+.playMeta { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--cv-text-tertiary); }
+.playDone { color: var(--cv-gain); font-weight: 600; }
+.play > a { flex-shrink: 0; white-space: normal; height: auto; min-height: 44px; padding-block: 10px; }
+@media (max-width: 767px) { .play { flex-wrap: wrap; padding: 16px; } .play > a { flex-basis: 100%; } }

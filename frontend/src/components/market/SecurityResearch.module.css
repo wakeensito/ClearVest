@@ -3,9 +3,12 @@
 .heading { align-items: start; }
 .heading h2 { margin-bottom: 4px; }
 .toolbar { margin: 24px 0; }
-.search { display: flex; width: 148px; border: 1px solid var(--cv-border-input); border-radius: var(--cv-radius); overflow: hidden; }
-.search input { width: 100%; min-width: 0; padding: 8px 12px; border: 0; background: var(--cv-surface); font-size: 14px; font-weight: 600; }
-.search button { display: grid; place-items: center; min-width: 44px; min-height: 44px; background: var(--cv-surface); border: 0; color: var(--cv-text-secondary); }
+/* The fund identity line belongs to the search, so it sits closer than the chart does. */
+.toolbar:has(+ [data-fund-identity]), .toolbar:has(+ [data-identity-row]) { margin-bottom: 12px; }
+/* Identity line and the Watch toggle share a row; Watch wraps under the line on narrow phones. */
+.identityRow { display: flex; align-items: flex-start; justify-content: flex-end; flex-wrap: wrap; gap: 0 16px; margin-bottom: 16px; }
+.identityRow > [data-fund-identity] { flex: 1 1 16em; min-width: 0; margin-bottom: 0; }
+.search { flex: 1 1 240px; max-width: 360px; align-self: start; }
 .quote { align-items: end; margin-bottom: 8px; }
 .symbol { font-size: 14px; font-weight: 600; margin-right: 12px; }
 .price { font-size: 36px; line-height: 48px; letter-spacing: -0.035em; font-weight: 500; font-variant-numeric: tabular-nums; }
@@ -31,7 +34,8 @@
 @media (max-width: 639px) {
   .panel { padding: 16px; }
   .toolbar { gap: 8px; }
-  .search { width: 118px; }
+  .toolbar { flex-wrap: wrap; }
+  .search { flex-basis: 100%; max-width: none; }
   .quote { align-items: start; gap: 8px; }
   .quote > div:first-child > span { display: block; }
   .return { padding-top: 12px; }
@@ -43,7 +47,7 @@
 .compact { padding: 20px; border: 0; border-radius: 0; }
 .compact .heading h2 { font-size: 18px; }
 .compact .toolbar { flex-wrap: wrap; gap: 10px; margin: 20px 0; }
-.compact .search { flex: 1; min-width: 110px; }
+.compact .search { flex-basis: 100%; max-width: none; }
 .compact .quote { align-items: start; flex-wrap: wrap; gap: 8px; }
 .compact .quote > div:first-child > span { display: block; }
 .compact .price { font-size: 30px; line-height: 38px; }

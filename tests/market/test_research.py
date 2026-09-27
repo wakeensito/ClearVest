@@ -20,9 +20,14 @@ def statement(symbol="AAPL", **changes):
 
 def provider(symbol, section):
     if section == "profile":
-        return [{"symbol": symbol, "companyName": "Example company", "currency": "USD", "isEtf": False}]
+        return [{"symbol": symbol, "companyName": "Example company", "currency": "USD", "isEtf": False,
+                 "beta": 1.085, "marketCap": 5009416510920}]
     if section == "valuation":
-        return [{"symbol": symbol, "priceToEarningsRatioTTM": 20, "netIncomePerShareTTM": 2}]
+        return [{"symbol": symbol, "priceToEarningsRatioTTM": 20, "netIncomePerShareTTM": 2,
+                 "dividendYieldTTM": 0.00310787}]
+    if section == "earnings":
+        return [{"symbol": symbol, "date": "2999-10-29", "epsActual": None},
+                {"symbol": symbol, "date": "2026-07-30", "epsActual": 2.02}]
     if section == "history":
         return [statement(symbol, priceToEarningsRatio=18)]
     return [statement(symbol)]
@@ -40,8 +45,8 @@ def test_research_contract_and_scoped_cache(aws, monkeypatch):
     assert body["income"][0]["costOfRevenue"] is None
     assert len(body["sources"]) == 4 and not body["unavailable"]
     assert_matches("/market/company-research", "get", 200, body)
-    assert request()[1] == body and len(calls) == 4
-    assert request("MSFT")[1]["symbol"] == "MSFT" and len(calls) == 8
+    assert request()[1] == body and len(calls) == 5
+    assert request("MSFT")[1]["symbol"] == "MSFT" and len(calls) == 10
 
 
 def test_partial_failure_keeps_other_sections(aws, monkeypatch):
@@ -97,9 +102,9 @@ def test_nonfinite_and_boolean_values_never_become_financial_figures(aws, monkey
 def test_cached_section_preserves_original_retrieval_date(aws, monkeypatch):
     monkeypatch.setattr(fmp, "research_section", provider)
     original = request()[1]
-    row = db.get("CACHE#fmp", "research:v1:AAPL:income")
+    row = db.get("CACHE#fmp", "research:v2:AAPL:income")
     row["expiresAt"] = time.time() - 1
-    db.put("CACHE#fmp", "research:v1:AAPL:income", row)
+    db.put("CACHE#fmp", "research:v2:AAPL:income", row)
     def failure(*args):
         raise UpstreamError("fmp", "offline")
     monkeypatch.setattr(fmp, "research_section", failure)
@@ -123,15 +128,18 @@ def test_wrong_symbol_and_malformed_payload_are_unavailable(aws, monkeypatch):
 
 @responses.activate
 def test_documented_fmp_endpoints_and_parameters(aws):
-    for section, endpoint in [("profile", "profile"), ("income", "income-statement"), ("valuation", "ratios-ttm"), ("history", "ratios")]:
+    for section, endpoint in [("profile", "profile"), ("income", "income-statement"), ("valuation", "ratios-ttm"),
+                              ("history", "ratios"), ("earnings", "earnings")]:
         responses.get(f"https://financialmodelingprep.com/stable/{endpoint}", json=provider("AAPL", section))
     assert request()[0] == 200
-    assert len(responses.calls) == 4
+    assert len(responses.calls) == 5
     for response in responses.calls:
         assert response.request.params["symbol"] == "AAPL"
         if response.request.url.split("?")[0].endswith(("income-statement", "/ratios")):
             assert response.request.params["period"] == "annual"
             assert response.request.params["limit"] == "5"
+        if response.request.url.split("?")[0].endswith("/earnings"):
+            assert response.request.params["limit"] == "4"
 
 
 def test_company_search_deduplicates_and_exact_symbol_first(aws, monkeypatch):
@@ -166,3 +174,84 @@ def test_search_failure_empty_and_one_provider_available(aws, monkeypatch):
 def test_currency_is_never_guessed_or_truncated(aws, monkeypatch):
     monkeypatch.setattr(fmp, "research_section", lambda symbol, section: [statement(reportedCurrency="USDT")] if section == "income" else provider(symbol, section))
     assert request()[1]["income"][0]["currency"] is None
+
+
+def test_advisor_fields_are_normalized(aws, monkeypatch):
+    monkeypatch.setattr(fmp, "research_section", provider)
+    body = request()[1]
+    assert body["valuation"]["dividendYield"] == 0.00310787
+    assert body["profile"]["beta"] == 1.085 and body["profile"]["marketCap"] == 5009416510920
+    assert body["profile"]["nextEarningsDate"] == "2999-10-29"
+    assert_matches("/market/company-research", "get", 200, body)
+
+
+@pytest.mark.parametrize(("raw", "expected"), [
+    (0.00310787, 0.00310787),  # FMP ratios-ttm reports a FRACTION (verified live: AAPL 1.06/341 ~ 0.0031)
+    (0.0239, 0.0239),
+    (2.39, None),  # percent-shaped (239% as a fraction) is bad data, never divided or shown
+    (0.3, None),  # over 25% yield is almost certainly a unit bug
+    (0, 0),  # a reported zero is "pays no dividend", distinct from unknown
+    (-0.01, None), (None, None), (True, None), ("0.01", None), (float("nan"), None)])
+def test_dividend_yield_percent_vs_fraction_units(aws, monkeypatch, raw, expected):
+    def payload(symbol, section):
+        if section == "valuation":
+            return [{"symbol": symbol, "priceToEarningsRatioTTM": 20, "dividendYieldTTM": raw}]
+        return provider(symbol, section)
+    monkeypatch.setattr(fmp, "research_section", payload)
+    assert request()[1]["valuation"]["dividendYield"] == expected
+
+
+def test_missing_advisor_fields_are_null(aws, monkeypatch):
+    def sparse(symbol, section):
+        if section == "profile":
+            return [{"symbol": symbol, "companyName": "Example company", "marketCap": 0, "beta": float("inf")}]
+        if section == "valuation":
+            return [{"symbol": symbol}]
+        if section == "earnings":
+            return [{"symbol": symbol, "date": "2020-01-30"}, {"symbol": "OTHER", "date": "2999-01-01"},
+                    {"symbol": symbol, "date": "not a date"}, None]
+        return provider(symbol, section)
+    monkeypatch.setattr(fmp, "research_section", sparse)
+    body = request()[1]
+    assert body["valuation"]["dividendYield"] is None
+    assert body["profile"]["marketCap"] is None and body["profile"]["beta"] is None
+    assert body["profile"]["nextEarningsDate"] is None
+    assert_matches("/market/company-research", "get", 200, body)
+
+
+def test_earnings_failure_never_hides_profile_and_funds_skip_it(aws, monkeypatch):
+    calls = []
+    def flaky(symbol, section):
+        calls.append(section)
+        if section == "earnings":
+            raise UpstreamError("fmp", "HTTP 402")
+        if section == "profile" and symbol == "VOO":
+            return [{"symbol": symbol, "companyName": "Example ETF", "isEtf": True}]
+        return provider(symbol, section)
+    monkeypatch.setattr(fmp, "research_section", flaky)
+    body = request()[1]
+    assert body["profile"]["name"] == "Example company" and body["profile"]["nextEarningsDate"] is None
+    assert "profile" not in body["unavailable"]
+    calls.clear()
+    assert request("VOO")[1]["profile"]["nextEarningsDate"] is None
+    assert "earnings" not in calls
+
+
+def test_next_earnings_picks_the_nearest_future_date(aws, monkeypatch):
+    def dates(symbol, section):
+        if section == "earnings":
+            return [{"symbol": symbol, "date": d} for d in ("2999-12-01", "2999-03-01", "2001-01-01")]
+        return provider(symbol, section)
+    monkeypatch.setattr(fmp, "research_section", dates)
+    assert request()[1]["profile"]["nextEarningsDate"] == "2999-03-01"
+
+
+def test_cached_earnings_date_in_the_past_is_dropped_on_read(aws, monkeypatch):
+    monkeypatch.setattr(fmp, "research_section", provider)
+    assert request()[1]["profile"]["nextEarningsDate"] == "2999-10-29"
+    row = db.get("CACHE#fmp", "research:v2:AAPL:profile")
+    row["value"]["value"]["nextEarningsDate"] = "2020-01-30"
+    db.put("CACHE#fmp", "research:v2:AAPL:profile", row)
+    body = request()[1]
+    assert body["profile"]["nextEarningsDate"] is None and body["profile"]["name"] == "Example company"
+    assert_matches("/market/company-research", "get", 200, body)

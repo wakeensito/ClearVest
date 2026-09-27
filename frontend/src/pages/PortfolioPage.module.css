@@ -21,6 +21,8 @@
 .filter { display: flex; align-items: center; gap: 8px; padding-left: 12px; border: 1px solid var(--cv-border-input); border-radius: var(--cv-radius); color: var(--cv-text-tertiary); width: 200px; }
 .filter input { width: 100%; min-width: 0; border: 0; background: transparent; padding: 10px 8px 10px 0; height: 44px; font-size: 13px; }
 .empty { padding: 24px; color: var(--cv-text-secondary); }
+.byType { display: grid; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--cv-border); }
+.byTypeTitle { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-secondary); }
 .allocationIntro { font-size: 13px; line-height: 20px; color: var(--cv-text-secondary); margin-bottom: 20px; }
 .askCard { background: var(--cv-accent-subtle); border-radius: var(--cv-radius-panel); padding: 24px; }
 .askCard h2 { margin-bottom: 8px; }

@@ -38,6 +38,30 @@ def _date(value):
         return None
 
 
+def _positive(value):
+    number = _number(value)
+    return number if number is not None and number > 0 else None
+
+
+def _dividend_yield(value):
+    """FMP ratios-ttm `dividendYieldTTM` is a FRACTION (verified live 2026-09-26: AAPL 0.0031 =
+    1.06 / 341). Stored as-is. A reported 0 stays 0 (pays no dividend); null means unknown: missing,
+    negative, or over 25% (a unit bug or garbage, never divided or shown)."""
+    number = _number(value)
+    return number if number is not None and 0 <= number <= 0.25 else None
+
+
+def _today():
+    return datetime.now(UTC).date().isoformat()
+
+
+def _next_earnings(symbol, rows):
+    today = _today()
+    dates = [_date(r.get("date")) for r in rows
+             if isinstance(r, dict) and str(r.get("symbol", "")).upper() == symbol]
+    return min((d for d in dates if d and d >= today), default=None)
+
+
 def _normalize(symbol, section, rows):
     valid = [r for r in rows if isinstance(r, dict) and str(r.get("symbol", "")).upper() == symbol]
     if rows and not valid:
@@ -51,14 +75,17 @@ def _normalize(symbol, section, rows):
         return {"name": _text(row.get("companyName")), "description": _text(row.get("description")),
                 "sector": _text(row.get("sector")), "industry": _text(row.get("industry")),
                 "currency": _currency(row.get("currency")),
-                "isFund": row.get("isEtf") is True or row.get("isFund") is True}
+                "isFund": row.get("isEtf") is True or row.get("isFund") is True,
+                "beta": _number(row.get("beta")), "marketCap": _positive(row.get("marketCap")),
+                "nextEarningsDate": None}
     if section == "valuation":
         if not valid:
             return None
         row = valid[0]
         return {"pe": _number(row.get("priceToEarningsRatioTTM")),
                 "eps": _number(row.get("netIncomePerShareTTM")),
-                "ps": _number(row.get("priceToSalesRatioTTM"))}
+                "ps": _number(row.get("priceToSalesRatioTTM")),
+                "dividendYield": _dividend_yield(row.get("dividendYieldTTM"))}
     result, seen = [], set()
     for row in sorted(valid, key=lambda r: str(r.get("date", "")), reverse=True):
         end = _date(row.get("date"))
@@ -80,10 +107,16 @@ def _normalize(symbol, section, rows):
 
 def _section(symbol, section):
     def fetch():
-        return {"value": _normalize(symbol, section, fmp.research_section(symbol, section)),
-                "fetchedAt": datetime.now(UTC).isoformat()}
+        value = _normalize(symbol, section, fmp.research_section(symbol, section))
+        if section == "profile" and value and not value["isFund"]:
+            # Folded into the profile snapshot: an optional extra, so its failure never costs the profile.
+            try:
+                value["nextEarningsDate"] = _next_earnings(symbol, fmp.research_section(symbol, "earnings"))
+            except UpstreamError:
+                pass
+        return {"value": value, "fetchedAt": datetime.now(UTC).isoformat()}
     try:
-        snapshot, stale = cache.get_or_fetch("fmp", f"research:v1:{symbol}:{section}", TTL, fetch)
+        snapshot, stale = cache.get_or_fetch("fmp", f"research:v2:{symbol}:{section}", TTL, fetch)
         return section, snapshot, stale
     except UpstreamError:
         return section, None, False
@@ -104,6 +137,11 @@ def research():
             body["unavailable"].append(section)
         else:
             body[section] = snapshot["value"]
+            if section == "profile" and snapshot["value"]:
+                # A cached snapshot can outlive its earnings date; never report a past date as "next".
+                upcoming = snapshot["value"].get("nextEarningsDate")
+                body[section] = {**snapshot["value"],
+                                 "nextEarningsDate": upcoming if upcoming and upcoming >= _today() else None}
             body["sources"].append({"section": section, "provider": "FMP",
                                     "fetchedAt": snapshot["fetchedAt"], "stale": stale})
     return body

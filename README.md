@@ -165,6 +165,18 @@ npm run lint && npm run typecheck && npm test && npm run build   # what CI runs
 breaks the UI fails CI. To use the real backend, copy `frontend/.env.example` to `frontend/.env.local` and set
 `VITE_API_BASE_URL` to the deployed `ApiUrl`.
 
+Phone-first Playwright checks against a dev server, with every API call intercepted (no backend or Prism needed):
+
+```bash
+cd frontend
+npx vite --port 5174 --strictPort --host 127.0.0.1 &   # a preview server just for these checks
+npm run test:browser           # full-app desktop + phone regression
+npm run test:fund-explainer    # "What is this?" security research explainer (DESIGN.md §4.13)
+npm run test:markets-advisor   # markets discovery: watchlist, search, company financials
+npm run test:portfolio-xray    # what you really own, plan vs. today, ticker what-if (§4.14–§4.15)
+npm run test:history-refresh   # background market-history refresh polling
+```
+
 ## Handoffs
 
 Everyone works on a different slice, so context lives in [`docs/handoffs/`](docs/handoffs/). **Before you start:** read the newest handoff for your area. **After every merged PR or milestone:** add a new one (copy `docs/handoffs/_TEMPLATE.md`) in the same PR. Agents pick this up automatically via `AGENTS.md` / `CLAUDE.md`.

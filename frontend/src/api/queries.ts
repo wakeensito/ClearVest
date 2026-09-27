@@ -1,5 +1,6 @@
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type Profile, type HistoryRange, type MarketCategory } from './client'
+import { QueryClient, useMutation, useQueries, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { api, type Fund, type Profile, type HistoryRange, type MarketCategory } from './client'
+import type { FundState } from '../lib/fundExplainer'
 import { isApiError } from './errors'
 import { symbolsError } from '../lib/compare'
 import { historyRefreshInterval } from '../lib/historyRefresh'
@@ -90,9 +91,39 @@ export const useCompanyResearch = (symbol: string) => useQuery({
   staleTime: 15 * 60_000,
 })
 
-export const useCompanySearch = (query: string) => useQuery({
+/** Shared by the hook and by SymbolSearch's Enter, which awaits the same cached request. */
+export const companySearchQuery = (query: string) => ({
   queryKey: ['company-search', query.toLowerCase()],
   queryFn: () => api.searchCompanies(query),
-  enabled: query.trim().length > 0,
   staleTime: 15 * 60_000,
 })
+
+export const useCompanySearch = (query: string) => useQuery({
+  ...companySearchQuery(query),
+  enabled: query.trim().length > 0,
+})
+
+/** Bundled model portfolios (not user-specific); change essentially never, so cache a full day. */
+export const useTemplates = () =>
+  useQuery({
+    queryKey: ['templates'],
+    queryFn: api.getTemplates,
+    staleTime: 24 * 60 * 60_000,
+    gcTime: 24 * 60 * 60_000,
+  })
+
+/** What a security is (kind, index, fees, top holdings). Fund facts change slowly, so keep them a day. */
+const fundQuery = (symbol: string) => ({
+  queryKey: ['fund', symbol] as const,
+  queryFn: () => api.getFund(symbol),
+  enabled: /^[A-Z0-9.^-]{1,12}$/.test(symbol),
+  staleTime: 24 * 60 * 60_000,
+  gcTime: 24 * 60 * 60_000,
+})
+export const useFund = (symbol: string) => useQuery(fundQuery(symbol))
+/** One fund query per symbol, in the same order, sharing the cache with `useFund`. */
+export const useFunds = (symbols: readonly string[]) => useQueries({ queries: symbols.map(fundQuery) })
+
+/** Error wins over stale data so a failed refetch hides the identity line rather than lying. */
+export const toFundState = (query: UseQueryResult<Fund>): FundState =>
+  query.isError ? { status: 'error' } : query.data ? { status: 'success', fund: query.data } : { status: 'pending' }

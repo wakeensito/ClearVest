@@ -1,0 +1,45 @@
+/* DESIGN.md §4.15. Lives inside the rail Card, so no surface of its own. */
+.plan { display: grid; gap: 16px; min-width: 0; }
+
+.picker { display: grid; gap: 6px; }
+.pickerHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.label { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-secondary); }
+
+.selectWrap { position: relative; }
+.select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 36px 0 12px;
+  appearance: none;
+  background: var(--cv-surface);
+  border: 1px solid var(--cv-border-input);
+  border-radius: var(--cv-radius);
+  color: var(--cv-text);
+  font: 500 13px/20px var(--cv-font-sans);
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.select:hover { border-color: var(--cv-accent); }
+.select:focus-visible { outline: 2px solid var(--cv-accent); outline-offset: 2px; }
+.chevron { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--cv-text-secondary); }
+
+/* Two bars of equal height, so the eye compares lengths, not thicknesses. */
+.bars { display: grid; gap: 10px; }
+.barRow { display: grid; gap: 4px; min-width: 0; }
+.barLabel { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar { display: flex; gap: 2px; height: 12px; }
+.bar span { flex-basis: 0; min-width: 2px; }
+
+.legend { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; line-height: 20px; }
+.legend th, .legend td { padding: 4px 0; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
+.legend th:first-child { text-align: left; width: 50%; }
+.legend thead th { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-tertiary); }
+.legend tbody th { font-weight: 400; color: var(--cv-text-secondary); }
+.swatch { display: inline-block; width: 8px; height: 8px; margin-right: 8px; vertical-align: 1px; }
+
+.read { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--cv-border); }
+.lead { font-size: 15px; line-height: 24px; font-weight: 500; color: var(--cv-text); font-variant-numeric: lining-nums tabular-nums; }
+.ask { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 13px; line-height: 20px; font-weight: 500; }
+.ask svg { flex-shrink: 0; }
+
+.dataLine { font-size: 12px; line-height: 18px; color: var(--cv-text-tertiary); }

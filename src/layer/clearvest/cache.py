@@ -22,7 +22,14 @@ def _pk(provider: str) -> str:
     return f"CACHE#{provider}"
 
 
-def get_or_fetch(provider: str, key: str, ttl_seconds: int, fetch: Callable[[], Any]) -> tuple[Any, bool]:
+def get_or_fetch(
+    provider: str, key: str, ttl_seconds: int, fetch: Callable[[], Any],
+    ttl_for: Callable[[Any], int] | None = None,
+) -> tuple[Any, bool]:
+    """`ttl_for(value)`, when given, replaces `ttl_seconds` for the value just fetched - e.g. a
+    result that only *looks* successful (a fallback that stands in for a transient failure) can
+    be cached for a short time instead of the normal TTL, so a retry happens soon without the
+    caller needing a second cache key."""
     now = time.time()
     row = db.get(_pk(provider), key)
     if row and row["expiresAt"] > now:
@@ -34,7 +41,7 @@ def get_or_fetch(provider: str, key: str, ttl_seconds: int, fetch: Callable[[], 
             logger.warning("serving stale cache", extra={"provider": provider, "key": key, "detail": err.detail})
             return row["value"], True
         raise
-    _put(provider, key, value, ttl_seconds, now)
+    _put(provider, key, value, ttl_for(value) if ttl_for else ttl_seconds, now)
     return value, False
 
 

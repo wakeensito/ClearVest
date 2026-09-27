@@ -12,6 +12,8 @@ import { SecurityResearch } from '../components/market/ResearchPanel'
 import { AllocationBar } from '../components/portfolio/AllocationBar'
 import { HoldingsTable } from '../components/portfolio/HoldingsTable'
 import { MacroCard } from '../components/portfolio/MacroCard'
+import { OwnershipXray, OwnershipXraySkeleton } from '../components/portfolio/OwnershipXray'
+import { PlanVsActual } from '../components/portfolio/PlanVsActual'
 import { RiskCard } from '../components/portfolio/RiskCard'
 import { QueryView } from '../components/QueryView'
 import { StaleBadge } from '../components/ui/Badge'
@@ -43,7 +45,10 @@ export function PortfolioPage() {
       </section>
       <div className={styles.grid}>
         <div className={styles.main}>
-          <SecurityResearch />
+          {!notLinked && <QueryView query={holdings} label="Loading what you own" noun="Your holdings" skeleton={<OwnershipXraySkeleton />}>
+            {(data) => <OwnershipXray data={data} hideValues={hidden} />}
+          </QueryView>}
+          <SecurityResearch invite={false} />
           {!notLinked && <section className={styles.holdings} aria-labelledby="holdings-heading">
             <div className={styles.holdingsHeader}>
               <div><h2 id="holdings-heading" className="t-h2">Holdings</h2><p className="t-body-sm c-secondary">Holdings are investments you own. Select a symbol to learn about it.</p></div>
@@ -58,8 +63,11 @@ export function PortfolioPage() {
           </section>}
         </div>
         <aside className={styles.rail} aria-label="Portfolio context">
-          {!notLinked && <Card title="Portfolio mix">
-            <QueryView query={holdings} label="Loading allocation" noun="Your allocation">{(data) => <><p className={styles.allocationIntro}>How your money is allocated across asset types.</p><AllocationBar holdings={data.holdings} hideValues={hidden} /></>}</QueryView>
+          {!notLinked && <Card title="Your plan vs. today">
+            <QueryView query={holdings} label="Loading allocation" noun="Your allocation">{(data) => data.holdings.some((h) => h.value > 0) ? <>
+              <PlanVsActual holdings={data.holdings} />
+              <div className={styles.byType}><h4 className={styles.byTypeTitle}>By investment type</h4><AllocationBar holdings={data.holdings} hideValues={hidden} /></div>
+            </> : <p className={styles.allocationIntro}>Your mix will appear here once the account holds investments.</p>}</QueryView>
           </Card>}
           {!notLinked && <RiskCard hideDetails={hidden} />}
           <AskCard holdings={holdings.data} />

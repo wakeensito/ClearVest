@@ -1,10 +1,14 @@
-import { ArrowLeft, Check, MessageCircle, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Check, MessageCircle, RotateCcw, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
+import { useFunds, useHoldings } from '../../api/queries'
 import { Button, ButtonLink } from '../../components/ui/Button'
+import { currencyWhole, date, percentFromFraction } from '../../lib/format'
+import { CONCENTRATION_FLOOR, floorShare, fromLiveFund, FUND_SNAPSHOTS, heldFunds, lookthrough, spotlight, type Exposure, type FundData } from '../../lib/lookthrough'
 import { LEARNING_SOURCE } from '../../lib/learning'
-import { findLesson, ALL_LESSONS } from '../../lib/lessons'
+import { findLesson, ALL_LESSONS, type FundPlay } from '../../lib/lessons'
 import { completeLesson, loadProgress, saveProgress } from '../../lib/learnProgress'
+import { FundStrip } from './FundStrip'
 import styles from './Learn.module.css'
 
 export function LessonPage() {
@@ -22,7 +26,10 @@ function MissingLesson() {
 }
 
 function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof findLesson>>) {
-  const total = lesson.cards.length + lesson.quiz.length
+  // A "play" lesson swaps the quiz for the fund's decisions; everything else (cards, progress) is the same.
+  const play = lesson.play
+  const questions = play?.decisions ?? lesson.quiz
+  const total = lesson.cards.length + questions.length
   const [step, setStep] = useState(0)
   const [choice, setChoice] = useState<number | null>(null)
   const [correct, setCorrect] = useState(0)
@@ -43,8 +50,10 @@ function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof fin
     setChoice(null)
     setStep(step + 1)
   }
+  const replay = () => { setChoice(null); setCorrect(0); setStep(0) }
   const card = lesson.cards[step]
-  const question = step >= lesson.cards.length ? lesson.quiz[step - lesson.cards.length] : undefined
+  const question = step >= lesson.cards.length ? questions[step - lesson.cards.length] : undefined
+  const decision = play && question ? play.decisions[step - lesson.cards.length] : undefined
   const answered = choice !== null
   const advisorLink = `/advisor?q=${encodeURIComponent(lesson.askPrompt)}`
 
@@ -62,15 +71,18 @@ function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof fin
       <h1 id="step-heading" ref={headingRef} tabIndex={-1} className={styles.lessonTitle}>{card.heading}</h1>
       <p className={styles.cardBody}>{card.body}</p>
       {card.example && <p className={styles.cardExample}><strong>Example</strong>{card.example}</p>}
+      {play && <FundStrip play={play} />}
       <div className={styles.stageActions}>
         {step > 0 && <Button onClick={() => setStep((s) => s - 1)} icon={<ArrowLeft size={16} aria-hidden />}>Back</Button>}
-        <Button variant="primary" onClick={advance}>{step + 1 === lesson.cards.length ? 'Check what you learned' : 'Continue'}</Button>
+        <Button variant="primary" onClick={advance}>{step + 1 !== lesson.cards.length ? 'Continue' : play ? 'Make your first call' : 'Check what you learned'}</Button>
       </div>
     </section>}
 
     {question && <section className={styles.stage} aria-labelledby="step-heading">
-      <p className={styles.stepLabel}>Quick check · {step - lesson.cards.length + 1} of {lesson.quiz.length}</p>
+      <p className={styles.stepLabel}>{decision ? 'Decision' : 'Quick check'} · {step - lesson.cards.length + 1} of {questions.length}</p>
       <h1 id="step-heading" ref={headingRef} tabIndex={-1} className={styles.lessonTitle}>{question.question}</h1>
+      {decision && <p className={styles.situation}>{decision.situation}</p>}
+      {play && <FundStrip play={play} focus={decision?.focus} />}
       <div className={styles.options} role="group" aria-label="Answer choices">
         {question.options.map((option, i) => {
           const state = !answered ? '' : i === question.answer ? styles.optionRight : i === choice ? styles.optionWrong : styles.optionMuted
@@ -84,8 +96,9 @@ function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof fin
       </div>
       <div aria-live="polite">
         {answered && <div className={`${styles.feedback} ${choice === question.answer ? styles.feedbackRight : styles.feedbackWrong}`}>
-          <strong>{choice === question.answer ? 'Nice, that’s right.' : 'Not quite.'}</strong>
+          <strong>{decision ? (choice === question.answer ? 'That’s the fund’s call.' : 'The fund’s call is different.') : choice === question.answer ? 'Nice, that’s right.' : 'Not quite.'}</strong>
           <p>{question.explain}</p>
+          {decision && <p className={styles.payoff}>{decision.payoff}</p>}
         </div>}
       </div>
       <div className={styles.stageActions}>
@@ -96,9 +109,12 @@ function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof fin
     {finished && <section className={`${styles.stage} ${styles.done}`} aria-labelledby="step-heading">
       <span className={styles.doneBadge} aria-hidden><Check size={28} /></span>
       <h1 id="step-heading" ref={headingRef} tabIndex={-1} className={styles.lessonTitle}>Lesson complete</h1>
-      <p className={styles.cardBody}>You got {correct} of {lesson.quiz.length} questions right{correct === lesson.quiz.length ? '. Great work.' : '. Every mistake is part of learning.'}</p>
-<p className={styles.source}>Every idea counts. Come back whenever you’re ready.</p>
+      {play
+        ? <p className={styles.cardBody}>You made {correct} of {questions.length} fund calls{correct === questions.length ? '. You ran it exactly like the index does.' : '. The fund would have made every call the same way, every time.'}</p>
+        : <p className={styles.cardBody}>You got {correct} of {questions.length} questions right{correct === questions.length ? '. Great work.' : '. Every mistake is part of learning.'}</p>}
+      {play ? <FundPayoff play={play} /> : <p className={styles.source}>Every idea counts. Come back whenever you’re ready.</p>}
       <div className={styles.stageActions}>
+        {play && <Button onClick={replay} icon={<RotateCcw size={16} aria-hidden />}>Play again</Button>}
         {next && <ButtonLink to={`/learn/${next.id}`} variant="primary" arrow>Next: {next.title}</ButtonLink>}
         {lesson.id === 'stocks-and-bonds' && <ButtonLink to="/markets?symbol=AAPL&guided=1">Try reading a real company</ButtonLink>}
         <ButtonLink to={advisorLink} icon={<MessageCircle size={16} aria-hidden />}>Ask the advisor about this</ButtonLink>
@@ -108,5 +124,62 @@ function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof fin
 
     <details className={styles.lessonSources}><summary>Learning sources</summary><p><a href={LEARNING_SOURCE} target="_blank" rel="noreferrer">Investor.gov introduction to investing</a></p>{['employer-plans', 'roth-vs-traditional'].includes(lesson.id) && <p><a href="https://www.irs.gov/newsroom/401k-limit-increases-to-24500-for-2026-ira-limit-increases-to-7500" target="_blank" rel="noreferrer">IRS contribution limits for 2026</a></p>}</details>
     <p className={styles.source}>Educational information, not financial advice. Investing involves risk, including loss of principal.</p>
+  </div>
+}
+
+/** Only true words: "picked" needs direct shares, "inside your funds" needs fund exposure. */
+function pickedLine(top: readonly Exposure[]): string {
+  const them = top.length === 1 ? 'it' : 'them'
+  const inFunds = (c: Exposure) => c.viaFunds.length > 0
+  if (top.every((c) => !inFunds(c))) return ''
+  if (top.every((c) => c.direct > 0 && inFunds(c))) return `You picked ${them} once and got ${them} again inside your funds.`
+  if (top.every((c) => c.direct === 0 && inFunds(c))) return `You never picked ${them}. ${top.length === 1 ? 'It' : 'They'} came with your funds.`
+  return 'Some of it you picked; the rest came with your funds.'
+}
+
+/**
+ * Ties the fund back to the user. The generic line shows at once; it becomes personal only when the
+ * holdings query resolves with something to count. Loading, errors, no account: the generic line stays.
+ * Mounted only on the score screen, so the lesson itself never calls the API.
+ *
+ * Each fund the user holds is opened up with `GET /market/fund` (live weights, cached a day). Until a
+ * fund's call lands, or if it fails, the bundled snapshot for that fund stands in; a fund with neither
+ * is left out, which the "at least" already covers. So the numbers show immediately and only move by
+ * whatever the live weights differ from the snapshot, which is little.
+ */
+function FundPayoff({ play }: { play: FundPlay }) {
+  const { data } = useHoldings()
+  const symbols = useMemo(() => heldFunds(data?.holdings), [data])
+  const live = useFunds(symbols)
+  // A handful of rows; recomputing on every render is cheaper than tracking the query results as deps.
+  const funds: Record<string, NonNullable<FundData[string]>> = {}
+  symbols.forEach((symbol, i) => {
+    const fund = fromLiveFund(live[i]?.data) ?? FUND_SNAPSHOTS[symbol]
+    if (fund) funds[symbol] = fund
+  })
+  const result = data?.holdings.length ? lookthrough(data.holdings, funds) : null
+  const top = result ? spotlight(result) : []
+  const company = play.holdings.find((h) => h.symbol === play.spotlight)?.name ?? play.spotlight
+  const weight = percentFromFraction(play.holdings.find((h) => h.symbol === play.spotlight)?.weight)
+  const asOf = result?.asOf ?? play.asOf
+  return <div className={styles.cardExample}>
+    <strong>What this means for you</strong>
+    {!result
+      ? <span>If you own {play.fund}, about {weight} of that money is {company}, whether you chose it or not.</span>
+      : top.length === 0
+        ? <span>No company we can see is more than {percentFromFraction(CONCENTRATION_FLOOR, { digits: 0 })} of your money, counting what sits inside your funds.</span>
+        : <>
+          <span>At least {percentFromFraction(floorShare(top), { digits: 0 })} of your money is {top.length === 1 ? 'one company' : 'two companies'}: {top.map((c) => c.name).join(' and ')}. {pickedLine(top)}</span>
+          <ul className={styles.lookthrough} aria-label="Where that money sits">
+            {top.map((c) => <li key={c.symbol}>
+              <strong>{c.name}</strong> {currencyWhole(c.total)}
+              <span className={styles.lookthroughParts}>
+                {c.direct > 0 && <span>{currencyWhole(c.direct)} held directly</span>}
+                {c.viaFunds.filter((v) => v.dollars >= 0.5).map((v) => <span key={v.fund}>{currencyWhole(v.dollars)} in {v.fund}</span>)}
+              </span>
+            </li>)}
+          </ul>
+        </>}
+    <span className={styles.asOf}>{result && result.funds.length ? `Counted from each fund’s published top ten, so the real number is higher. Weights as of ${date(asOf)}.` : `Weights as of ${date(play.asOf)}, from the fund’s published top ten.`}</span>
   </div>
 }

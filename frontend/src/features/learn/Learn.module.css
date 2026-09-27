@@ -96,3 +96,34 @@
 .lessonSources { font-size: 13px; color: var(--cv-text-secondary); }
 .lessonSources summary { cursor: pointer; min-height: 44px; padding-block: 12px; }
 .lessonSources a { display: inline-block; min-height: 44px; padding-block: 10px; }
+
+/* "Be the fund": the holdings strip above each decision, and the payoff under the feedback. */
+.fund { display: grid; gap: 8px; padding: 16px; border-radius: var(--cv-radius); background: var(--cv-surface-sunken); }
+.fundTable { width: 100%; border-collapse: collapse; }
+.fundCaption { text-align: left; font-size: 13px; font-weight: 600; color: var(--cv-text-secondary); padding-bottom: 8px; }
+.fundTable th, .fundTable td { padding: 4px 0; font-weight: 400; vertical-align: middle; }
+.fundTable th { text-align: left; width: 45%; }
+.fundTable td { display: flex; align-items: center; gap: 10px; }
+.fundSymbol { display: inline-block; min-width: 56px; font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
+.fundName { font-size: 13px; color: var(--cv-text-secondary); }
+.fundBar { flex: 1; height: 10px; border-radius: 999px; background: var(--cv-border); overflow: hidden; }
+.fundBar span { display: block; height: 100%; background: var(--cv-viz-6); border-radius: inherit; }
+.fundWeight { min-width: 44px; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; }
+.fundFocus th, .fundFocus td { color: var(--cv-accent); }
+.fundFocus .fundName, .fundFocus .fundWeight { color: var(--cv-accent); font-weight: 600; }
+.fundFocus .fundBar span { background: var(--cv-accent); }
+.fundRest { font-size: 13px; line-height: 20px; color: var(--cv-text-secondary); }
+.situation { font-size: 16px; line-height: 26px; color: var(--cv-text-secondary); max-width: 60ch; }
+.payoff { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--cv-border); color: var(--cv-text-secondary); }
+.asOf { color: var(--cv-text-tertiary); font-size: 12px; }
+.lookthrough { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.lookthrough li { font-variant-numeric: tabular-nums; }
+.lookthrough li > strong { font-size: 15px; color: var(--cv-text); }
+.lookthroughParts { display: block; font-size: 13px; line-height: 20px; color: var(--cv-text-secondary); }
+.lookthroughParts span + span::before { content: ' · '; }
+@media (max-width: 767px) {
+  .fund { padding: 12px; }
+  .fundTable th { width: 40%; }
+  .fundName { display: none; }
+  .fundSymbol { min-width: 0; }
+}

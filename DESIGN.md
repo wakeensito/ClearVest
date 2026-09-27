@@ -83,7 +83,8 @@ holdings; it does not recompute the account balance or allocation.
 
 A stacked bar and a vertical legend show asset-type composition in the context column. Long-position
 values are aggregated by type. If shorts exist, explain that the bar excludes them. Do not show a
-percentage-based asset mix for an empty account.
+percentage-based asset mix for an empty account. The rail card is titled “Your plan vs. today” (§4.15);
+this by-type bar sits under it as “By investment type”, the detail behind the plan comparison.
 
 ### 4.6 Risk and context
 
@@ -135,8 +136,17 @@ null. Escape and neutralize formula-like CSV strings. Export happens entirely in
 
 ### 4.9 Compact market lists and research workspace
 
-Market overview and Compare companies use clearly bordered, filled buttons. Overview starts with two
-compact surfaces side by side. Top 10 most active has ten ranked rows in a 300px scroll region, showing
+Market overview and Compare companies use clearly bordered, filled buttons. Overview starts with the
+learner's watchlist (non-guided only; `components/market/Watchlist.tsx`, store `lib/watchlist.ts`):
+starred symbols, newest first, at most 20, per demo user on this device. Each row is the symbol (links to
+`/markets?symbol=X`), the name only if the page already cached it (else `—`, never a per-row fetch), the
+signed 1-year return as a gain/loss `Badge`, and a 44px remove `×`. Returns come from `/market/history`
+in chunks of five symbols; a pending refresh shows `Dots`. Empty: one sentence and a link to VOO. The
+Watch/Watching star toggle (`aria-pressed`) sits beside the fund identity line in Security research.
+
+Trading activity is demoted: below the research workspace, a collapsed `<details>` “Market activity:
+most active, gainers and losers” mounts the board (and its `/market/movers` calls) only once opened.
+Inside it, two compact surfaces sit side by side. Top 10 most active has ten ranked rows in a 300px scroll region, showing
 five 60px rows at once. The second surface switches between Top gainers and Top losers in place; only
 the selected list loads. Both support keyboard scrolling, signed daily moves and cached/empty/error
 states. Company symbols have FMP logo images, falling back to labelled initials when unavailable.
@@ -174,9 +184,17 @@ show its calendar date and distinguish that from our retrieval time. News is cac
 
 The default route is a small interactive explanation of a share, using a clearly fictional business
 with 100 equal shares. It offers an optional knowledge check and paths into Learn, research and
-portfolio context. Three research milestones track understanding on this browser, scoped to the demo
-user ID. They award no points for trades, investment returns or daily streaks. This does not replace
-the course progression. Home resumes the first unfinished lesson once a lesson has been completed.
+portfolio context. A primary action under the headline starts (or resumes) the starter lessons, so
+there is a clear first step above the fold on phones. A correct answer to the share check reveals
+“So how do investors spot sturdier companies?”: four clues from the financial statements (revenue,
+net income, debt, P/E), a caution that clues never guarantee a price won’t drop, a primary link to
+guided research on Apple, an “Ask the professor to explain” advisor prefill, and a “Next: <lesson>”
+link into the first unfinished lesson. The three path links end with a visible
+action label and arrow so they read as links. One “Your progress” panel shows both starter-lesson
+progress (count and meter) and the three research milestones (“Understand a share”, “Tell sales
+from profit”, “Understand how a stock is priced”), stored separately on this browser and scoped to
+the demo user ID. They award no points for trades, investment returns or daily streaks. Home resumes
+the first unfinished lesson once a lesson has been completed.
 
 `guided=1` on Markets hides movers and introduces a company through three explicit steps: its
 business, annual sales/profit, and valuation. The chart opens on request. The normal market overview
@@ -198,8 +216,10 @@ when the original comparison contract omits currency.
 
 `/market/company-research` caches profile, income, current ratios and historical ratios independently
 for one day. A section failure preserves other sections and exposes a retry. Each source keeps its
-original retrieval timestamp through a stale fallback. `/market/search` supports names and tickers;
-lookup is submitted explicitly. Browser demonstrations use contract fixtures, not live entitlement.
+original retrieval timestamp through a stale fallback. `/market/search` supports names and tickers.
+One search box (`SymbolSearch`) takes both: from two characters it suggests up to eight matches after a
+300 ms pause (in-flow listbox, name truncated, never blocks Enter); a ticker-shaped entry goes straight to
+the chart unless the suggestions say otherwise (`lib/searchBox.ts`). Browser demonstrations use contract fixtures, not live entitlement.
 
 Explanations use everyday language, disclose details only when needed, and include local feedback on
 sales versus profit and on interpreting P/E. Contextual disclosures also explain charts, portfolios,
@@ -230,6 +250,256 @@ surface, and a 12px shade on the right edge hints at more content until the end 
 `contain: inline-size` keeps a wide table from widening the page. The advisor prompt asks for at most
 three columns and six rows.
 
+### 4.13 Fund explainer ("What is this?")
+
+For a beginner who just linked an account and owns VOO without knowing what it is. One glance answers
+"what is this thing I own?"; more is one tap away; one tap returns to the plain search. It is inline:
+no new page, tab or modal. Data comes from `GET /market/fund` (`api.getFund`, `useFund`, one-day
+`staleTime`); rules live in `lib/fundExplainer.ts`, views in `components/market/FundExplainer.tsx`.
+Deeper learning: see #44.
+
+**Identity line.** Directly under the ticker search: “VOO · Index fund (ETF)” and, only when `tracks`
+is set, “Tracks the Standard & Poor's 500 Index”, plus an outlined “What is this?” button (44px,
+`aria-expanded`). Kind labels: index ETF “Index fund (ETF)”, ETF “ETF”, index mutual fund “Index fund
+(mutual fund)”, mutual fund “Mutual fund”, stock “Company stock”, index “Stock market index”, crypto
+“Cryptocurrency”, anything else “Investment”. `leveraged` wins over all of these: “Leveraged ETF · high
+risk”, with “high risk” in semibold `loss` (the words carry the meaning; color only reinforces it). A
+leveraged fund never gets index-fund copy, even when the provider says it tracks an index. Loading
+shows a quiet, `aria-hidden` two-line skeleton; an error removes the line. Fund data never blocks or
+replaces the chart. Closed, nothing else is added to the research card.
+
+**Open explainer.** Opens directly below the identity line and pushes the chart down. A sticky bar
+(“VOO explained” + Done) sits under the app top bar. Three items stay visible, each at most two lines at
+375px: (1) What is it? — the first sentence of the API `summary`; (2) What's inside? — the dollar strip
+and “Of every $1: 8¢ NVIDIA · 7¢ Apple · 6¢ Microsoft + hundreds more” (“+ hundreds more” for a plain
+index fund, “+ more” otherwise; the API has no holdings count); (3) What does it cost? — “About $3 a
+year on every $10,000 invested · expense ratio 0.03%” (ratio × 10,000, whole dollars; “Under $1” below
+$0.50; “No yearly fee” at 0; “Fee information isn't available.” when null). Stocks show step 1 only,
+unnumbered, with “See what this company earns →”, which scrolls to and focuses `[data-company-financials]`
+(or opens Markets, where that section exists). An index shows step 1 and “You can't buy an index
+directly; index funds like VOO copy it.” with “Research VOO →”, which switches the panel's ticker.
+Crypto and “other” show step 1 only. A 12px data line gives the as-of date, “saved copy” when stale, and “Summary written
+by AI” when `summarySource` is `model`. Measured at 375px: 528px tall, 672px with a chip answer open.
+
+**Dollar strip (signature).** One 32px bar is $1. Up to ten holdings are slices proportional to weight,
+largest first, with 2px surface gaps; the rest is “Everything else” on `surface-sunken` (labelled only
+when it is at least 35% wide). Slices are a sequential accent ramp: `accent`, then 72%, 50% and (holdings
+4–10) 24% mixes with `surface`. The viz scale is not used: `viz-1..8` mean asset categories, and every
+slice here is the same category. Matching 8px swatches precede the three named cents. The strip is
+`aria-hidden`; the sentence carries the meaning. Cents round to whole cents; below half a cent reads “<1¢”.
+Weights summing past 1 are scaled to exactly $1; invalid weights are dropped. No holdings: “Holdings
+information isn't available for this fund right now.” Names drop corporate suffixes (“Apple Inc” →
+“Apple”) but keep share classes.
+
+**Keep learning chips.** One row of outlined question chips (44px, no icons), scrolling inside itself
+rather than wrapping; while chips are offscreen the row's right edge fades out (`mask-image`, toggled
+by a scroll listener and a ResizeObserver), so phone users can tell it scrolls. Who runs it? (needs `fundFamily`), Where is the money? (a static plain-word map of
+`category`, or of `sector` for stocks; an unknown value skips the chip, never shows raw jargon), Why own
+it? (index fund: a slice of hundreds of companies, low fees; leveraged: “It borrows to multiply daily
+moves, so losses can grow fast; it's built for short-term traders, not long-term saving.”; crypto: “No
+company or earnings are behind it, so prices can swing a lot.”; bond funds say “investments”, not
+“companies”), How do I buy it?, and last, ETF or mutual fund?. Indexes and “other” get no chips. One answer at a time, at most two sentences, on a
+sunken band with an accent rule; tapping another chip swaps it. Each answer ends with “Next: <question>
+→”; the last ends with “Ask the advisor about VOO →” (`/advisor?q=`, prefilled, never submitted).
+
+**Comparison hook.** The last chip opens a static table: Index fund | ETF | Mutual fund, with rows What
+it is / How you buy it / When the price updates / Typical fees / Minimum to start. Generalities only, no
+fund names or figures; it says an index fund can be either an ETF or a mutual fund. Each row topic is a
+full-width `th scope="rowgroup"`, so the three answer columns keep the full width and wrap whole words at
+320px (hyphenating words of seven or more letters). Styling follows §4.12: fixed layout, 13/20 text,
+rule borders, a focusable region labelled “Comparison table”. On phones the table spans the answer band.
+
+**Sync and back.** Open state is `explain=1` in the URL beside `symbol`. Writers (the explainer and
+`MarketsPage.selectSymbol`/`switchView`) build from `window.location.search`, not the render's params,
+so a param set in the same frame is never dropped. Opening pushes a history entry, so
+the phone Back button closes it. Done pops that entry, or replaces the URL when a symbol change happened
+in between, and returns focus to the search input. Escape inside the explainer does the same. Changing
+the ticker keeps the explainer open and loads the new security: the learner is already in “explain” mode
+and comparing what two tickers are is the natural next step. Opening moves focus to the “VOO explained”
+heading.
+
+**Compare securities.** The full-screen comparison has no URL-synced explainer. Under each chart a
+compact explainer shows the identity, the three items and the chips (collapsed); it renders nothing on
+error. Above the two columns, once both sides load, “What's the real difference?” gives at most three
+sentences from data. Two funds: top-holding overlap (a holding matches on its symbol, with “.” read as
+“-”, or on its normalized name; “the same”, “almost the same”, “share N of their top M” or “different”),
+same index, how you buy them, and fees in dollars; a missing fee reads “Fee information isn't available
+for X.” A fund and a stock: “VOO is a basket of hundreds of companies; AAPL is one of them (about 7¢ of
+every $1 in VOO)”, or “a single company”. A leveraged side is never a basket: “TQQQ is a leveraged ETF, a
+very different kind of product than VOO.” plus the leveraged why. Two stocks: one sentence and an “Open
+Compare companies” button that closes the dialog through its own close, selects both tickers in Compare
+companies, switches the view and focuses that tab. Indexes, crypto and “other” get no strip.
+
+**Phone and a11y.** No page overflow at 320, 375 or 393px (`npm run test:fund-explainer -w frontend`).
+All targets are 44px. The explainer is a labelled `section`; the chips are a labelled group with
+`aria-expanded`/`aria-controls`; answers are in a polite live region. No new colors, badges or
+illustrations beyond the strip.
+
+### 4.14 Tap-to-explain jargon and related lessons
+
+Investing terms in running text get a dotted blue underline and become buttons. Tapping one opens a
+small overlay (the only shadowed element) with the term’s plain-language meaning and a link to the
+lesson that teaches it, or to guided research for company terms (P/E, revenue, net income, EPS).
+Meanings come from the glossary in `lib/learning.ts`; the term list and lesson mapping live in
+`lib/explainTerms.ts`. Each term is marked once per reply. Acronyms (ETF, TSP, EPS) only match in
+capitals. The overlay sits below the word, or above it in the lower part of the screen, and stays
+inside the viewport at 320px. Escape, the close button or an outside tap closes it and returns focus.
+
+Where it appears: advisor replies (`<Markdown explain />`; plain `<Markdown />` renders exactly as
+before), the Portfolio risk explanation and factors, the fund explainer’s “What is it?” sentence and
+“Keep learning” answers, and Compare companies (focus and metric descriptions, “How do I compare
+companies fairly?”). Advisor replies that mention a lesson term,
+and the risk card, show one “Related lesson: …” link.
+
+### 4.15 What you really own and your plan vs. today
+
+The two portfolio moments: who the money is really in once funds are opened up, and how the mix
+compares with a model plan. Math lives in `lib/portfolioXray.ts` and `lib/targetMix.ts`; every sentence in
+`lib/xrayCopy.ts`; fund facts come from `lib/useFundMap.ts` (the same `['fund', SYMBOL]` query and
+one-day cache as `useFund`, `retry: 1`, at most the 8 largest funds; a failed fund is simply
+missing). Only shown when an account is linked.
+
+**What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, the first thing in the
+Portfolio main column, above Security research; Holdings stays below research). The pitch opens here. A 13px secondary heading, then one static `t-body-sm` secondary line, “Funds are baskets of companies, so
+the same company can sit in several of your funds.” (in every state except “no stocks or funds”), then the headline sentence at 20/28 medium (18/26 on
+phones): “Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT.” Whole percents;
+the fund part is the rounded total minus the rounded direct part, so the two parts add up on screen;
+“all of it inside VOO and QQQ.” with nothing direct, “all of it held directly.” with no fund in a
+stock-only account, “held directly (none in your funds' top 10 holdings).” when the account holds funds
+(only once every fund was looked inside; otherwise “…, held directly (we couldn't look inside 1 of your funds).”, or
+“still looking inside” while one loads); a sliver
+reads “under 1%”, never “0%”. Share classes are one company: GOOG folds into GOOGL and BRK-B into
+BRK-A (the `company()` map in `lib/lookthrough.ts`, used by `lib/portfolioXray.ts`). Five company rows follow, each stacked at every width: name, symbol in
+12px tertiary, share right-aligned at 1 decimal; a full-width 8px track; then a 12px tertiary line
+“14% direct · VOO 3% · QQQ 2% · VGT 1%” (parts under 0.5% dropped). The track fills to share ÷ top
+share, solid `accent` for the direct part and the 50% `accent`/`surface` ramp step (§4.13) for the part held through
+funds. It is `aria-hidden`; the via line says the same thing. Every row is one category, so the accent
+ramp is used, never `viz-1..8` (§4.13 rationale). Then “Your top 7 companies are 47% of everything.”
+(fewer when fewer exist; nothing for one), and the 12px data line “Counting each fund's top 10 holdings
+(3 of 3 funds checked) · as of Sep 26, 2026”, plus “ · funds' smaller holdings aren't counted” when
+under half the fund money is covered by those top holdings. Stock-only accounts read “Based on your
+holdings as of …”.
+
+**What it costs** (inside the same card, under a rule, `t-h3` heading). “Your funds cost about $13 a
+year (0.08% of the money in them).” / the same rate per $10,000 via `feePerTenThousand`: “That's about
+$8 a year on every $10,000.” (“Under $1 a year on every $10,000.”; none without a rate; kept when
+values are hidden, since it is a rate, not the client's dollars) / “At the same balance that's about $130 over 10 years.” / only
+when it saves at least $1: “If every fund cost what your cheapest one does (0.03%), it would be about $5
+a year.” A three-column table (Fund, Expense ratio, Per year; symbol, `expenseRatioLabel`, full
+currency). While any requested fund is loading, the panel shows only “Adding up fees…” with `Dots`, so a
+loading fund never reads as missing or undercounts the total. Settled: a fund that loaded with no ratio
+or whose request failed reads “Fee not available: XYZ”; a fund never requested (past the 8-fund cap,
+or not a valid ticker) reads “Not checked: XYZ”; when either exists the lead says “The funds we could
+check cost …”. None known: “Fee information isn't available for your funds.”; zero cost: “… charge no
+yearly fee.”; no funds: no panel. No fund is ever recommended.
+
+**Plan vs. today** (`components/portfolio/PlanVsActual.tsx`, `[data-plan-vs-actual]`, in the rail card
+“Your plan vs. today”, above “By investment type” §4.5). A labelled native `select` “Compare with” (44px,
+6px radius, `border-input`) lists `/market/templates` names; the default is `suggestTemplate(profile)`,
+the pick lives in component state only. Beside the label: `Badge` “Suggested for you” (accent tone)
+when the pick is the suggestion, “Pick a plan” (neutral) with no profile. Under the select, a
+`t-body-sm` secondary line: “Picked from your answers (age, time horizon, risk comfort). A starting
+point, not advice.” when the pick is the suggestion; with no profile (404), “Answer three questions in your
+investment profile to get a suggested plan.” (any other profile error: the default plan, no line) (“investment profile” links to `/welcome?edit=1`). Two `aria-hidden` 12px bars,
+“Today” and the plan name, slices in stocks/bonds/cash/other order coloured as their asset category
+(stocks `viz-1`, bonds `viz-4`, cash `viz-7`, other `viz-8`), then a small table: kind, Today, Plan at
+1 decimal. Under a rule, the lead sentence from `drift()`, which always says both whole percents, never
+a bare “N points” gap. When the biggest gap (3+ points) is bonds or cash that the account holds none of
+while the plan keeps 10%+, it leads with that: “Nothing in bonds, where the Classic 60/40 plan keeps
+40%. Stocks: 94% today vs 60% in the plan.” (the second sentence only when an over-gap of 3+ points
+exists). Otherwise the largest over-gap leads, else the largest under-gap: “Stocks: 94% today vs 60% in
+the Classic 60/40 plan; nothing in bonds.” / “Stocks: 54% today vs 90% in the Buffett 90/10 plan.”; the
+“; nothing in cash” tail never repeats the lead class. While any fund is loading, failed or was never
+checked (it is assumed to hold stocks, so it might really be a bond fund), neither “Nothing in” form is
+said; only the “Stocks: 94% today vs 60% in the … plan.” comparison. The template tickers (VTI, BND,
+SHV, …) are classed from a static map first, before any fund facts; otherwise a fund's category decides
+(“bond/treasury/fixed income/municipal/aggregate” is bonds; “Derivative Income” or “Equity Income” stays
+stocks). All gaps under 3 read “Your mix is close to the …
+plan.” Then the plan description in tertiary and “Ask the advisor why this matters →”, a prefilled,
+never-sent `/advisor?q=` in the first person (“My mix has stocks at 94% today vs 60% in the … plan.” /
+“My mix has nothing in …” / “My mix is close to …”). While funds
+load or fail: “2 of 3 funds checked · assumes unchecked funds hold stocks”.
+
+**States.** Holdings loading: the `#xray` surface with a skeleton. Funds all loading: skeleton;
+partial: render, `Dots` beside the heading, “N of M” in the data line. Every fund lookup failed (or
+came back without holdings): one sentence, “We couldn't look inside your funds right now.”, and a Retry
+button that refetches the failed fund queries, instead of a headline and rows. No stocks or funds (a
+cash- or bond-only account): “This account has no stocks or funds to look inside.” The card never
+tells a linked account to link one. `useFundMap` exposes `pending`, `unchecked` and `failed` symbol
+lists beside the map; its `total` and lookThrough's `fundsTotal` both count distinct symbols. Plan card: profile or templates loading shows
+a skeleton; templates error shows only the Today bar and its percents; an empty account shows “Your mix
+will appear here once the account holds investments.” Hide portfolio values replaces every dollar
+figure (sentences drop the dollar clause, table cells read “Hidden”) and keeps every percent (§6.2).
+
+**Phone.** Single column, no overflow at 320/375/393px; long names wrap (`overflow-wrap: anywhere`),
+the fee table is fixed-layout within the card, the plan name on its bar truncates with an ellipsis
+(the select and legend still carry it in full).
+
+### 4.16 What-if ("What would this do to my portfolio?")
+
+The ticker-page moment: before anyone adds money to a security, show what it would do to the account
+they already have. Math lives in `lib/whatIf.ts` (a hypothetical "holdings after" fed to `lookThrough()`
+and the `riskScore()` port of `risk.py`; nothing is sold, every weight renormalizes); copy and the
+amount rules in `lib/whatIfCopy.ts`; the view is `components/market/WhatIfCard.tsx`
+(`[data-what-if="NVDA"]`). Fund facts come from `useFundMap` (§4.15), so the portfolio cards and this
+one share one request per fund.
+
+**Where.** Inside the research card, under the identity row (§4.13); an open explainer keeps its
+place directly under the identity line and pushes this card down. Only when `explainable`, the
+fund lookup succeeded, holdings loaded (linked) and the kind can be bought: stock, ETF, mutual fund or
+crypto. Never for an index or “other”, never in Compare securities.
+
+**Card.** The explainer's inner surface: white, 1px rule, 10px radius, 16px padding. A 13px secondary
+heading “What would this do to my portfolio?”. An amount row: `SegmentedControl` “Amount to add”
+$500 / $1,000 / $5,000 (default $1,000), then “Other amount”, a 44px `$`-prefixed text box
+(`inputMode="decimal"`, accepts “2,500”, “$2,500”, “12.50”) that overrides the segment while it holds a
+valid amount (no segment pressed); a preset tap clears it. Outside $1–$1,000,000: “Enter an amount from
+$1 to $1,000,000. Showing $1,000.” in the field-error style, and the figures keep the preset. Component
+state only, no URL state.
+
+**The sentence is the answer.** At 17/26 medium (16/24 on phones), in a polite live region:
+“Adding $1,000 of NVDA: NVDA would be about 21% of your money instead of 17% (counting your funds' top
+10 holdings), and your risk score would go from 34 to 35 out of 100 (Moderate).” Starting from 0% in an
+account with funds: “ORCL would be about 9% of your money instead of none we can see today”; with no
+funds, where nothing is unseen: “… instead of none today”. The risk label is repeated on both sides
+only when it changes (“from 34 (Moderate) to 68 (Aggressive) out of 100”). Whole percents; a sliver
+reads “under 1%” (“would be under 1% of your money”), never “0%”. For a stock or crypto the exposure is its look-through company share; for
+an ETF or mutual fund it is the fund's own share of the account. “(counting your funds' top 10
+holdings)” appears only when the account holds funds and a company (a stock) is being added; a fund's
+own share, or a stock-only account, is exact. Share classes count as one company (GOOG is GOOGL, §4.15).
+
+**A lower bound.** Funds are looked through their top 10 holdings only (§4.15), so the exposure figure
+never counts a company sitting deeper in a fund, and the copy never claims it does. A company outside
+the look-through's top 10 companies counts its direct weight. The figure can jump when a company enters
+a fund's top 10 on the “after” side (adding a fund brings its top holdings in with it).
+
+**Figures.** Two compact before → after pairs, side by side on desktop, stacked on phones, as a `dl`:
+“Risk score 34 → 35” with the band label in 12px tertiary (“Moderate → Aggressive” when it crosses), over
+the risk card's three neutral bands (§4.6) with a short `text-secondary` tick for today, a tall `accent`
+tick for after, and a 2px `accent` line between them for the move; and “NVDA's share of your money
+17% → 21%” (the before side reads “none” at 0%, matching the sentence) over an
+8px sunken track out of the whole account: solid `accent` for today, a 45% `accent`/`surface` mix for the
+added part (the §4.13 ramp; never `viz-1..8`, never green or red). Both drawings are `aria-hidden`; the
+sentence and the numbers carry them. When the biggest single look-through company changes: “NVDA would
+become your biggest single company.” (13px medium).
+
+**Data line.** 12px tertiary: “Counting each fund's top 10 holdings (3 of 3 funds checked).
+Educational, not a recommendation.” A fund being added is looked inside too and joins the count; an
+account with no funds reads “Based on your holdings. Educational, not a recommendation.” No buy
+button, no link to a broker, no “you should”.
+
+**States.** Anything loading (fund, holdings, profile, the account's first fund) renders nothing, never
+a skeleton, so the research header never jumps or waits. Not linked (409), for an addable kind whose
+fund loaded: one 13px medium line, a `Link` to `/portfolio` with a 44px target, “Link an account, or
+try the sample one, to see what adding NVDA would do to your mix →” — on Markets only; the portfolio
+page passes `invite={false}` (it already shows the link card, and the line would link to itself). Any
+other error, an empty account, an index: nothing. No saved profile (404) scores without
+one, like the backend. Funds still arriving after the first: render with “N of M”. Every fund failed or
+never checked: render anyway, and the data line says so (“0 of 3 funds checked”).
+
+**Phone.** No overflow at 320/375/393px; the presets keep one row and the amount box takes the next
+full row below 640px. Measured at 375px: about 570px tall with the biggest-company line, 530px at 393px.
+
 ## 5. Layout and routes
 
 Desktop: 76px navigation, slim workspace information row, centered content up to 1440px with 40px
@@ -239,9 +509,10 @@ Mobile keeps five bottom navigation items with safe-area spacing: Home, Portfoli
 
 | Route | Task |
 |---|---|
-| `/` | An interactive first idea, links into Learn/research, and research milestones; no setup required |
+| `/` | Start-lesson action, an interactive first idea that leads into lesson 1, links into Learn/research, and one combined progress panel; no setup required |
 | `/portfolio` | Account summary, security research, searchable holdings, allocation and risk |
 | `/markets?symbol=VOO` | Compact discovery lists, full-width research, dual-chart comparison and related news |
+| `/markets?symbol=VOO&explain=1` | The same, with the fund explainer open under the identity line (§4.13); `explain=1` also works on `/portfolio` |
 | `/markets?view=companies` | Build a visual company comparison, inspect exact values and export |
 | `/markets?symbol=AAPL&guided=1` | Guided company research, with optional price chart and company-name lookup |
 | `/advisor` | General questions without setup; optional saved profile/holdings provide more context |
@@ -381,6 +652,9 @@ Use `format.ts` for shared display rules and `researchEducation.ts` for financia
 | `Company.epsTTM`, `.fcfPerShare` | per share; currency not supplied | `1.90`, never imply USD |
 | `AnnualIncome.revenue`, `.netIncome`, other statement totals | full amounts in `currency` | `USD 100M`; full amounts in tables |
 | `AnnualIncome.epsDiluted` | reported currency per diluted share | `USD 5.00` |
+| `ResearchValuation.dividendYield` | fraction (`0.0045`); `0` = no dividend; null = unknown (never "no dividend") | ×100, 2 decimals → `0.45%` |
+| `ResearchProfile.marketCap` | full amount in `profile.currency` | compact → `USD 3.4T` |
+| `ResearchProfile.beta` | ratio vs the market | data only; not shown |
 | `Macro.fedFunds`, `cpiYoY`, `unemployment`, `wageGrowth`, `tenYear` | **already percent** (`4.33`) | **do not** ×100 → `4.33%` |
 | `Risk.score` | integer 0–100 | `58` with `/100` in `text-tertiary` |
 
@@ -394,7 +668,7 @@ Every data card handles all of these states. The API error envelope is `{error: 
 |---|---|---|
 | Loading | Card | Skeleton while loading. After 8s: "Still working. This can take up to 30 seconds." |
 | `404 NOT_FOUND` on `GET /profile` | App | No saved profile; continue learning, researching or asking general questions. Profile setup remains optional. |
-| `409 NOT_LINKED` | Card | The card is replaced by the Link account card (§4.14): "Link an account to see your holdings." |
+| `409 NOT_LINKED` | Card | The card is replaced by the Link account card (§4.3): "Link an account to see your holdings." |
 | `502 UPSTREAM_UNAVAILABLE` | Card | Warning banner: "Market data is temporarily unavailable." and a Retry button. Other cards are unaffected. |
 | `400 VALIDATION` | Field or form | Inline error under the field. Map the API `message` to the field when possible. |
 | `500 INTERNAL` | Card | "Something went wrong on our side." with Retry, plus `Reference: <requestId>` in `mono` `caption` |

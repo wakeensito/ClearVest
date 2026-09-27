@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/market/fund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Beginner "what is this?" explainer for an ETF, mutual fund, stock, index or cryptocurrency. */
+        get: operations["getFund"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -176,7 +193,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Up to six publisher headlines, cached for one hour. Omit symbols for market-wide stock news. publishedAt retains the provider's timestamp without assuming a timezone; fetchedAt is API retrieval time. */
+        /** @description Up to six publisher headlines from Yahoo Finance, cached for one hour (five minutes when the provider returned no articles, since that may be a transient failure). Omit symbols for market-wide stock news, where each article's symbol is an empty string. publishedAt is the provider's timestamp as given (Yahoo sends ISO 8601 in UTC); fetchedAt is API retrieval time. */
         get: operations["getMarketNews"];
         put?: never;
         post?: never;
@@ -368,6 +385,15 @@ export interface components {
             industry: string | null;
             currency: string | null;
             isFund: boolean;
+            /** @description Volatility relative to the market (1 moves with it). Data only. */
+            beta: number | null;
+            /** @description Market value of all shares, in the profile currency. Null when missing or not positive. */
+            marketCap: number | null;
+            /**
+             * Format: date
+             * @description Next scheduled earnings report on or after today (UTC, checked on every response, including cached ones); null for funds or when unknown.
+             */
+            nextEarningsDate: string | null;
         } | null;
         AnnualIncome: {
             /** Format: date */
@@ -385,6 +411,8 @@ export interface components {
             pe: number | null;
             eps: number | null;
             ps: number | null;
+            /** @description Trailing-12-month dividend yield as a FRACTION (0.0045 = 0.45%). 0 means the provider reports no dividend. Null means unknown - the value is missing, negative or implausible (over 0.25) - and must not be read as "no dividend". */
+            dividendYield: number | null;
         } | null;
         AnnualValuation: {
             /** Format: date */
@@ -415,6 +443,31 @@ export interface components {
                 name: string;
                 exchange: string | null;
             }[];
+            stale: boolean;
+        };
+        FundHolding: {
+            symbol: string | null;
+            name: string;
+            weight: number;
+        };
+        Fund: {
+            symbol: string;
+            name: string;
+            /** @enum {string} */
+            kind: "etf" | "mutual_fund" | "stock" | "index" | "crypto" | "other";
+            isIndexFund: boolean;
+            leveraged: boolean;
+            tracks: string | null;
+            expenseRatio: number | null;
+            topHoldings: components["schemas"]["FundHolding"][];
+            fundFamily: string | null;
+            category: string | null;
+            sector: string | null;
+            summary: string;
+            /** @enum {string} */
+            summarySource: "model" | "template";
+            /** Format: date */
+            asOf: string;
             stale: boolean;
         };
         Error: {
@@ -491,7 +544,7 @@ export interface components {
             articles: components["schemas"]["NewsArticle"][];
             symbols: string[];
             /** @enum {string} */
-            source: "FMP";
+            source: "Yahoo Finance";
             /** Format: date-time */
             fetchedAt: string;
             stale: boolean;
@@ -712,7 +765,10 @@ export interface operations {
                      *         "sector": "Technology",
                      *         "industry": "Consumer electronics",
                      *         "currency": "USD",
-                     *         "isFund": false
+                     *         "isFund": false,
+                     *         "beta": 1.1,
+                     *         "marketCap": 3400000000000,
+                     *         "nextEarningsDate": "2026-10-29"
                      *       },
                      *       "income": [
                      *         {
@@ -752,7 +808,8 @@ export interface operations {
                      *       "valuation": {
                      *         "pe": 20,
                      *         "eps": 5,
-                     *         "ps": 4
+                     *         "ps": 4,
+                     *         "dividendYield": 0.0045
                      *       },
                      *       "history": [
                      *         {
@@ -840,6 +897,68 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["CompanySearch"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            502: components["responses"]["Upstream"];
+        };
+    };
+    getFund: {
+        parameters: {
+            query: {
+                symbol: string;
+            };
+            header: {
+                /** @description The user's id. Required on every route except /health. */
+                "X-User-Id": components["parameters"]["UserId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every number (expenseRatio, topHoldings weights) comes from the data provider, never the model. summary is a one-sentence beginner explanation; summarySource says whether it was rewritten by the model or is the plain template (always template for a leveraged fund, an index, a cryptocurrency, or an unrecognized kind). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "symbol": "VOO",
+                     *       "name": "Vanguard S&P 500 ETF",
+                     *       "kind": "etf",
+                     *       "isIndexFund": true,
+                     *       "leveraged": false,
+                     *       "tracks": "Standard & Poor's 500 Index",
+                     *       "expenseRatio": 0.0003,
+                     *       "topHoldings": [
+                     *         {
+                     *           "symbol": "NVDA",
+                     *           "name": "NVIDIA Corp",
+                     *           "weight": 0.08082
+                     *         },
+                     *         {
+                     *           "symbol": "AAPL",
+                     *           "name": "Apple Inc",
+                     *           "weight": 0.070339
+                     *         },
+                     *         {
+                     *           "symbol": "MSFT",
+                     *           "name": "Microsoft Corp",
+                     *           "weight": 0.056958
+                     *         }
+                     *       ],
+                     *       "fundFamily": "Vanguard",
+                     *       "category": "Large Blend",
+                     *       "sector": null,
+                     *       "summary": "This fund spreads your money across hundreds of well-known American companies in a single investment.",
+                     *       "summarySource": "model",
+                     *       "asOf": "2026-09-27",
+                     *       "stale": false
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Fund"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -1301,28 +1420,28 @@ export interface operations {
                      *           "url": "https://example.com/market-news/earnings",
                      *           "image": null,
                      *           "publisher": "Example publisher",
-                     *           "publishedAt": "2026-09-25 15:00:00",
-                     *           "symbol": "AAPL"
+                     *           "publishedAt": "2026-09-25T15:00:00Z",
+                     *           "symbol": ""
                      *         },
                      *         {
                      *           "title": "Example headline: new products draw attention across the technology sector",
                      *           "url": "https://example.com/market-news/products",
                      *           "image": null,
                      *           "publisher": "Example publisher",
-                     *           "publishedAt": "2026-09-25 13:00:00",
-                     *           "symbol": "MSFT"
+                     *           "publishedAt": "2026-09-25T13:00:00Z",
+                     *           "symbol": ""
                      *         },
                      *         {
                      *           "title": "Example headline: market participants assess the latest economic data",
                      *           "url": "https://example.com/market-news/economy",
                      *           "image": null,
                      *           "publisher": "Example publisher",
-                     *           "publishedAt": "2026-09-25 12:00:00",
-                     *           "symbol": "AAPL"
+                     *           "publishedAt": "2026-09-25T12:00:00Z",
+                     *           "symbol": ""
                      *         }
                      *       ],
                      *       "symbols": [],
-                     *       "source": "FMP",
+                     *       "source": "Yahoo Finance",
                      *       "fetchedAt": "2026-09-25T20:00:00Z",
                      *       "stale": false
                      *     }
@@ -1555,44 +1674,24 @@ export interface operations {
                     /**
                      * @example [
                      *       {
-                     *         "id": "three-fund-boglehead",
-                     *         "name": "Three-Fund Boglehead",
-                     *         "description": "A simple, low-cost mix of total US stock, total international stock and total bond market funds.",
+                     *         "id": "three-fund",
+                     *         "name": "Bogleheads three-fund",
+                     *         "description": "US stocks, international stocks and US bonds in one example weighting; the Bogleheads wiki treats the exact split as a matter of personal risk tolerance.",
                      *         "allocations": [
                      *           {
-                     *             "asset": "US Total Stock Market",
-                     *             "weight": 0.6
+                     *             "asset": "VTI",
+                     *             "weight": 0.5
                      *           },
                      *           {
-                     *             "asset": "International Total Stock Market",
-                     *             "weight": 0.2
+                     *             "asset": "VXUS",
+                     *             "weight": 0.3
                      *           },
                      *           {
-                     *             "asset": "US Total Bond Market",
+                     *             "asset": "BND",
                      *             "weight": 0.2
                      *           }
                      *         ],
                      *         "source": "https://www.bogleheads.org/wiki/Three-fund_portfolio"
-                     *       },
-                     *       {
-                     *         "id": "target-date-2065",
-                     *         "name": "Target Date 2065 Style",
-                     *         "description": "An age-based glide path favoring equities for a long time horizon.",
-                     *         "allocations": [
-                     *           {
-                     *             "asset": "US Total Stock Market",
-                     *             "weight": 0.54
-                     *           },
-                     *           {
-                     *             "asset": "International Total Stock Market",
-                     *             "weight": 0.36
-                     *           },
-                     *           {
-                     *             "asset": "US Total Bond Market",
-                     *             "weight": 0.1
-                     *           }
-                     *         ],
-                     *         "source": "https://investor.vanguard.com/investment-products/mutual-funds/profile/vfifx"
                      *       }
                      *     ]
                      */

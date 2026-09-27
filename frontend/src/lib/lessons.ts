@@ -14,6 +14,37 @@ export interface QuizQuestion {
   explain: string
 }
 
+/** One row of a fund's published top holdings. `weight` is a fraction (0.07 = 7%), like every weight in the app. */
+export interface FundHolding {
+  symbol: string
+  name: string
+  weight: number
+}
+
+/** A call the fund manager makes. Same shape as a quiz question, plus the setup and the payoff. */
+export interface FundDecision extends QuizQuestion {
+  /** What is happening in the fund right before the question. */
+  situation: string
+  /** The row of the holdings strip this decision is about. */
+  focus: string
+  /** Why this rule matters to someone who owns the fund. Shown under the explanation. */
+  payoff: string
+}
+
+/** "Be the fund": the user plays a real index fund. Replaces the quiz; cards still run first. */
+export interface FundPlay {
+  fund: string
+  fundName: string
+  /** Date the holdings were pulled (YYYY-MM-DD). Shown on screen, so refresh it with the numbers. */
+  asOf: string
+  /** How much of the fund the listed holdings add up to, as a fraction. */
+  topShare: number
+  holdings: readonly FundHolding[]
+  decisions: readonly FundDecision[]
+  /** The holding the score screen ties back to the user ("about 7% of your VOO is Apple"). */
+  spotlight: string
+}
+
 export interface Lesson {
   id: string
   title: string
@@ -21,6 +52,7 @@ export interface Lesson {
   cards: readonly LessonCard[]
   quiz: readonly QuizQuestion[]
   askPrompt: string
+  play?: FundPlay
 }
 
 export interface Unit {
@@ -226,6 +258,72 @@ export const UNITS: readonly Unit[] = [
           },
         ],
         askPrompt: 'What is the difference between an index fund, an ETF and a mutual fund?',
+      },
+      {
+        id: 'be-the-fund',
+        title: 'Be the fund for 60 seconds',
+        minutes: 1,
+        cards: [
+          {
+            heading: 'You are VOO now.',
+            body: 'VOO is one fund that tracks the S&P 500. It holds money from millions of people, spread across about 500 US companies. Today you run it. Below are your ten biggest holdings, and you have three calls to make. Each one is a call the fund makes in real life.',
+          },
+        ],
+        quiz: [],
+        play: {
+          fund: 'VOO',
+          fundName: 'Vanguard S&P 500 ETF',
+          // Pulled with yfinance: Ticker('VOO').funds_data.top_holdings. Rounded to one decimal.
+          asOf: '2026-09-26',
+          topShare: 0.378,
+          holdings: [
+            { symbol: 'NVDA', name: 'NVIDIA', weight: 0.081 },
+            { symbol: 'AAPL', name: 'Apple', weight: 0.07 },
+            { symbol: 'MSFT', name: 'Microsoft', weight: 0.057 },
+            { symbol: 'AMZN', name: 'Amazon', weight: 0.038 },
+            { symbol: 'GOOGL', name: 'Alphabet (Class A)', weight: 0.03 },
+            { symbol: 'AVGO', name: 'Broadcom', weight: 0.027 },
+            { symbol: 'GOOG', name: 'Alphabet (Class C)', weight: 0.024 },
+            { symbol: 'META', name: 'Meta Platforms', weight: 0.019 },
+            { symbol: 'MU', name: 'Micron Technology', weight: 0.016 },
+            { symbol: 'TSLA', name: 'Tesla', weight: 0.016 },
+          ],
+          spotlight: 'AAPL',
+          decisions: [
+            {
+              situation: 'New money came into the fund today. Apple is worth almost twice as much as Amazon.',
+              question: 'How much of the new money goes to each?',
+              focus: 'AAPL',
+              options: [
+                'Split it equally between them',
+                'About twice as much to Apple, in line with its size',
+                'More to Amazon, it has more room to grow',
+              ],
+              answer: 1,
+              explain: 'The fund puts about twice as much into Apple as into Amazon. Bigger companies get bigger slices, in proportion to their size. This has a name: cap weighting.',
+              payoff: 'That is why Nvidia, Apple and Microsoft are 8.1%, 7.0% and 5.7% of VOO. Nobody at the fund picked them. They are simply the biggest.',
+            },
+            {
+              situation: 'Nvidia had a huge year. Its price roughly doubled, and it is now 8.1% of the fund, your biggest holding.',
+              question: 'Do you trim it back?',
+              focus: 'NVDA',
+              options: ['Sell some to bring it back down', 'Do nothing', 'Buy more, it is winning'],
+              answer: 1,
+              explain: 'The fund does nothing. When a company’s price rises, its slice of the fund grows on its own. No trade needed, so no trade made.',
+              payoff: 'Nvidia became the biggest slice of VOO by price alone. The fund never bought extra to get it there.',
+            },
+            {
+              situation: 'You read the news and you think Tesla is overpriced. It is 1.6% of the fund.',
+              question: 'Do you cut it?',
+              focus: 'TSLA',
+              options: ['Sell some of it', 'Hold it, at the weight the index says', 'Sell all of it'],
+              answer: 1,
+              explain: 'The fund holds it. An index fund has no opinions. It trades only when the index changes, when a company is added or dropped, or when money comes in or goes out. That is called index rebalancing.',
+              payoff: 'If Tesla is ever dropped from the S&P 500, the fund sells it that day. Until then, it stays, whatever anyone thinks of the price.',
+            },
+          ],
+        },
+        askPrompt: 'Explain how an S&P 500 index fund like VOO decides how much of each company to hold, and why it rarely trades.',
       },
       {
         id: 'diversification',
@@ -495,6 +593,9 @@ export function findLesson(id: string | undefined): { lesson: Lesson; unit: Unit
   const unit = UNITS.find((u) => u.lessons.includes(lesson))
   return unit ? { lesson, unit, index } : null
 }
+
+/** The lesson you play rather than read. The Learn tab gives it its own card. */
+export const PLAY_LESSON: Lesson | undefined = ALL_LESSONS.find((lesson) => lesson.play)
 
 /** The first lesson not yet completed, or null when everything is done. */
 export function nextLesson(completed: readonly string[]): Lesson | null {

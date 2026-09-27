@@ -41,16 +41,20 @@ const axePath = path.resolve(__dirname, '../node_modules/.cache/clearvest-a11y/n
       await target.goto(base + '/learn/' + id);
       for (let i = 0; i < 10 && !await target.getByRole('group', { name: 'Answer choices' }).isVisible(); i++) {
         if (inspect) await noOverflow(`${id} card ${i + 1}`);
-        await target.getByRole('button', { name: /^(Continue|Check what you learned)$/ }).click();
+        await target.getByRole('button', { name: /^(Continue|Check what you learned|Make your first call)$/ }).click();
       }
-      for (let i = 0; i < 2; i++) {
-        const next = target.getByRole('button', { name: i === 1 ? 'Finish lesson' : 'Continue', exact: true });
+      // Two quiz questions, or three fund decisions in "Be the fund". The last one reads "Finish lesson".
+      for (let i = 0; i < 5 && await target.getByRole('group', { name: 'Answer choices' }).isVisible(); i++) {
+        const next = target.getByRole('button', { name: /^(Continue|Finish lesson)$/ });
         assert(await next.isDisabled(), 'A quiz requires an answer before proceeding');
         await target.getByRole('group', { name: 'Answer choices' }).getByRole('button').first().click();
-        if (inspect) { await noOverflow(`${id} quiz ${i + 1}`); if (i === 0 && id === lessonIds[0]) await audit('Answered lesson'); }
+        if (inspect) { await noOverflow(`${id} quiz ${i + 1}`); if (i === 0 && (id === lessonIds[0] || id === 'be-the-fund')) await audit(`Answered ${id}`); }
         await next.click();
       }
       await target.getByRole('heading', { name: 'Lesson complete', exact: true }).waitFor();
+      // The fixture holds VTI plus Apple directly and the fund fixture puts Apple inside it, so the
+      // score screen's look-through line adds the two: "At least 27% of your money is two companies".
+      if (id === 'be-the-fund') await target.getByText(/^At least \d+% of your money is two companies: Apple and NVIDIA\./).waitFor();
       if (inspect) await noOverflow(`${id} complete`);
     };
     await page.goto(base + '/learn');
@@ -64,16 +68,16 @@ const axePath = path.resolve(__dirname, '../node_modules/.cache/clearvest-a11y/n
     await page.getByText('You finished the starter path. Review any lesson below.', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Reset progress', exact: true }).click();
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await page.getByText('12 of 12 lessons done').waitFor();
+    await page.getByText(`${lessonIds.length} of ${lessonIds.length} lessons done`).waitFor();
     await page.getByRole('button', { name: 'Reset progress', exact: true }).click();
     await page.getByRole('button', { name: 'Reset lessons', exact: true }).click();
-    await page.getByText('0 of 12 lessons done').waitFor();
+    await page.getByText(`0 of ${lessonIds.length} lessons done`).waitFor();
     // Partial completion resumes from Home and persists on reload, independently of research checks.
     await complete(page, 'what-is-investing');
     await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Home', exact: true }).click();
     const resume = page.getByRole('link', { name: /Continue learning/ });
     assert.equal(await resume.getAttribute('href'), '/learn/safety-net-first');
-    await page.reload(); await page.getByText(/1 of 12 lessons complete/).waitFor();
+    await page.reload(); await page.getByText(/1 of \d+ lessons complete/).waitFor();
     await complete(page, 'stocks-and-bonds');
     await page.getByRole('link', { name: 'Try reading a real company' }).click();
     await page.getByRole('heading', { name: 'What does this business do?' }).waitFor();
@@ -104,7 +108,7 @@ const axePath = path.resolve(__dirname, '../node_modules/.cache/clearvest-a11y/n
     await page.goto(base + '/learn/missing-lesson');
     await page.getByRole('link', { name: 'Back to Learn', exact: true }).click();
     await page.evaluate(() => localStorage.setItem('cv-learn-progress', '{"completed":["funds","funds",null,"unknown"],"lastDay":"invalid","streak":1e309}'));
-    await page.reload(); await page.getByText('1 of 12 lessons done').waitFor();
+    await page.reload(); await page.getByText(`1 of ${lessonIds.length} lessons done`).waitFor();
     // A read-only or completely blocked browser store still carries completion across SPA routes.
     for (const blockReads of [false, true]) {
       const blocked = await browser.newContext({ viewport: { width: 320, height: 800 } });
@@ -117,10 +121,10 @@ const axePath = path.resolve(__dirname, '../node_modules/.cache/clearvest-a11y/n
       const target = await blocked.newPage(); target.on('pageerror', error => errors.push(error.message));
       await complete(target, 'what-is-investing');
       await target.getByRole('link', { name: 'Back to Learn', exact: true }).click();
-      await target.getByText('1 of 12 lessons done').waitFor();
+      await target.getByText(`1 of ${lessonIds.length} lessons done`).waitFor();
       await target.getByRole('button', { name: 'Reset progress', exact: true }).click();
       await target.getByRole('button', { name: 'Reset lessons', exact: true }).click();
-      await target.getByText('0 of 12 lessons done').waitFor();
+      await target.getByText(`0 of ${lessonIds.length} lessons done`).waitFor();
       await blocked.close();
     }
     assert.deepEqual(errors, []);
