@@ -174,9 +174,14 @@ show its calendar date and distinguish that from our retrieval time. News is cac
 
 The default route is a small interactive explanation of a share, using a clearly fictional business
 with 100 equal shares. It offers an optional knowledge check and paths into Learn, research and
-portfolio context. Three research milestones track understanding on this browser, scoped to the demo
-user ID. They award no points for trades, investment returns or daily streaks. This does not replace
-the course progression. Home resumes the first unfinished lesson once a lesson has been completed.
+portfolio context. A primary action under the headline starts (or resumes) the starter lessons, so
+there is a clear first step above the fold on phones. A correct answer to the share check reveals a
+“Next: <lesson>” link into the first unfinished lesson. The three path links end with a visible
+action label and arrow so they read as links. One “Your progress” panel shows both starter-lesson
+progress (count and meter) and the three research milestones (“Understand a share”, “Tell sales
+from profit”, “Understand how a stock is priced”), stored separately on this browser and scoped to
+the demo user ID. They award no points for trades, investment returns or daily streaks. Home resumes
+the first unfinished lesson once a lesson has been completed.
 
 `guided=1` on Markets hides movers and introduces a company through three explicit steps: its
 business, annual sales/profit, and valuation. The chart opens on request. The normal market overview
@@ -239,7 +244,7 @@ Mobile keeps five bottom navigation items with safe-area spacing: Home, Portfoli
 
 | Route | Task |
 |---|---|
-| `/` | An interactive first idea, links into Learn/research, and research milestones; no setup required |
+| `/` | Start-lesson action, an interactive first idea that leads into lesson 1, links into Learn/research, and one combined progress panel; no setup required |
 | `/portfolio` | Account summary, security research, searchable holdings, allocation and risk |
 | `/markets?symbol=VOO` | Compact discovery lists, full-width research, dual-chart comparison and related news |
 | `/markets?view=companies` | Build a visual company comparison, inspect exact values and export |
