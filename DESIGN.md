@@ -348,10 +348,12 @@ Portfolio main column, above Security research; Holdings stays below research). 
 the same company can sit in several of your funds.” (in every state except “no stocks or funds”), then the headline sentence at 20/28 medium (18/26 on
 phones): “Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT.” Whole percents;
 the fund part is the rounded total minus the rounded direct part, so the two parts add up on screen;
-“all of it inside VOO and QQQ.” with nothing direct, “all of it held directly.” with no fund (only once
-every fund was looked inside; otherwise “…, held directly (we couldn't look inside 1 of your funds).”, or
+“all of it inside VOO and QQQ.” with nothing direct, “all of it held directly.” with no fund in a
+stock-only account, “held directly (none in your funds' top 10 holdings).” when the account holds funds
+(only once every fund was looked inside; otherwise “…, held directly (we couldn't look inside 1 of your funds).”, or
 “still looking inside” while one loads); a sliver
-reads “under 1%”, never “0%”. Five company rows follow, each stacked at every width: name, symbol in
+reads “under 1%”, never “0%”. Share classes are one company: GOOG folds into GOOGL and BRK-B into
+BRK-A (the `company()` map in `lib/lookthrough.ts`, used by `lib/portfolioXray.ts`). Five company rows follow, each stacked at every width: name, symbol in
 12px tertiary, share right-aligned at 1 decimal; a full-width 8px track; then a 12px tertiary line
 “14% direct · VOO 3% · QQQ 2% · VGT 1%” (parts under 0.5% dropped). The track fills to share ÷ top
 share, solid `accent` for the direct part and the 50% `accent`/`surface` ramp step (§4.13) for the part held through
@@ -381,8 +383,8 @@ yearly fee.”; no funds: no panel. No fund is ever recommended.
 the pick lives in component state only. Beside the label: `Badge` “Suggested for you” (accent tone)
 when the pick is the suggestion, “Pick a plan” (neutral) with no profile. Under the select, a
 `t-body-sm` secondary line: “Picked from your answers (age, time horizon, risk comfort). A starting
-point, not advice.” when the pick is the suggestion; with no profile, “Answer three questions in your
-investment profile to get a suggested plan.” (“investment profile” links to `/welcome?edit=1`). Two `aria-hidden` 12px bars,
+point, not advice.” when the pick is the suggestion; with no profile (404), “Answer three questions in your
+investment profile to get a suggested plan.” (any other profile error: the default plan, no line) (“investment profile” links to `/welcome?edit=1`). Two `aria-hidden` 12px bars,
 “Today” and the plan name, slices in stocks/bonds/cash/other order coloured as their asset category
 (stocks `viz-1`, bonds `viz-4`, cash `viz-7`, other `viz-8`), then a small table: kind, Today, Plan at
 1 decimal. Under a rule, the lead sentence from `drift()`, which always says both whole percents, never
@@ -391,7 +393,12 @@ while the plan keeps 10%+, it leads with that: “Nothing in bonds, where the Cl
 40%. Stocks: 94% today vs 60% in the plan.” (the second sentence only when an over-gap of 3+ points
 exists). Otherwise the largest over-gap leads, else the largest under-gap: “Stocks: 94% today vs 60% in
 the Classic 60/40 plan; nothing in bonds.” / “Stocks: 54% today vs 90% in the Buffett 90/10 plan.”; the
-“; nothing in cash” tail never repeats the lead class; all gaps under 3 read “Your mix is close to the …
+“; nothing in cash” tail never repeats the lead class. While any fund is loading, failed or was never
+checked (it is assumed to hold stocks, so it might really be a bond fund), neither “Nothing in” form is
+said; only the “Stocks: 94% today vs 60% in the … plan.” comparison. The template tickers (VTI, BND,
+SHV, …) are classed from a static map first, before any fund facts; otherwise a fund's category decides
+(“bond/treasury/fixed income/municipal/aggregate” is bonds; “Derivative Income” or “Equity Income” stays
+stocks). All gaps under 3 read “Your mix is close to the …
 plan.” Then the plan description in tertiary and “Ask the advisor why this matters →”, a prefilled,
 never-sent `/advisor?q=` in the first person (“My mix has stocks at 94% today vs 60% in the … plan.” /
 “My mix has nothing in …” / “My mix is close to …”). While funds

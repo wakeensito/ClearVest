@@ -76,7 +76,7 @@ function XrayBody({ data, fundMap, hideValues }: { data: Holdings; fundMap: Fund
   const scale = top.share
   const summary = topCompaniesLine(lt)
   const caption = coverageCaption({ checked: lt.fundsLookedThrough, total: lt.fundsTotal, coverage: lt.coverage, asOf: timestamp(data.asOf) })
-  const headline = ownershipHeadline(top, { unopened: lt.fundsTotal - lt.fundsLookedThrough, checking })
+  const headline = ownershipHeadline(top, { unopened: lt.fundsTotal - lt.fundsLookedThrough, checking, funds: lt.fundsTotal })
 
   return (
     <>

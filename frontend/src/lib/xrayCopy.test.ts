@@ -79,6 +79,12 @@ describe('ownershipHeadline', () => {
     expect(ownershipHeadline(c, { unopened: 0 })).toBe('Apple is about 14% of your money, all of it held directly.')
   })
 
+  it('with funds all looked inside, says the company is in none of their top 10, not "all of it"', () => {
+    const c: Exposure = { symbol: 'NVDA', name: 'NVIDIA', share: 0.114, direct: 0.114, via: [] }
+    expect(ownershipHeadline(c, { funds: 2 })).toBe("NVIDIA is about 11% of your money, held directly (none in your funds' top 10 holdings).")
+    expect(ownershipHeadline(c, { funds: 0 })).toBe('NVIDIA is about 11% of your money, all of it held directly.')
+  })
+
   it('falls back to the symbol when the name is empty', () => {
     expect(ownershipHeadline({ ...apple, name: '' })).toMatch(/^AAPL is about 19%/)
   })

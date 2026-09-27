@@ -1,5 +1,5 @@
 // Sentences for the "What you really own" and "Your plan vs. today" cards (DESIGN.md §4.14).
-// Copy only: the math lives in lookThrough.ts and targetMix.ts. Fractions in, words out; every
+// Copy only: the math lives in portfolioXray.ts and targetMix.ts. Fractions in, words out; every
 // number goes through format.ts.
 
 import { expenseRatioLabel, feePerTenThousand, NO_FEE } from './fundExplainer'
@@ -26,9 +26,11 @@ const displayName = (c: Exposure) => c.name || c.symbol || 'This company'
 /**
  * "Apple is about 19% of your money: 14% directly, 5% inside VOO, QQQ and VGT."
  * The fund part is the rounded total minus the rounded direct part, so the two parts always add
- * up to the headline number on screen.
+ * up to the headline number on screen. `funds`: how many funds the account holds; with any, a
+ * company in none of their top 10 is "held directly (none in your funds' top 10 holdings)", since
+ * it could still sit deeper inside one.
  */
-export function ownershipHeadline(c: Exposure, { unopened = 0, checking = false }: { unopened?: number; checking?: boolean } = {}): string {
+export function ownershipHeadline(c: Exposure, { unopened = 0, checking = false, funds: fundCount = 0 }: { unopened?: number; checking?: boolean; funds?: number } = {}): string {
   const lead = `${displayName(c)} is ${c.share > 0 && c.share < HALF_PERCENT ? 'under 1%' : `about ${wholePercent(c.share)}`} of your money`
   const funds = joinList(c.via.map((v) => v.fund))
   if (c.via.length === 0) {
@@ -37,7 +39,7 @@ export function ownershipHeadline(c: Exposure, { unopened = 0, checking = false 
       const which = `${unopened} of your funds`
       return checking ? `${lead}, held directly (still looking inside ${which}).` : `${lead}, held directly (we couldn't look inside ${which}).`
     }
-    return `${lead}, all of it held directly.`
+    return fundCount > 0 ? `${lead}, held directly (none in your funds' top 10 holdings).` : `${lead}, all of it held directly.`
   }
   if (!(c.direct > 0)) return `${lead}, all of it inside ${funds}.`
   const totalPoints = Math.round(c.share * 100)
