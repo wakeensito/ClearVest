@@ -73,6 +73,13 @@ describe('ownershipHeadline', () => {
     expect(ownershipHeadline(sliver)).toBe('Apple is about 14% of your money: 14% directly, under 1% inside VOO.')
   })
 
+  it('never says "all of it held directly" while funds are unopened', () => {
+    const c: Exposure = { symbol: 'AAPL', name: 'Apple', share: 0.144, direct: 0.144, via: [] }
+    expect(ownershipHeadline(c, { unopened: 3 })).toBe("Apple is about 14% of your money, held directly (we couldn't look inside 3 of your funds).")
+    expect(ownershipHeadline(c, { unopened: 1, checking: true })).toBe('Apple is about 14% of your money, held directly (still looking inside 1 of your funds).')
+    expect(ownershipHeadline(c, { unopened: 0 })).toBe('Apple is about 14% of your money, all of it held directly.')
+  })
+
   it('falls back to the symbol when the name is empty', () => {
     expect(ownershipHeadline({ ...apple, name: '' })).toMatch(/^AAPL is about 19%/)
   })
@@ -141,6 +148,7 @@ describe('feeCopy', () => {
       tenYear: "At the same balance that's about $130 over 10 years.",
       cheapest: 'If every fund cost what your cheapest one does (0.03%), it would be about $5 a year.',
       unknown: null,
+      notChecked: null,
     })
   })
 
@@ -156,8 +164,21 @@ describe('feeCopy', () => {
     expect(Object.values(copy).join(' ')).not.toContain('$')
   })
 
-  it('names funds with no fee data', () => {
-    expect(feeCopy(fees({ unknown: ['ABCX', 'DEFX'] }), false)!.unknown).toBe('Fee not available: ABCX, DEFX')
+  it('names funds with no fee data, and says whose cost the sentence covers', () => {
+    const copy = feeCopy(fees({ unknown: ['ABCX', 'DEFX'] }), false)!
+    expect(copy.unknown).toBe('Fee not available: ABCX, DEFX')
+    expect(copy.notChecked).toBeNull()
+    expect(copy.cost).toMatch(/^The funds we could check cost about \$13 a year/)
+  })
+
+  it('separates never-requested funds ("Not checked") from ones that loaded without a fee or failed', () => {
+    const copy = feeCopy(fees({ unknown: ['ABCX', 'NINTH'] }), false, { notChecked: ['ninth'] })!
+    expect(copy.unknown).toBe('Fee not available: ABCX')
+    expect(copy.notChecked).toBe('Not checked: NINTH')
+    const onlySkipped = feeCopy(fees({ unknown: ['NINTH'] }), true, { notChecked: ['NINTH'] })!
+    expect(onlySkipped.unknown).toBeNull()
+    expect(onlySkipped.notChecked).toBe('Not checked: NINTH')
+    expect(onlySkipped.cost).toMatch(/^The funds we could check cost about 0\.08%/)
   })
 
   it('reads "under $1" for a tiny cost and "no yearly fee" at zero', () => {
@@ -168,7 +189,7 @@ describe('feeCopy', () => {
 
   it('says fees are unavailable when no fund has a ratio, and nothing when there are no funds', () => {
     const none = fees({ rows: [], unknown: ['ABCX'], fundValue: 0, perYear: 0, blendedRatio: null, cheapestRatio: null, ifAllCheapest: null, tenYear: 0 })
-    expect(feeCopy(none, false)).toEqual({ cost: "Fee information isn't available for your funds.", tenYear: null, cheapest: null, unknown: 'Fee not available: ABCX' })
+    expect(feeCopy(none, false)).toEqual({ cost: "Fee information isn't available for your funds.", tenYear: null, cheapest: null, unknown: 'Fee not available: ABCX', notChecked: null })
     expect(feeCopy({ ...none, unknown: [] }, false)).toBeNull()
   })
 })
@@ -178,6 +199,8 @@ describe('mixLead and advisorMixHref', () => {
     expect(mixLead('34 points more in stocks than the Classic 60/40 plan; nothing in bonds.'))
       .toBe('Your mix is 34 points more in stocks than the Classic 60/40 plan; nothing in bonds.')
     expect(mixLead('Your mix is close to the Classic 60/40 plan.')).toBe('Your mix is close to the Classic 60/40 plan.')
+    expect(mixLead('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.'))
+      .toBe('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.')
   })
 
   it('prefills the advisor question in the first person', () => {
@@ -187,6 +210,8 @@ describe('mixLead and advisorMixHref', () => {
       .toBe('My mix is 34 points more in stocks than the Classic 60/40 plan; nothing in bonds. What should a beginner understand about that?')
     expect(decodeURIComponent(advisorMixHref('Your mix is close to the Classic 60/40 plan.').slice(11)))
       .toBe('My mix is close to the Classic 60/40 plan. What should a beginner understand about that?')
+    expect(decodeURIComponent(advisorMixHref('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.').slice(11)))
+      .toBe('My mix has nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks. What should a beginner understand about that?')
   })
 })
 

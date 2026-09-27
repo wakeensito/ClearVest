@@ -27,10 +27,17 @@ const displayName = (c: Exposure) => c.name || c.symbol || 'This company'
  * The fund part is the rounded total minus the rounded direct part, so the two parts always add
  * up to the headline number on screen.
  */
-export function ownershipHeadline(c: Exposure): string {
+export function ownershipHeadline(c: Exposure, { unopened = 0, checking = false }: { unopened?: number; checking?: boolean } = {}): string {
   const lead = `${displayName(c)} is ${c.share > 0 && c.share < HALF_PERCENT ? 'under 1%' : `about ${wholePercent(c.share)}`} of your money`
   const funds = joinList(c.via.map((v) => v.fund))
-  if (c.via.length === 0) return `${lead}, all of it held directly.`
+  if (c.via.length === 0) {
+    // "All of it held directly" is only true once every fund has been looked inside.
+    if (unopened > 0) {
+      const which = `${unopened} of your funds`
+      return checking ? `${lead}, held directly (still looking inside ${which}).` : `${lead}, held directly (we couldn't look inside ${which}).`
+    }
+    return `${lead}, all of it held directly.`
+  }
   if (!(c.direct > 0)) return `${lead}, all of it inside ${funds}.`
   const totalPoints = Math.round(c.share * 100)
   const directPoints = Math.round(c.direct * 100)
@@ -66,22 +73,36 @@ export interface FeeCopy {
   cost: string
   tenYear: string | null
   cheapest: string | null
+  /** Funds that loaded without a fee, or whose request failed. */
   unknown: string | null
+  /** Funds never requested (past the 8-fund cap, or not a valid ticker). */
+  notChecked: string | null
 }
+
+export const FEES_PENDING = 'Adding up fees…'
 
 const aboutDollars = (n: number) => (n < 0.5 ? 'under $1' : `about ${currencyWhole(n)}`)
 
 /**
- * The "What it costs" sentences. `hidden` (Hide portfolio values) removes every dollar figure and
- * keeps the percents. Null when the account holds no funds at all. Never recommends a fund.
+ * The "What it costs" sentences, for settled fee data (the card shows FEES_PENDING while any
+ * requested fund is still loading). `notChecked` are funds never requested; every other fund in
+ * `fees.unknown` loaded without a fee or failed. `hidden` (Hide portfolio values) removes every
+ * dollar figure and keeps the percents. Null when the account holds no funds. Never recommends a fund.
  */
-export function feeCopy(fees: FundFees, hidden: boolean): FeeCopy | null {
-  const unknown = fees.unknown.length ? `Fee not available: ${fees.unknown.join(', ')}` : null
+export function feeCopy(fees: FundFees, hidden: boolean, { notChecked = [] }: { notChecked?: readonly string[] } = {}): FeeCopy | null {
+  const skipped = new Set(notChecked.map((s) => s.trim().toUpperCase()))
+  const unavailable = fees.unknown.filter((s) => !skipped.has(s.trim().toUpperCase()))
+  const skippedHeld = fees.unknown.filter((s) => skipped.has(s.trim().toUpperCase()))
+  const unknown = unavailable.length ? `Fee not available: ${unavailable.join(', ')}` : null
+  const notCheckedLine = skippedHeld.length ? `Not checked: ${skippedHeld.join(', ')}` : null
+  const tail = { unknown, notChecked: notCheckedLine }
   if (fees.rows.length === 0 || fees.blendedRatio == null) {
-    if (!unknown) return null
-    return { cost: "Fee information isn't available for your funds.", tenYear: null, cheapest: null, unknown }
+    if (!unknown && !notCheckedLine) return null
+    return { cost: "Fee information isn't available for your funds.", tenYear: null, cheapest: null, ...tail }
   }
-  if (fees.perYear === 0) return { cost: 'Your funds charge no yearly fee.', tenYear: null, cheapest: null, unknown }
+  // Some funds' fees are missing: say whose cost this is rather than undercount "your funds".
+  const who = fees.unknown.length ? 'The funds we could check' : 'Your funds'
+  if (fees.perYear === 0) return { cost: `${who} charge no yearly fee.`, tenYear: null, cheapest: null, ...tail }
 
   const blended = percentFromFraction(fees.blendedRatio, { digits: 2 })
   const cheapestLabel = expenseRatioLabel(fees.cheapestRatio)
@@ -90,32 +111,38 @@ export function feeCopy(fees: FundFees, hidden: boolean): FeeCopy | null {
 
   if (hidden) {
     return {
-      cost: `Your funds cost about ${blended} of the money in them each year.`,
+      cost: `${who} cost about ${blended} of the money in them each year.`,
       tenYear: null,
       cheapest: saves && cheapestLabel ? `${whatIf}, you would pay less each year.` : null,
-      unknown,
+      ...tail,
     }
   }
   const cost = aboutDollars(fees.perYear)
   return {
-    cost: `Your funds cost ${cost} a year (${blended} of the money in them).`,
+    cost: `${who} cost ${cost} a year (${blended} of the money in them).`,
     tenYear: `At the same balance that's ${aboutDollars(fees.tenYear)} over 10 years.`,
     cheapest: saves && cheapestLabel ? `${whatIf}, it would be ${aboutDollars(fees.ifAllCheapest ?? 0)} a year.` : null,
-    unknown,
+    ...tail,
   }
 }
 
 const YOUR_MIX = 'Your mix is '
+const NOTHING_IN = 'Nothing in '
 
-/** targetMix.drift() sentences mostly lack a subject ("34 points more in stocks…"); give them one. */
+/**
+ * targetMix.drift() sentences either stand alone ("Your mix is close…", "Nothing in bonds, where…")
+ * or lack a subject ("34 points more in stocks…"); give the latter one.
+ */
 export function mixLead(sentence: string): string {
-  return sentence.startsWith(YOUR_MIX) ? sentence : `${YOUR_MIX}${sentence}`
+  return sentence.startsWith(YOUR_MIX) || sentence.startsWith(NOTHING_IN) ? sentence : `${YOUR_MIX}${sentence}`
 }
 
 /** Prefilled, never auto-sent (DESIGN.md §6.2). */
 export function advisorMixHref(sentence: string): string {
-  const body = sentence.startsWith(YOUR_MIX) ? sentence.slice(YOUR_MIX.length) : sentence
-  return `/advisor?q=${encodeURIComponent(`My mix is ${body} What should a beginner understand about that?`)}`
+  const mine = sentence.startsWith(NOTHING_IN)
+    ? `My mix has nothing in ${sentence.slice(NOTHING_IN.length)}`
+    : `My mix is ${sentence.startsWith(YOUR_MIX) ? sentence.slice(YOUR_MIX.length) : sentence}`
+  return `/advisor?q=${encodeURIComponent(`${mine} What should a beginner understand about that?`)}`
 }
 
 /** "1 of 3 funds checked · assumes unchecked funds hold stocks"; null once every fund is checked. */

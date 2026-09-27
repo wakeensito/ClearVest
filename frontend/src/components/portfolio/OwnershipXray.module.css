@@ -36,10 +36,12 @@
 .track { display: flex; gap: 2px; height: 8px; background: var(--cv-surface-sunken); border-radius: 2px; overflow: hidden; }
 .track span { min-width: 0; height: 100%; }
 .direct { background: var(--cv-accent); }
-.viaFill { background: color-mix(in srgb, var(--cv-accent) 45%, var(--cv-surface)); }
+.viaFill { background: color-mix(in srgb, var(--cv-accent) 50%, var(--cv-surface)); }
 
 .via { font-size: 12px; line-height: 16px; color: var(--cv-text-tertiary); font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere; }
 
+.unavailable { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pending { display: flex; align-items: center; gap: 8px; }
 .summary { font-size: 13px; line-height: 20px; font-weight: 500; color: var(--cv-text); }
 .dataLine { font-size: 12px; line-height: 18px; color: var(--cv-text-tertiary); overflow-wrap: anywhere; }
 

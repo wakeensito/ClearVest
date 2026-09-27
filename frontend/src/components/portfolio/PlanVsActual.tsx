@@ -42,7 +42,7 @@ export function PlanVsActual({ holdings }: { holdings: Holding[] }) {
   const target = template ? templateMix(template) : null
   const result = template && target ? drift(actual, target, template.name) : null
   const badge = !hasProfile && picked === null ? PICK_A_PLAN : hasProfile && template?.id === suggested ? SUGGESTED : null
-  const caption = fundsCheckedCaption(fundMap)
+  const caption = fundsCheckedCaption({ loaded: fundMap.loaded, total: fundMap.total, pending: fundMap.pending.length > 0 })
 
   return (
     <div className={styles.plan} data-plan-vs-actual>

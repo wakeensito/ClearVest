@@ -45,10 +45,10 @@ export function PortfolioPage() {
       </section>
       <div className={styles.grid}>
         <div className={styles.main}>
-          <SecurityResearch />
           {!notLinked && <QueryView query={holdings} label="Loading what you own" noun="Your holdings" skeleton={<OwnershipXraySkeleton />}>
             {(data) => <OwnershipXray data={data} hideValues={hidden} />}
           </QueryView>}
+          <SecurityResearch />
           {!notLinked && <section className={styles.holdings} aria-labelledby="holdings-heading">
             <div className={styles.holdingsHeader}>
               <div><h2 id="holdings-heading" className="t-h2">Holdings</h2><p className="t-body-sm c-secondary">Holdings are investments you own. Select a symbol to learn about it.</p></div>

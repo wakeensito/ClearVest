@@ -343,15 +343,17 @@ compares with a model plan. Math lives in `lib/lookThrough.ts` and `lib/targetMi
 one-day cache as `useFund`, `retry: 1`, at most the 8 largest funds; a failed fund is simply
 missing). Only shown when an account is linked.
 
-**What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, main column directly
-above Holdings). A 13px secondary heading, then the headline sentence at 20/28 medium (18/26 on
+**What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, the first thing in the
+Portfolio main column, above Security research; Holdings stays below research). The pitch opens here. A 13px secondary heading, then the headline sentence at 20/28 medium (18/26 on
 phones): “Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT.” Whole percents;
 the fund part is the rounded total minus the rounded direct part, so the two parts add up on screen;
-“all of it inside VOO and QQQ.” with nothing direct, “all of it held directly.” with no fund; a sliver
+“all of it inside VOO and QQQ.” with nothing direct, “all of it held directly.” with no fund (only once
+every fund was looked inside; otherwise “…, held directly (we couldn't look inside 1 of your funds).”, or
+“still looking inside” while one loads); a sliver
 reads “under 1%”, never “0%”. Five company rows follow, each stacked at every width: name, symbol in
 12px tertiary, share right-aligned at 1 decimal; a full-width 8px track; then a 12px tertiary line
 “14% direct · VOO 3% · QQQ 2% · VGT 1%” (parts under 0.5% dropped). The track fills to share ÷ top
-share, solid `accent` for the direct part and a 45% `accent`/`surface` mix for the part held through
+share, solid `accent` for the direct part and the 50% `accent`/`surface` ramp step (§4.13) for the part held through
 funds. It is `aria-hidden`; the via line says the same thing. Every row is one category, so the accent
 ramp is used, never `viz-1..8` (§4.13 rationale). Then “Your top 7 companies are 47% of everything.”
 (fewer when fewer exist; nothing for one), and the 12px data line “Counting each fund's top 10 holdings
@@ -363,9 +365,12 @@ holdings as of …”.
 year (0.08% of the money in them).” / “At the same balance that's about $130 over 10 years.” / only
 when it saves at least $1: “If every fund cost what your cheapest one does (0.03%), it would be about $5
 a year.” A three-column table (Fund, Expense ratio, Per year; symbol, `expenseRatioLabel`, full
-currency). Funds without a ratio: “Fee not available: XYZ”; none known: “Fee information isn't
-available for your funds.”; zero cost: “Your funds charge no yearly fee.”; no funds: no panel. No fund
-is ever recommended.
+currency). While any requested fund is loading, the panel shows only “Adding up fees…” with `Dots`, so a
+loading fund never reads as missing or undercounts the total. Settled: a fund that loaded with no ratio
+or whose request failed reads “Fee not available: XYZ”; a fund never requested (past the 8-fund cap,
+or not a valid ticker) reads “Not checked: XYZ”; when either exists the lead says “The funds we could
+check cost …”. None known: “Fee information isn't available for your funds.”; zero cost: “… charge no
+yearly fee.”; no funds: no panel. No fund is ever recommended.
 
 **Plan vs. today** (`components/portfolio/PlanVsActual.tsx`, `[data-plan-vs-actual]`, in the rail card
 “Your plan vs. today”, above “By investment type” §4.5). A labelled native `select` “Compare with” (44px,
@@ -374,14 +379,23 @@ the pick lives in component state only. Beside the label: `Badge` “Suggested f
 when the pick is the suggestion, “Pick a plan” (neutral) with no profile. Two `aria-hidden` 12px bars,
 “Today” and the plan name, slices in stocks/bonds/cash/other order coloured as their asset category
 (stocks `viz-1`, bonds `viz-4`, cash `viz-7`, other `viz-8`), then a small table: kind, Today, Plan at
-1 decimal. Under a rule, the lead sentence “Your mix is 14 points more in stocks than the Bogleheads
-three-fund plan; nothing in bonds.” (from `drift()`, given a subject), the plan description in tertiary,
-and “Ask the advisor why this matters →”, a prefilled, never-sent `/advisor?q=My mix is …`. While funds
+1 decimal. Under a rule, the lead sentence from `drift()`. When the biggest gap (3+ points) is bonds or
+cash that the account holds none of while the plan keeps 10%+, it leads with that: “Nothing in bonds,
+where the Classic 60/40 plan keeps 40%; 34 points more in stocks.” (the over-gap clause only when one of
+3+ points exists). Otherwise the largest over-gap leads, else the largest under-gap, given a subject:
+“Your mix is 30 points more in stocks than the Bogleheads three-fund plan.”, with a “; nothing in cash”
+tail that never repeats the lead class; all gaps under 3 read “Your mix is close to the … plan.” Then the
+plan description in tertiary and “Ask the advisor why this matters →”, a prefilled, never-sent
+`/advisor?q=` in the first person (“My mix is …” / “My mix has nothing in …”). While funds
 load or fail: “2 of 3 funds checked · assumes unchecked funds hold stocks”.
 
 **States.** Holdings loading: the `#xray` surface with a skeleton. Funds all loading: skeleton;
-partial: render, `Dots` beside the heading, “N of M” in the data line. No stocks or funds: “Link an
-account with stocks or funds to see who you really own.” Plan card: profile or templates loading shows
+partial: render, `Dots` beside the heading, “N of M” in the data line. Every fund lookup failed (or
+came back without holdings): one sentence, “We couldn't look inside your funds right now.”, and a Retry
+button that refetches the failed fund queries, instead of a headline and rows. No stocks or funds (a
+cash- or bond-only account): “This account has no stocks or funds to look inside.” The card never
+tells a linked account to link one. `useFundMap` exposes `pending`, `unchecked` and `failed` symbol
+lists beside the map; its `total` and lookThrough's `fundsTotal` both count distinct symbols. Plan card: profile or templates loading shows
 a skeleton; templates error shows only the Today bar and its percents; an empty account shows “Your mix
 will appear here once the account holds investments.” Hide portfolio values replaces every dollar
 figure (sentences drop the dollar clause, table cells read “Hidden”) and keeps every percent (§6.2).

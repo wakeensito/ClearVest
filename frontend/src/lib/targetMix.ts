@@ -50,13 +50,16 @@ export function classify(holding: Holding, fund?: Fund | null): MixClass {
   return 'stocks'
 }
 
-/** Long-only (value > 0), weighted by value. An empty (or all short/zero) account is all zeros. */
+/**
+ * Long-only (value > 0), weighted by value. An empty (or all short/zero) account is all zeros.
+ * `funds` is keyed by uppercase symbol (lookThrough's FundMap); holdings are looked up the same way.
+ */
 export function actualMix(holdings: readonly Holding[], funds: Record<string, Fund | undefined>): Mix {
   const totals = zeroMix()
   let total = 0
   for (const holding of holdings) {
     if (!(holding.value > 0)) continue
-    totals[classify(holding, funds[holding.symbol])] += holding.value
+    totals[classify(holding, funds[holding.symbol.trim().toUpperCase()])] += holding.value
     total += holding.value
   }
   if (total <= 0) return zeroMix()
@@ -158,6 +161,25 @@ export function drift(actual: Mix, target: Mix, templateName: string): Drift {
 
   if (largest === null) {
     return { gaps, largest, sentence: `Your mix is close to the ${templateName} plan.` }
+  }
+
+  // Exception: when the single biggest gap (by size, ties by MIX_ORDER) is a class the client holds
+  // none of while the plan keeps 10%+ there, "nothing in bonds" is the story — lead with it.
+  let biggest: MixClass | null = null
+  for (const c of MIX_ORDER) {
+    if (Math.abs(gaps[c]) >= GAP_THRESHOLD && (biggest === null || Math.abs(gaps[c]) > Math.abs(gaps[biggest]))) biggest = c
+  }
+  if (
+    biggest !== null &&
+    gaps[biggest] < 0 &&
+    (CALLOUT_CLASSES as readonly MixClass[]).includes(biggest) &&
+    actual[biggest] === 0 &&
+    target[biggest] >= 0.1
+  ) {
+    const empty = biggest
+    const lead = `Nothing in ${MIX_LABEL[empty].toLowerCase()}, where the ${templateName} plan keeps ${Math.round(target[empty] * 100)}%`
+    const over = gaps[largest] > 0 ? `; ${gaps[largest]} points more in ${MIX_LABEL[largest].toLowerCase()}` : ''
+    return { gaps, largest: empty, sentence: `${lead}${over}.` }
   }
 
   const n = Math.abs(gaps[largest])
