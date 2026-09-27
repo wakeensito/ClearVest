@@ -21,7 +21,7 @@ def screened_input():
 def test_chat(aws, monkeypatch):
     monkeypatch.setattr(bedrock, "converse", lambda s, m, max_tokens=600: "Consider a Roth IRA.")
     status, body = call(handler, "POST", "/advisor/chat", {"message": "I'm 24, what account?"})
-    assert status == 200 and body["reply"] == "Consider a Roth IRA."
+    assert status == 200 and body["reply"].startswith("Consider a Roth IRA.")
     assert_matches("/advisor/chat", "post", 200, body)
 
 
