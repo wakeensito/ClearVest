@@ -16,26 +16,30 @@ def fail(*_a, **_k):
 
 
 def test_history_uses_yahoo_first(aws, monkeypatch):
+    from market.routes.history import _fetch
+
     monkeypatch.setattr(yahoo, "history", lambda s, start: SERIES)
     monkeypatch.setattr(fmp, "history", fail)
-    status, body = call(handler, "GET", "/market/history", query={"symbols": "VOO,BTC-USD", "range": "1y"})
-    assert status == 200 and [s["symbol"] for s in body["series"]] == ["VOO", "BTC-USD"]
-    assert body["series"][0]["returnPct"] == 1.0 and body["stale"] is False
-    assert_matches("/market/history", "get", 200, body)
+    assert _fetch("VOO", 1) == SERIES
 
 
 def test_history_falls_back_to_fmp_then_alpha_vantage(aws, monkeypatch):
+    from market.routes.history import _fetch
+
     monkeypatch.setattr(yahoo, "history", fail)
     monkeypatch.setattr(fmp, "history", fail)
     monkeypatch.setattr(alphavantage, "weekly", lambda s: SERIES)
-    status, body = call(handler, "GET", "/market/history", query={"symbols": "VOO"})
-    assert status == 200 and len(body["series"][0]["points"]) == 3
+    assert _fetch("VOO", 1) == SERIES
 
 
-def test_all_sources_down_is_502(aws, monkeypatch):
+def test_all_sources_down_raises_for_worker_retry(aws, monkeypatch):
+    import pytest
+    from market.routes.history import _fetch
+
     for mod, fn in ((yahoo, "history"), (fmp, "history"), (alphavantage, "weekly")):
         monkeypatch.setattr(mod, fn, fail)
-    assert call(handler, "GET", "/market/history", query={"symbols": "VOO"})[0] == 502
+    with pytest.raises(UpstreamError):
+        _fetch("VOO", 1)
 
 
 def test_bad_symbols_and_range_are_400(aws):
@@ -67,24 +71,16 @@ def test_fmp_crypto_symbol_drops_dash(aws):
     assert "symbol=BTCUSD" in responses.calls[0].request.url
 
 
-def test_parallel_fetch_keeps_request_order(aws, monkeypatch):
-    import threading
+def test_cached_history_keeps_request_order(aws):
     import time
 
-    delays = {"VOO": 0.3, "QQQ": 0.15, "SPY": 0.0}  # completion order is SPY, QQQ, VOO
-    finished, lock = [], threading.Lock()
+    from clearvest import cache
 
-    def slow(symbol, start):
-        time.sleep(delays[symbol])
-        with lock:
-            finished.append(symbol)
-        return SERIES
-
-    monkeypatch.setattr(yahoo, "history", slow)
+    for symbol in ("VOO", "QQQ", "SPY"):
+        cache._put("history", f"{symbol}:1y", SERIES, 86400, time.time())
     status, body = call(handler, "GET", "/market/history", query={"symbols": "VOO,QQQ,SPY"})
     assert status == 200 and [s["symbol"] for s in body["series"]] == ["VOO", "QQQ", "SPY"]
-    assert finished == ["SPY", "QQQ", "VOO"]  # proves the workers really ran concurrently
-
+    assert_matches("/market/history", "get", 200, body)
 
 
 def test_volatility_annualizes_from_actual_span_not_requested_range(aws, monkeypatch):
@@ -92,7 +88,12 @@ def test_volatility_annualizes_from_actual_span_not_requested_range(aws, monkeyp
 
     start = dt.date(2025, 9, 26)
     points = [((start + dt.timedelta(days=i)).isoformat(), 100 + (i % 5) * 0.3) for i in range(366)]
-    monkeypatch.setattr(yahoo, "history", lambda s, start: points)
+    import time
+
+    from clearvest import cache
+
+    for rng in ("1y", "10y"):
+        cache._put("history", f"VOO:{rng}", points, 86400, time.time())
     _, body_1y = call(handler, "GET", "/market/history", query={"symbols": "VOO", "range": "1y"})
     _, body_10y = call(handler, "GET", "/market/history", query={"symbols": "VOO", "range": "10y"})
     assert body_1y["series"][0]["volatility"] == body_10y["series"][0]["volatility"]

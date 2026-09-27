@@ -4,17 +4,17 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 
+from aws_lambda_powertools.event_handler import Response
 from aws_lambda_powertools.event_handler.api_gateway import Router
-from clearvest import api, cache
+from clearvest import api
 from clearvest.errors import InvalidInput, UpstreamError
 
-from market import metrics
+from market import history_refresh, metrics
 from market.providers import alphavantage, fmp, yahoo
 
 router = Router()
 YEARS = {"1y": 1, "5y": 5, "10y": 10}
 SYMBOL = re.compile(r"^[A-Z0-9.^-]{1,12}$")
-TTL = 24 * 3600
 
 
 def parse_symbols(raw: str | None, lo: int, hi: int) -> list[str]:
@@ -50,10 +50,6 @@ def fetch_all(symbols: list[str], fn):
         return list(pool.map(fn, symbols))
 
 
-def _cached(symbol: str, rng: str):
-    return cache.get_or_fetch("history", f"{symbol}:{rng}", TTL, lambda: _fetch(symbol, YEARS[rng]))
-
-
 def _periods_per_year(points: list) -> float:
     """Annualization factor from the series' actual date span, not the requested range.
 
@@ -78,9 +74,21 @@ def get_history():
     rng = router.current_event.get_query_string_value("range", "1y")
     if rng not in YEARS:
         raise InvalidInput("range: must be 1y, 5y or 10y")
-    series, any_stale = [], False
-    for symbol, (points, stale) in zip(symbols, fetch_all(symbols, lambda s: _cached(s, rng)), strict=True):
-        any_stale |= stale
+    series, refreshes, any_stale = [], [], False
+    for symbol in dict.fromkeys(symbols):
+        row = history_refresh.snapshot(symbol, rng)
+        fresh = row is not None and row["expiresAt"] > datetime.now(UTC).timestamp()
+        job = None if fresh else history_refresh.request_refresh(symbol, rng)
+        state = "ready" if fresh else ("failed" if job["state"] == "failed" else "pending")
+        refreshes.append({
+            "symbol": symbol, "status": state,
+            "fetchedAt": datetime.fromtimestamp(row["fetchedAt"], UTC).isoformat() if row else None,
+            "requestedAt": datetime.fromtimestamp(int(job["requestedAt"]), UTC).isoformat() if job else None,
+        })
+        if row is None:
+            continue
+        any_stale |= not fresh
+        points = row["value"]
         closes = [c for _, c in points]
         per_year = _periods_per_year(points)
         series.append({
@@ -89,4 +97,12 @@ def get_history():
             "returnPct": metrics.return_pct(closes),
             "volatility": metrics.volatility(closes, per_year),
         })
-    return {"series": series, "stale": any_stale}
+    missing = len(series) < len(refreshes)
+    refreshing = any(r["status"] == "pending" for r in refreshes)
+    if missing and not refreshing:
+        raise UpstreamError("market refresh", "No snapshot available; refresh failed")
+    body = {"series": series, "stale": any_stale, "refreshing": refreshing, "refresh": refreshes}
+    return Response(
+        status_code=202 if missing else 200, content_type="application/json", body=body,
+        headers={"Cache-Control": "no-store", **({"Retry-After": "5"} if refreshing else {})},
+    )

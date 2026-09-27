@@ -27,21 +27,23 @@ Filings and fundamentals come from SEC EDGAR. No API key, but every request need
 
 ## Backend
 
-One HTTP API (API Gateway v2) in front of four Python 3.12 Lambdas, one per domain, sharing one Lambda
-Layer for provider clients, SSM config, DynamoDB, cache and error handling. IaC is AWS SAM — one stack,
+One HTTP API (API Gateway v2) in front of four Python 3.12 domain Lambdas, plus an SQS-backed
+market-history refresh Lambda, sharing one Lambda Layer for provider clients, SSM config, DynamoDB, cache and error handling. IaC is AWS SAM — one stack,
 `us-east-1`. Full design: `docs/superpowers/specs/2026-09-26-backend-architecture-design.md`.
 
 | Function | Routes | Can access |
 |---|---|---|
 | `PortfolioFn` | `/health`, `/profile`, `/plaid/*`, `/portfolio/*` | DynamoDB table; Plaid keys |
 | `MarketFn` | `/market/*` | DynamoDB table (cache rows); FMP, Alpha Vantage keys; SEC User-Agent param; FRED and yfinance (keyless) |
+| `MarketRefreshFn` | SQS price-history jobs | History cache/reservation keys only; FMP and Alpha Vantage keys |
 | `AdvisorFn` | `/advisor/*` | DynamoDB table; Bedrock (Nova model only) |
 | `VoiceFn` | `/voice/*` | S3 audio bucket; ElevenLabs key; DynamoDB table; Bedrock (Nova) |
 
 Operational limits worth knowing:
 
 - **Timeouts:** `MarketFn`, `AdvisorFn` and `VoiceFn` run up to 29s (API Gateway stops at 30s); `MarketFn`
-  fetches each requested symbol in parallel so the Yahoo → FMP → Alpha Vantage chain fits.
+  still handles synchronous company research/comparisons. Price history reads snapshots and queues refreshes;
+  `MarketRefreshFn` has a separate 60s deadline and a maximum of two concurrent executions.
 - **Throttles:** 20 req/s (burst 50) by default; `/voice/*` and `/advisor/*` are capped at 2 req/s (burst 5)
   because they spend Bedrock/ElevenLabs money.
 - **`/voice/speak`** takes up to 5000 chars and speaks the first ~2000, cut at a sentence end.
@@ -53,6 +55,17 @@ Operational limits worth knowing:
   `PortfolioFn`'s code reads `PLAID#` rows. Fine for the sandbox; scope it before real accounts.
 - `src/market/requirements.txt` shadows the layer's packages inside `MarketFn` (yfinance pulls in its own
   `requests`). If you pin `requests` there, keep it in lockstep with `src/layer/requirements.txt`.
+
+### Background market-history refresh
+
+`/market/history` returns cached charts immediately while SQS refreshes expired data. First requests
+without a snapshot return `202`; the frontend polls for up to two minutes and then offers a manual
+check. Jobs are deduplicated with DynamoDB leases, published atomically, and retried into a dead-letter
+queue after repeated failures. Other market routes keep their existing behavior.
+
+**Deployment prerequisite:** update `infra/cicd-role.yaml` before deploying the new queue, worker,
+and alarms. See [the refresh runbook](docs/market-background-refresh.md) for timing, permissions,
+provider-limit caveats, failure recovery, and verification.
 
 ### Local setup
 

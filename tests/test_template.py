@@ -33,10 +33,10 @@ def test_no_account_ids_or_literal_arns():
     assert "arn:aws:" not in text  # always arn:${AWS::Partition}:...
 
 
-def test_four_functions_share_layer():
+def test_api_functions_and_refresh_worker_share_layer():
     res = load()["Resources"]
     fns = {k for k, v in res.items() if v["Type"] == "AWS::Serverless::Function"}
-    assert fns == {"PortfolioFn", "MarketFn", "AdvisorFn", "VoiceFn"}
+    assert fns == {"PortfolioFn", "MarketFn", "AdvisorFn", "VoiceFn", "MarketRefreshFn"}
     assert res["SharedLayer"]["Metadata"]["BuildMethod"] == "python3.12"
 
 
@@ -169,3 +169,44 @@ def test_cd_role_gates_cloudfront_writes_on_ownership_tag():
         if writes & set(actions):
             cond = st.get("Condition", {}).get("StringEquals", {})
             assert cond.get("aws:ResourceTag/clearvest:managed-by") == "clearvest-cicd", st["Sid"]
+
+
+def test_refresh_queue_visibility_and_leases_cover_worker_deadline():
+    from market import history_refresh as refresh
+
+    res = load()["Resources"]
+    worker = res["MarketRefreshFn"]["Properties"]
+    queue = res["MarketRefreshQueue"]["Properties"]
+    event = worker["Events"]["Refresh"]["Properties"]
+    assert queue["VisibilityTimeout"] >= 6 * worker["Timeout"]
+    assert refresh.WORK_SECONDS > worker["Timeout"]
+    assert refresh.JOB_SECONDS > queue["MessageRetentionPeriod"]
+    assert queue["RedrivePolicy"]["maxReceiveCount"] == refresh.MAX_RECEIVES
+    assert event["BatchSize"] == 1
+    assert event["FunctionResponseTypes"] == ["ReportBatchItemFailures"]
+    assert event["ScalingConfig"]["MaximumConcurrency"] <= worker["ReservedConcurrentExecutions"]
+    assert queue["SqsManagedSseEnabled"] is True
+    assert res["MarketRefreshDeadLetterQueue"]["Properties"]["MessageRetentionPeriod"] > queue["MessageRetentionPeriod"]
+
+
+def test_refresh_worker_permissions_exclude_user_data_and_unrelated_services():
+    res = load()["Resources"]
+    policies = res["MarketRefreshFn"]["Properties"]["Policies"]
+    stmts = policies[0]["Statement"]
+    assert stmts[0]["Condition"]["ForAllValues:StringLike"]["dynamodb:LeadingKeys"] == [
+        "CACHE#history", "REFRESH#history#*",
+    ]
+    text = yaml.dump(policies)
+    assert "DynamoDBCrudPolicy" not in text
+    for forbidden in ("PlaidSecretParam", "bedrock:", "s3:", "sqs:SendMessage"):
+        assert forbidden not in text
+    assert {"SQSPollerPolicy": {"QueueName": "MarketRefreshQueue.QueueName"}} in policies
+    assert {"SQSSendMessagePolicy": {"QueueName": "MarketRefreshQueue.QueueName"}} in res["MarketFn"]["Properties"]["Policies"]
+
+
+def test_deploy_role_restricts_mapping_mutations_to_refresh_worker():
+    doc = yaml.load(Path("infra/cicd-role.yaml").read_text(), Loader=_CfnLoader)
+    statements = doc["Resources"]["DeployRole"]["Properties"]["Policies"][0]["PolicyDocument"]["Statement"]
+    for stmt in statements:
+        if stmt["Sid"] in ("AppRefreshMappingCreate", "AppRefreshMappings"):
+            assert stmt["Condition"]["ArnLike"]["lambda:FunctionArn"].endswith(":function:${AppStackName}-MarketRefreshFn-*")

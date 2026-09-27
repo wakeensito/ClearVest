@@ -13,6 +13,15 @@ def ssm():
 
 
 @cache
+def sqs():
+    # Submission is on the HTTP path; do not wait the SDK's default 60 seconds.
+    return boto3.client("sqs", config=Config(
+        connect_timeout=1, read_timeout=2,
+        retries={"mode": "standard", "total_max_attempts": 1},
+    ))
+
+
+@cache
 def s3():
     # Regional endpoint + SigV4: presigned URLs from the global endpoint redirect,
     # and browsers drop CORS headers on redirects.
@@ -51,5 +60,5 @@ def table():
 
 
 def reset() -> None:
-    for fn in (ssm, s3, bedrock, table):
+    for fn in (ssm, sqs, s3, bedrock, table):
         fn.cache_clear()

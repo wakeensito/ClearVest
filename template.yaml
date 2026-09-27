@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   ClearVest backend - one HTTP API, four domain Lambdas (Portfolio, Market,
-  Advisor, Voice) sharing one layer. Spec: docs/superpowers/specs/2026-09-26-backend-architecture-design.md
+  Advisor, Voice) plus an SQS history refresh worker, sharing one layer. Spec: docs/superpowers/specs/2026-09-26-backend-architecture-design.md
 
 # SSM parameter NAMES (not values). Hierarchical names go without the leading
 # slash (clearvest/fmp), because the ARN and the loader both add it.
@@ -135,17 +135,19 @@ Resources:
       CodeUri: src/market
       Handler: market.app.handler
       MemorySize: 1024  # yfinance pulls in pandas
-      # Symbols are fetched in parallel, but one symbol's provider chain (Yahoo 4s -> FMP 5s ->
-      # Alpha Vantage 5s, each with a retry) can still run long; API Gateway stops waiting at 30s.
+      # Comparisons/research still fetch providers synchronously. History only reads
+      # snapshots and submits SQS jobs; its provider calls run in MarketRefreshFn.
       Timeout: 29
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: market
+          MARKET_REFRESH_QUEUE_URL: !Ref MarketRefreshQueue
           FMP_KEY_PARAM: !Ref FmpKeyParam
           ALPHAVANTAGE_KEY_PARAM: !Ref AlphaVantageKeyParam
           SEC_USER_AGENT_PARAM: !Ref SecUserAgentParam
       Policies:
         - DynamoDBCrudPolicy: {TableName: !Ref Table}
+        - SQSSendMessagePolicy: {QueueName: !GetAtt MarketRefreshQueue.QueueName}
         - Statement:
             - Effect: Allow
               Action: ssm:GetParameter
@@ -155,6 +157,91 @@ Resources:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SecUserAgentParam}'
       Events:
         Market: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/market/{proxy+}', Method: ANY}}
+
+  MarketRefreshDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-market-refresh-dlq'
+      SqsManagedSseEnabled: true
+      MessageRetentionPeriod: 1209600
+
+  MarketRefreshQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-market-refresh'
+      SqsManagedSseEnabled: true
+      MessageRetentionPeriod: 3600
+      VisibilityTimeout: 360  # six times the worker's 60-second timeout
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt MarketRefreshDeadLetterQueue.Arn
+        maxReceiveCount: 5  # keep aligned with history_refresh.MAX_RECEIVES
+
+  MarketRefreshFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/market
+      Handler: market.refresh_worker.handler
+      MemorySize: 1024
+      Timeout: 60
+      ReservedConcurrentExecutions: 2
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: market-refresh
+          FMP_KEY_PARAM: !Ref FmpKeyParam
+          ALPHAVANTAGE_KEY_PARAM: !Ref AlphaVantageKeyParam
+      Policies:
+        # The worker cannot read user profiles, chat, or Plaid tokens.
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem]
+              Resource: !GetAtt Table.Arn
+              Condition:
+                ForAllValues:StringLike:
+                  dynamodb:LeadingKeys: ['CACHE#history', 'REFRESH#history#*']
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${FmpKeyParam}'
+                - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AlphaVantageKeyParam}'
+        - SQSPollerPolicy: {QueueName: !GetAtt MarketRefreshQueue.QueueName}
+      Events:
+        Refresh:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MarketRefreshQueue.Arn
+            BatchSize: 1
+            FunctionResponseTypes: [ReportBatchItemFailures]
+            ScalingConfig: {MaximumConcurrency: 2}
+
+  MarketRefreshDeadLetterAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-market-refresh-dlq'
+      AlarmDescription: History refresh jobs exhausted retries; inspect the DLQ and provider logs.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions: [{Name: QueueName, Value: !GetAtt MarketRefreshDeadLetterQueue.QueueName}]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  MarketRefreshAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-market-refresh-age'
+      AlarmDescription: History refresh backlog exceeds five minutes.
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions: [{Name: QueueName, Value: !GetAtt MarketRefreshQueue.QueueName}]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 300
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
 
   AdvisorFn:
     Type: AWS::Serverless::Function
@@ -296,6 +383,10 @@ Resources:
                 AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}'
 
 Outputs:
+  MarketRefreshQueueUrl:
+    Value: !Ref MarketRefreshQueue
+  MarketRefreshDeadLetterQueueUrl:
+    Value: !Ref MarketRefreshDeadLetterQueue
   ApiUrl:
     Description: Base URL for the frontend
     Value: !Sub 'https://${ClearVestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
