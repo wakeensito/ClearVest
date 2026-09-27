@@ -183,6 +183,11 @@ describe('whatIf', () => {
     expect(whatIfSentence(result, 'ORCL', 5000)).toContain("you'd go from owning no ORCL to")
   })
 
+  it('a tiny first purchase reads "under 1%", never "0%"', () => {
+    const result = whatIf({ holdings, funds, symbol: 'ORCL', fund: ORCL_FUND, dollars: 10, profile })
+    expect(whatIfSentence(result, 'ORCL', 10)).toContain("you'd go from owning no ORCL to under 1%")
+  })
+
   it('adding an ETF (more VOO) uses direct portfolio share, not a look-through company share', () => {
     const result = whatIf({ holdings, funds, symbol: 'VOO', fund: VOO, dollars: 2000, profile })
 

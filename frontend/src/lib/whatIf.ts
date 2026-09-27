@@ -6,8 +6,9 @@
 
 import type { Fund, FundKind, Holding } from '../api/client'
 import { type FundMap, lookThrough } from './lookThrough'
-import { currencyWhole, percentFromFraction } from './format'
+import { currencyWhole } from './format'
 import { type RiskProfile, type RiskResult, riskScore } from './risk'
+import { wholePercent } from './xrayCopy'
 
 export interface WhatIfInput {
   holdings: readonly Holding[]
@@ -70,12 +71,14 @@ function directWeight(holdings: readonly Holding[], upper: string): number {
 /**
  * This company's share of the portfolio. For an ETF/mutual fund being added, that's its own direct
  * weight (per the task brief); for everything else (equity, crypto, or an unmapped kind), it's the
- * look-through company share lookThrough() already computed — 0 when the symbol owns nothing yet.
+ * look-through company share lookThrough() already computed, or just the direct weight when
+ * the company falls outside lookThrough()'s top 10 — 0 when the symbol owns nothing yet.
  */
 function exposureOf(holdings: readonly Holding[], lt: ReturnType<typeof lookThrough>, upper: string, mappedType: AddableType | null): number {
   if (mappedType === 'etf' || mappedType === 'mutual fund') return directWeight(holdings, upper)
   const company = lt.companies.find(c => c.symbol === upper)
-  return company ? company.share : 0
+  // lookThrough() keeps only the top 10 companies; below that, the direct holding is still real.
+  return company ? company.share : directWeight(holdings, upper)
 }
 
 function largestOf(lt: ReturnType<typeof lookThrough>): CompanyShare | null {
@@ -166,7 +169,8 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
   }
 }
 
-const pct = (f: number) => percentFromFraction(f, { digits: 0 })
+// Whole percents; a positive sliver reads "under 1%", never "0%" (same rule as §4.14).
+const pct = wholePercent
 
 /**
  * "Adding $1,000 of NVDA: your NVDA exposure goes from 19% to 22% (counting what your funds hold),

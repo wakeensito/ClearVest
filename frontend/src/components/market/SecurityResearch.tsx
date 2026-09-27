@@ -16,6 +16,7 @@ import { CompanyLogo } from './CompanyLogo'
 import { FundExplainer, FundIdentity } from './FundExplainer'
 import { SymbolSearch } from './SymbolSearch'
 import { WatchButton } from './Watchlist'
+import { WhatIfCard } from './WhatIfCard'
 import styles from './SecurityResearch.module.css'
 
 export interface SecurityResearchProps {
@@ -49,6 +50,7 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
       </div>
       {symbol && explainable && <div className={styles.identityRow} data-identity-row><FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} /><WatchButton symbol={symbol} /></div>}
       {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} onResearch={select} headingRef={headingRef} />}
+      {symbol && explainable && <WhatIfCard symbol={symbol} state={fundState} />}
       {!symbol ? <div className={styles.empty}>Enter a ticker above to load its chart and key figures.</div> : <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
         {(data) => {
           const series = data.series.find((item) => item.symbol.toUpperCase() === symbol)
