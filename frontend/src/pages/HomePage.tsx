@@ -41,7 +41,7 @@ export function HomePage() {
     <section className={styles.next} aria-labelledby="next-step"><div><h2 id="next-step">Take your next small step</h2><p>You can learn without buying anything.</p></div><div className={styles.paths}>
       <Link to={started && resume ? `/learn/${resume.id}` : '/learn'}><BookOpen aria-hidden size={24} /><strong>{started && resume ? 'Continue learning' : 'Build the basics'}</strong><span>{started ? `${lessonsDone} of ${ALL_LESSONS.length} lessons complete. ${resume ? `Next: ${resume.title}.` : 'Revisit your starter path.'}` : 'Start with a short lesson and a quick check.'}</span><em className={styles.cta} aria-hidden>{started ? 'Continue' : 'Start learning'}<ArrowRight size={16} /></em></Link>
       <Link to="/markets?symbol=AAPL&guided=1"><Search aria-hidden size={24} /><strong>Explore a real company</strong><span>Learn to read sales, profit and price together.</span><em className={styles.cta} aria-hidden>Explore<ArrowRight size={16} /></em></Link>
-      <Link to="/portfolio"><Wallet aria-hidden size={24} /><strong>Understand a portfolio</strong><span>See what a collection of investments tells you.</span><em className={styles.cta} aria-hidden>Open portfolio<ArrowRight size={16} /></em></Link>
+      <Link to="/portfolio#xray"><Wallet aria-hidden size={24} /><strong>See what you really own</strong><span>Your funds may hold the same companies twice.</span><em className={styles.cta} aria-hidden>Open portfolio<ArrowRight size={16} /></em></Link>
     </div></section>
     <section className={styles.progress} aria-labelledby="progress-title">
       <div><h2 id="progress-title">Your progress</h2><p>Lessons and research skills in one place. Saved in this browser when storage is available.</p></div>

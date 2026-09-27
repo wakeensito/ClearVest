@@ -270,9 +270,17 @@ describe('realDifference', () => {
   })
 
   it('a bond fund compares investments, and a missing fee is named', () => {
-    expect(realDifference(VOO, { ...BND, expenseRatio: null })?.sentences).toEqual([
+    // BND itself has no holdings data (topHoldings: []); use a bond fund that has some to exercise the comparison sentence.
+    const bondWithHoldings: Fund = { ...BND, expenseRatio: null, topHoldings: [{ symbol: null, name: 'United States Treasury Notes', weight: 0.004 }] }
+    expect(realDifference(VOO, bondWithHoldings)?.sentences).toEqual([
       'VOO and BND own different top investments.',
       'Fee information isn’t available for BND.',
+    ])
+  })
+
+  it('BND has no holdings data: no investment-comparison sentence is invented', () => {
+    expect(realDifference(VOO, BND)?.sentences).toEqual([
+      'They cost the same: about $3 a year on $10,000.',
     ])
   })
 

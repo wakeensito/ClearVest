@@ -30,10 +30,31 @@ const FUNDS = {
   VOO,
   VFIAX: { ...VOO, symbol: 'VFIAX', name: 'Vanguard 500 Index Admiral', kind: 'mutual_fund', expenseRatio: 0.0004, summary: 'VFIAX is a mutual fund that owns shares of about 500 of the biggest U.S. companies.' },
   AAPL: { symbol: 'AAPL', name: 'Apple Inc.', kind: 'stock', isIndexFund: false, leveraged: false, tracks: null, expenseRatio: null, topHoldings: [], summary: 'Apple makes the iPhone, Mac and other devices, and sells services like iCloud.', summarySource: 'model', asOf: '2026-09-26', stale: false, fundFamily: null, category: null, sector: 'Technology' },
-  // The longest provider wording we have seen, to prove the identity line wraps at 320px.
-  VTI: { ...VOO, symbol: 'VTI', name: 'Vanguard Total Stock Market Index Fund ETF Shares', tracks: 'CRSP US Total Market Index Including Micro-Capitalization Companies' },
+  // Matches src/lib/fundExplainer.fixtures.ts VTI: total-market index, weights = VOO's x0.85.
+  VTI: { ...VOO, symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', tracks: 'CRSP US Total Market Index', topHoldings: TOP_TEN.map(holding => ({ ...holding, weight: holding.weight * 0.85 })), summary: 'VTI is a fund that owns shares of thousands of U.S. companies of all sizes.' },
   // Leveraged: the provider says it tracks an index; the UI must never call it an index fund.
   TQQQ: { ...VOO, symbol: 'TQQQ', name: 'ProShares UltraPro QQQ', leveraged: true, tracks: 'NASDAQ-100 Index', expenseRatio: 0.0084, fundFamily: 'ProShares', category: 'Trading--Leveraged Equity', summary: 'TQQQ tries to move three times as much as the Nasdaq-100 each day.' },
+  BND: { ...VOO, symbol: 'BND', name: 'Vanguard Total Bond Market ETF', tracks: 'Bloomberg U.S. Aggregate Float Adjusted Index', category: 'Intermediate Core Bond', topHoldings: [], summary: 'BND is a fund that lends money to the U.S. government and many companies.' },
+  QQQ: {
+    ...VOO, symbol: 'QQQ', name: 'Invesco QQQ Trust', expenseRatio: 0.002, tracks: 'Nasdaq-100 Index', category: 'Large Growth', fundFamily: 'Invesco',
+    topHoldings: [
+      ['NVDA', 'NVIDIA Corp', 0.091], ['AAPL', 'Apple Inc', 0.085], ['MSFT', 'Microsoft Corp', 0.078], ['AMZN', 'Amazon.com Inc', 0.055],
+      ['AVGO', 'Broadcom Inc', 0.052], ['META', 'Meta Platforms Inc Class A', 0.04], ['TSLA', 'Tesla Inc', 0.034], ['GOOGL', 'Alphabet Inc Class A', 0.028],
+      ['GOOG', 'Alphabet Inc Class C', 0.027], ['COST', 'Costco Wholesale Corp', 0.026],
+    ].map(([symbol, name, weight]) => ({ symbol, name, weight })),
+    summary: 'QQQ is a fund that owns the 100 biggest non-financial companies listed on the Nasdaq.',
+  },
+  VGT: {
+    ...VOO, symbol: 'VGT', name: 'Vanguard Information Technology ETF', expenseRatio: 0.0009, tracks: 'MSCI US IMI Info Tech 25/50', category: 'Technology', fundFamily: 'Vanguard',
+    topHoldings: [
+      ['NVDA', 'NVIDIA Corp', 0.162], ['AAPL', 'Apple Inc', 0.15], ['MSFT', 'Microsoft Corp', 0.131], ['AVGO', 'Broadcom Inc', 0.046],
+      ['ORCL', 'Oracle Corp', 0.028], ['PLTR', 'Palantir Technologies Inc', 0.022], ['CSCO', 'Cisco Systems Inc', 0.02], ['AMD', 'Advanced Micro Devices Inc', 0.019],
+      ['CRM', 'Salesforce Inc', 0.015], ['IBM', 'International Business Machines Corp', 0.014],
+    ].map(([symbol, name, weight]) => ({ symbol, name, weight })),
+    summary: 'VGT is a fund that owns shares of technology companies such as NVIDIA, Apple and Microsoft.',
+  },
+  // A single stock, not a fund: no holdings, no expense ratio.
+  NVDA: { symbol: 'NVDA', name: 'NVIDIA Corp', kind: 'stock', isIndexFund: false, leveraged: false, tracks: null, expenseRatio: null, topHoldings: [], summary: 'NVIDIA designs graphics chips used for gaming, data centers and artificial intelligence.', summarySource: 'model', asOf: '2026-09-26', stale: false, fundFamily: null, category: null, sector: 'Technology' },
 };
 
 (async () => {
@@ -49,6 +70,11 @@ const FUNDS = {
       const symbol = url.searchParams.get('symbol');
       if (fundMode === 'error') { status = 502; body = { error: { code: 'UPSTREAM_UNAVAILABLE', message: 'Unavailable', requestId: null } }; }
       else body = FUNDS[symbol] ?? { ...FUNDS.AAPL, symbol, name: symbol };
+    } else if (url.pathname === '/market/search') {
+      // The contract example always answers "AAPL"; this script types exact tickers (VFIAX) into the
+      // type-ahead box, so echo the query back as an exact-match suggestion instead.
+      const query = (url.searchParams.get('query') || '').trim().toUpperCase();
+      body = { results: query ? [{ symbol: query, name: FUNDS[query]?.name ?? query, exchange: 'NASDAQ' }] : [], stale: false };
     } else {
       body = structuredClone(contract.paths[url.pathname]?.[method]?.responses?.['200']?.content?.['application/json']?.example ?? {});
       if (url.pathname === '/market/history') {
