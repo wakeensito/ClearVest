@@ -169,6 +169,17 @@ const SEARCH = {
     assert.equal(param('compare'), null);
     assert.equal(param('symbol'), 'VOO');
 
+    // Opened from the search, Exit returns focus to that search box, not to "Compare securities".
+    await box().fill('fxaix');
+    await listbox.getByRole('option', { name: /FXAIX/ }).waitFor();
+    await box().press('ArrowDown');
+    await box().press('Shift+Enter');
+    await dialog.waitFor();
+    await page.getByRole('button', { name: 'Exit comparison' }).click();
+    await dialog.waitFor({ state: 'detached' });
+    await page.waitForURL(url => url.searchParams.get('compare') === null);
+    assert.equal(await box().evaluate(input => input === document.activeElement), true, 'Exit refocuses the search that opened the dialog');
+
     // Esc twice on the page: close the list, then clear the box; the explainer stays open.
     await page.goto(`${previewUrl}/markets?symbol=VOO&explain=1`);
     await page.locator('[data-fund-explainer="VOO"]').waitFor();
@@ -202,7 +213,8 @@ const SEARCH = {
     // Exit (no pushed entry here) replaces the URL without compare.
     await page.getByRole('button', { name: 'Exit comparison' }).click();
     await dialog.waitFor({ state: 'detached' });
-    assert.equal(param('compare'), null);
+    // The router replace lands just after the dialog closes.
+    await page.waitForURL(url => url.searchParams.get('compare') === null);
 
     // Compare companies lists companies only.
     await page.goto(`${previewUrl}/markets?view=companies`);

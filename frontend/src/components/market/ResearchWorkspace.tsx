@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { toFundState, useFund } from '../../api/queries'
 import { compareWith, withCompare } from '../../lib/fundExplainer'
+import { focusReturnTarget } from '../../lib/focusReturn'
 import { Button } from '../ui/Button'
 import { CompanyFinancials } from './CompanyFinancials'
 import { CompactFundExplainer, RealDifference } from './FundExplainer'
@@ -34,13 +35,15 @@ export function ResearchWorkspace({ symbol, onSymbolChange, onCompareCompanies, 
   // Opened from the search or a ?compare= link (so the URL owns it), not from "Compare securities".
   const viaUrl = useRef(false)
   const replaceOnClose = useRef(false)
+  // What had focus when the search opened the dialog; null means "Compare securities".
+  const returnFocus = useRef<Element | null>(null)
   const pushed = (location.state as { compareOpened?: boolean } | null)?.compareOpened === true
   const show = (other: string) => {
     setLeft(symbol); setRight(other); setRightSeed(seed => seed + 1); setComparing(true)
     if (!dialog.current?.open) dialog.current?.showModal()
     requestAnimationFrame(() => focusHeading.current?.focus())
   }
-  const open = () => { viaUrl.current = false; show('') }
+  const open = () => { viaUrl.current = false; returnFocus.current = null; show('') }
   /**
    * "Compare with VOO" from a search row: push `compare=` and let the effect below open the dialog.
    * The URL goes first on purpose: opening the modal in the same frame as a router navigation left
@@ -48,6 +51,8 @@ export function ResearchWorkspace({ symbol, onSymbolChange, onCompareCompanies, 
    */
   const openCompare = (other: string) => {
     viaUrl.current = true
+    // Closing returns focus here (the search box after Shift+Enter), not to "Compare securities".
+    returnFocus.current = document.activeElement
     // Read the live URL, not this render's params: a symbol change in the same frame must survive.
     setParams(withCompare(new URLSearchParams(window.location.search), other), { state: { compareOpened: true } })
   }
@@ -66,7 +71,9 @@ export function ResearchWorkspace({ symbol, onSymbolChange, onCompareCompanies, 
   }, [comparing])
   const close = () => dialog.current?.close()
   const onClose = () => {
-    setComparing(false); compareButton.current?.focus()
+    setComparing(false)
+    focusReturnTarget(returnFocus.current, compareButton.current)?.focus()
+    returnFocus.current = null
     const fromUrl = viaUrl.current
     viaUrl.current = false
     const live = new URLSearchParams(window.location.search)
