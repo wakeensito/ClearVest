@@ -15,8 +15,8 @@ const NVDA: Fund = { ...AAPL, symbol: 'NVDA', name: 'NVIDIA Corp', summary: 'NVI
 const ok = (fund: Fund): FundState => ({ status: 'success', fund })
 const profile = { age: 25, horizon: 'long', riskTolerance: 'high', goals: [] }
 
-const render = (symbol: string, state: FundState, seed: Parameters<typeof renderSeeded>[1]) =>
-  renderSeeded(h(WhatIfCard, { symbol, state }), seed)
+const render = (symbol: string, state: FundState, seed: Parameters<typeof renderSeeded>[1], props: { invite?: boolean } = {}) =>
+  renderSeeded(h(WhatIfCard, { symbol, state, ...props }), seed)
 
 const linked: Parameters<typeof renderSeeded>[1] = (c) => {
   c.setQueryData(['holdings'], sampleHoldings())
@@ -36,7 +36,8 @@ describe('WhatIfCard', () => {
     expect(t).toContain('What would this do to my portfolio?')
     expect(t).toMatch(/Adding \$1,000 of NVDA: NVDA would be about \d+% of your money instead of \d+% \(counting your funds' top 10 holdings\), and your risk score would go from \d+ to \d+ out of 100/)
     expect(t).toMatch(/Risk score \d+ → \d+/)
-    expect(t).toMatch(/NVDA exposure \d+% → \d+%/)
+    expect(t).toMatch(/NVDA's share of your money \d+% → \d+%/)
+    expect(t).not.toContain('exposure')
     expect(t).toContain("Counting each fund's top 10 holdings (3 of 3 funds checked). Educational, not a recommendation.")
     expect(html).toMatch(/aria-pressed="true"[^>]*>\$1,000</)
   })
@@ -57,6 +58,37 @@ describe('WhatIfCard', () => {
     const t = text(render('VTI', ok(vti), linked))
     expect(t).toContain('(4 of 4 funds checked)')
     expect(t).toMatch(/VTI would be about \d+% of your money instead of none we can see today/)
+    // The figure's before side matches the sentence: none, not "0%".
+    expect(t).toMatch(/VTI's share of your money none → \d+%/)
+  })
+
+  it('still renders when every fund lookup failed, and the caption says none were checked', () => {
+    const html = render('NVDA', ok(NVDA), (c) => {
+      c.setQueryData(['holdings'], sampleHoldings())
+      c.setQueryData(['profile'], profile)
+      for (const s of ['VOO', 'QQQ', 'VGT']) seedApiError(c, ['fund', s], new ApiError(502, 'UPSTREAM_UNAVAILABLE', 'Upstream unavailable'))
+    })
+    expect(html).toContain('data-what-if="NVDA"')
+    expect(text(html)).toContain('(0 of 3 funds checked)')
+  })
+
+  it('still renders when the only fund was never checked (not a valid ticker)', () => {
+    const rows = sampleHoldings().holdings.filter(r => r.type !== 'etf')
+    rows.push({ symbol: 'NOT A TICKER', name: 'Mystery fund', type: 'etf', quantity: 1, price: 100, value: 100, weight: 0.01 })
+    const html = render('NVDA', ok(NVDA), (c) => {
+      c.setQueryData(['holdings'], { ...sampleHoldings(), holdings: rows })
+      c.setQueryData(['profile'], profile)
+    })
+    expect(html).toContain('data-what-if="NVDA"')
+    expect(text(html)).toContain('(0 of 1 funds checked)')
+  })
+
+  it('with invite={false} (the portfolio page), an unlinked account sees nothing, not a link to itself', () => {
+    const html = render('NVDA', ok(NVDA), (c) => {
+      seedApiError(c, ['holdings'], new ApiError(409, 'NOT_LINKED', 'No linked account'))
+      c.setQueryData(['profile'], profile)
+    }, { invite: false })
+    expect(html).toBe('')
   })
 
   it('invites an unlinked account to link one (or try the sample) with one line to the portfolio', () => {

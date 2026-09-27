@@ -29,9 +29,11 @@ export interface SecurityResearchProps {
    * (Compare securities), which shows a compact explainer under each side instead.
    */
   explainable?: boolean
+  /** The what-if card's one-line "link an account" invite (to /portfolio); off on the portfolio page. */
+  invite?: boolean
 }
 
-export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, explainable = true }: SecurityResearchProps) {
+export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, explainable = true, invite = true }: SecurityResearchProps) {
   const [symbol, setSymbol] = useState(initialSymbol)
   const [range, setRange] = useState<HistoryRange>('1y')
   const query = useHistory(symbol, range)
@@ -50,7 +52,7 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
       </div>
       {symbol && explainable && <div className={styles.identityRow} data-identity-row><FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} /><WatchButton symbol={symbol} /></div>}
       {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} onResearch={select} headingRef={headingRef} />}
-      {symbol && explainable && <WhatIfCard symbol={symbol} state={fundState} />}
+      {symbol && explainable && <WhatIfCard symbol={symbol} state={fundState} invite={invite} />}
       {!symbol ? <div className={styles.empty}>Enter a ticker above to load its chart and key figures.</div> : <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
         {(data) => {
           const series = data.series.find((item) => item.symbol.toUpperCase() === symbol)

@@ -441,7 +441,9 @@ account with funds: “ORCL would be about 9% of your money instead of none we c
 funds, where nothing is unseen: “… instead of none today”. The risk label is repeated on both sides
 only when it changes (“from 34 (Moderate) to 68 (Aggressive) out of 100”). Whole percents; a sliver
 reads “under 1%” (“would be under 1% of your money”), never “0%”. For a stock or crypto the exposure is its look-through company share; for
-an ETF or mutual fund it is the fund's own share of the account.
+an ETF or mutual fund it is the fund's own share of the account. “(counting your funds' top 10
+holdings)” appears only when the account holds funds and a company (a stock) is being added; a fund's
+own share, or a stock-only account, is exact. Share classes count as one company (GOOG is GOOGL, §4.14).
 
 **A lower bound.** Funds are looked through their top 10 holdings only (§4.14), so the exposure figure
 never counts a company sitting deeper in a fund, and the copy never claims it does. A company outside
@@ -451,7 +453,8 @@ a fund's top 10 on the “after” side (adding a fund brings its top holdings i
 **Figures.** Two compact before → after pairs, side by side on desktop, stacked on phones, as a `dl`:
 “Risk score 34 → 35” with the band label in 12px tertiary (“Moderate → Aggressive” when it crosses), over
 the risk card's three neutral bands (§4.6) with a short `text-secondary` tick for today, a tall `accent`
-tick for after, and a 2px `accent` line between them for the move; and “NVDA exposure 17% → 21%” over an
+tick for after, and a 2px `accent` line between them for the move; and “NVDA's share of your money
+17% → 21%” (the before side reads “none” at 0%, matching the sentence) over an
 8px sunken track out of the whole account: solid `accent` for today, a 45% `accent`/`surface` mix for the
 added part (the §4.13 ramp; never `viz-1..8`, never green or red). Both drawings are `aria-hidden`; the
 sentence and the numbers carry them. When the biggest single look-through company changes: “NVDA would
@@ -465,9 +468,11 @@ button, no link to a broker, no “you should”.
 **States.** Anything loading (fund, holdings, profile, the account's first fund) renders nothing, never
 a skeleton, so the research header never jumps or waits. Not linked (409), for an addable kind whose
 fund loaded: one 13px medium line, a `Link` to `/portfolio` with a 44px target, “Link an account, or
-try the sample one, to see what adding NVDA would do to your mix →”. Any other error, an empty account,
-an index: nothing. No saved profile (404) scores without
-one, like the backend. Funds still arriving after the first: render with “N of M”.
+try the sample one, to see what adding NVDA would do to your mix →” — on Markets only; the portfolio
+page passes `invite={false}` (it already shows the link card, and the line would link to itself). Any
+other error, an empty account, an index: nothing. No saved profile (404) scores without
+one, like the backend. Funds still arriving after the first: render with “N of M”. Every fund failed or
+never checked: render anyway, and the data line says so (“0 of 3 funds checked”).
 
 **Phone.** No overflow at 320/375/393px; the presets keep one row and the amount box takes the next
 full row below 640px. Measured at 375px: about 570px tall with the biggest-company line, 530px at 393px.

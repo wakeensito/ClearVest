@@ -30,9 +30,10 @@ const BANDS = [{ from: 0, to: 33 }, { from: 34, to: 66 }, { from: 67, to: 100 }]
  * "What would this do to my portfolio?" (DESIGN.md §4.15), under the ticker page's identity row.
  * Renders nothing until everything it needs has arrived, and nothing at all for an empty account,
  * an index, or any failed query: the research card never waits on it. An unlinked account (409)
- * gets one line inviting it to the portfolio page instead.
+ * gets one line inviting it to the portfolio page instead, unless `invite` is false (on the
+ * portfolio page itself, where that link would point back at the page).
  */
-export function WhatIfCard({ symbol, state }: { symbol: string; state: FundState }) {
+export function WhatIfCard({ symbol, state, invite = true }: { symbol: string; state: FundState; invite?: boolean }) {
   const holdings = useHoldings()
   const profile = useProfile()
   const fundMap = useFundMap(holdings.data?.holdings)
@@ -40,6 +41,7 @@ export function WhatIfCard({ symbol, state }: { symbol: string; state: FundState
 
   if (!fund || !ADDABLE.has(fund.kind)) return null
   if (holdings.isError && hasCode(holdings.error, 'NOT_LINKED')) {
+    if (!invite) return null
     return (
       <Link to="/portfolio" className={styles.invite} data-what-if-invite>
         {`Link an account, or try the sample one, to see what adding ${symbol.trim().toUpperCase()} would do to your mix →`}
@@ -50,7 +52,9 @@ export function WhatIfCard({ symbol, state }: { symbol: string; state: FundState
   // A 404 means no saved profile: score without it, like the backend. Any other error: nothing.
   if (profile.isPending) return null
   if (profile.isError && !hasCode(profile.error, 'NOT_FOUND')) return null
-  if (fundMap.pending && fundMap.loaded === 0 && fundMap.total > 0) return null
+  // Wait for the account's first fund while any is in flight; once every fund failed or was never
+  // checked, render anyway (the "N of M funds checked" caption says how many were counted).
+  if (fundMap.pending.length > 0 && fundMap.loaded === 0) return null
   const rows = holdings.data.holdings
   if (!(rows.reduce((sum, h) => sum + Math.max(h.value, 0), 0) > 0)) return null
 
@@ -163,9 +167,9 @@ function ExposureFigure({ result, symbol }: { result: WhatIfResult; symbol: stri
   const added = Math.min(Math.max(result.exposureAfter - before, 0), 1 - before)
   return (
     <div className={styles.figure}>
-      <dt className={styles.figureLabel}>{symbol} exposure</dt>
+      <dt className={styles.figureLabel}>{symbol}'s share of your money</dt>
       <dd className={styles.figureValue}>
-        <span className={styles.move}>{wholePercent(result.exposureBefore)} → {wholePercent(result.exposureAfter)}</span>
+        <span className={styles.move}>{result.exposureBefore === 0 ? 'none' : wholePercent(result.exposureBefore)} → {wholePercent(result.exposureAfter)}</span>
       </dd>
       <dd className={styles.track} aria-hidden>
         {before > 0 && <span className={styles.today} style={{ width: `${before * 100}%` }} />}
