@@ -62,6 +62,16 @@ type "fxaix" and press Shift+Enter; open `/markets?symbol=VOO&compare=FXAIX` dir
 - **The provider only searches the settled draft** (`settled === term`), so a prefilled "VOO" settling
   after the user typed "v" costs no call. The smoke asserts that one letter and a question make no
   `/market/search` request.
+- **The "Look up X as a ticker" row appears only when nothing else answered.** With the providers
+  down, a one-word category ("bonds", "ETF", "cheap", "tech") is ticker-shaped too, and a lookup row
+  ahead of its curated funds made Enter research BONDS/ETF. A real uncurated ticker (AAPL while down)
+  and one letter ("V") keep the row.
+- **Enter answers locally whenever the list leads with a non-exact curated fund** (`answeredLocally`
+  in searchBox.ts), so "ETF", "bonds" or "cheap" never wait for the provider. A fast Enter on a ticker
+  prefix with a curated match ("vo") therefore takes the curated fund (VOO) rather than waiting for VO.
+- **Closing the compare dialog returns focus to what opened it.** `openCompare` remembers
+  `document.activeElement` (the search box after Shift+Enter); "Compare securities", a deep link, or
+  an opener that left the page fall back to the "Compare securities" button (`focusReturnTarget`).
 - **The phone Compare button reads "Compare".** Its accessible name stays "Compare with VOO", and the
   text beside it keeps its width at 320px.
 
@@ -87,6 +97,10 @@ type "fxaix" and press Shift+Enter; open `/markets?symbol=VOO&compare=FXAIX` dir
 4. Keep `compare=` in sync when the second panel's own search changes symbol (today the dialog shows
    the new symbol but the URL keeps the one it opened with).
 5. A curated one-liner for provider-only fund rows (needs a backend summary field).
+6. A real ticker that is also a category word ranks first by the exact-ticker rule when the provider
+   returns it: "tech" lists Bio-Techne (TECH), "bond" lists PIMCO Active Bond (BOND), ahead of the
+   curated funds. This is intentional for now. With the provider down, the curated funds lead and no
+   "Look up TECH" row is shown.
 
 ## Next steps
 
