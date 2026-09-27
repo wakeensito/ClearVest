@@ -334,7 +334,9 @@ capitals. The overlay sits below the word, or above it in the lower part of the 
 inside the viewport at 320px. Escape, the close button or an outside tap closes it and returns focus.
 
 Where it appears: advisor replies (`<Markdown explain />`; plain `<Markdown />` renders exactly as
-before) and the Portfolio risk explanation and factors. Advisor replies that mention a lesson term,
+before), the Portfolio risk explanation and factors, the fund explainer’s “What is it?” sentence and
+“Keep learning” answers, and Compare companies (focus and metric descriptions, “How do I compare
+companies fairly?”). Advisor replies that mention a lesson term,
 and the risk card, show one “Related lesson: …” link.
 
 ## 5. Layout and routes

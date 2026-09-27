@@ -10,6 +10,7 @@ import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { CompanyNameSearch } from './CompanyNameSearch'
 import { ContextHelp } from '../education/ContextHelp'
+import { ExplainText } from '../education/Term'
 import { CompanyLogo } from './CompanyLogo'
 import styles from './CompanyComparison.module.css'
 
@@ -72,7 +73,7 @@ export function CompanyComparison({ selected, onSelectedChange }: { selected: st
       <CompanyNameSearch onSelect={symbol => { try { onSelectedChange(addCompanySymbols(selected, symbol)); setError('') } catch (error) { setError((error as Error).message) } }} />
       <div className={styles.presets}><span>Try a pair</span>{pairs.map((pair) => <button key={pair.label} disabled={query.isFetching} onClick={() => run(pair.symbols)}><span>{pair.label}</span><strong>{pair.symbols.join(' + ')}</strong></button>)}</div>
     </div>
-    <ContextHelp title="How do I compare companies fairly?"><p>Start with businesses that sell similar things. A ratio puts a number in context: P/E compares share price with earnings per share, and a margin shows how much of each unit of sales remains after certain costs.</p><p>There is no universal good P/E. A lower number can reflect lower growth or higher risk. Negative or missing P/E values are not useful for this comparison. Per-share values below have no confirmed currency, so do not compare them across currencies.</p></ContextHelp>
+    <ContextHelp title="How do I compare companies fairly?"><p><ExplainText text="Start with businesses that sell similar things. A ratio puts a number in context: P/E compares share price with earnings per share, and a margin shows how much of each unit of sales remains after certain costs." /></p><p>There is no universal good P/E. A lower number can reflect lower growth or higher risk. Negative or missing P/E values are not useful for this comparison. Per-share values below have no confirmed currency, so do not compare them across currencies.</p></ContextHelp>
     {symbols.length === 0 ? <div className={styles.empty}><ArrowLeftRight size={28} strokeWidth={1.5} aria-hidden /><h3>Different businesses. A common lens.</h3><p>Choose a pair above or add your own companies. Explore price, performance and financial strength with the same measures side by side.</p><div className={styles.emptyTopics}>{groups.map((item) => <div key={item.id}><strong>{item.label}</strong><span>{item.question}</span></div>)}</div></div> : <div className={styles.results}>
       <QueryView query={query} label="Loading company comparison" noun="Company comparison data">
         {(data) => data.companies.length === 0 ? <p className={styles.empty}>No company data was returned. Try another pair of tickers.</p> : <>
@@ -80,9 +81,9 @@ export function CompanyComparison({ selected, onSelectedChange }: { selected: st
           {selected.join(',') !== symbols.join(',') && <p className={styles.draftNote} role="status">Your selection has changed. Compare again to update these results.</p>}
           {view === 'visual' ? <>
             <div className={styles.groupTabs} role="group" aria-label="Comparison focus">{groups.map((item) => <button key={item.id} aria-pressed={group === item.id} onClick={() => setGroup(item.id)}>{item.label}</button>)}</div>
-            <div className={styles.groupHeading}><h4>{activeGroup.question}</h4><p>{activeGroup.description}</p></div>
+            <div className={styles.groupHeading}><h4>{activeGroup.question}</h4><p><ExplainText text={activeGroup.description} /></p></div>
             <div className={styles.metrics}>{companyMetrics.filter((metric) => activeGroup.keys.includes(metric.key)).map((metric) => <article key={metric.key} className={styles.metric} aria-label={metric.label}>
-              <h4>{metric.label}</h4><p>{metric.description}</p>
+              <h4>{metric.label}</h4><p><ExplainText text={metric.description} /></p>
               <ul>{data.companies.map((company, index) => {
                 const geometry = comparisonBar(data.companies.map((entry) => entry[metric.key]), company[metric.key])
                 return <li key={company.symbol} style={{ '--company-color': colors[index] } as CSSProperties}><div className={styles.barLabel}><span><i className={styles.dot} aria-hidden />{company.symbol}</span><strong><MetricValue value={metric.format(company[metric.key])} /></strong></div><div className={styles.barTrack} aria-hidden>{geometry && <><span className={styles.zero} style={{ left: `${geometry.zero}%` }} /><span className={styles.bar} style={{ left: `${geometry.left}%`, width: `${geometry.width}%` }} /></>}</div></li>
