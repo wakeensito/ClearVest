@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router'
 import { useFunds, useHoldings } from '../../api/queries'
 import { Button, ButtonLink } from '../../components/ui/Button'
 import { currencyWhole, date, percentFromFraction } from '../../lib/format'
-import { floorShare, fromLiveFund, FUND_SNAPSHOTS, heldFunds, lookthrough, spotlight, type Exposure, type FundData } from '../../lib/lookthrough'
+import { CONCENTRATION_FLOOR, floorShare, fromLiveFund, FUND_SNAPSHOTS, heldFunds, lookthrough, spotlight, type Exposure, type FundData } from '../../lib/lookthrough'
 import { LEARNING_SOURCE } from '../../lib/learning'
 import { findLesson, ALL_LESSONS, type FundPlay } from '../../lib/lessons'
 import { completeLesson, loadProgress, saveProgress } from '../../lib/learnProgress'
@@ -127,11 +127,13 @@ function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof fin
   </div>
 }
 
-/** True only when the words are: "picked" needs direct shares, "never picked" needs none. */
+/** Only true words: "picked" needs direct shares, "inside your funds" needs fund exposure. */
 function pickedLine(top: readonly Exposure[]): string {
   const them = top.length === 1 ? 'it' : 'them'
-  if (top.every((c) => c.direct > 0)) return `You picked ${them} once and got ${them} again inside your funds.`
-  if (top.every((c) => c.direct === 0)) return `You never picked ${them}. ${top.length === 1 ? 'It' : 'They'} came with your funds.`
+  const inFunds = (c: Exposure) => c.viaFunds.length > 0
+  if (top.every((c) => !inFunds(c))) return ''
+  if (top.every((c) => c.direct > 0 && inFunds(c))) return `You picked ${them} once and got ${them} again inside your funds.`
+  if (top.every((c) => c.direct === 0 && inFunds(c))) return `You never picked ${them}. ${top.length === 1 ? 'It' : 'They'} came with your funds.`
   return 'Some of it you picked; the rest came with your funds.'
 }
 
@@ -165,7 +167,7 @@ function FundPayoff({ play }: { play: FundPlay }) {
     {!result
       ? <span>If you own {play.fund}, about {weight} of that money is {company}, whether you chose it or not.</span>
       : top.length === 0
-        ? <span>No single company is more than {percentFromFraction(0.1, { digits: 0 })} of your money, counting what sits inside your funds.</span>
+        ? <span>No company we can see is more than {percentFromFraction(CONCENTRATION_FLOOR, { digits: 0 })} of your money, counting what sits inside your funds.</span>
         : <>
           <span>At least {percentFromFraction(floorShare(top), { digits: 0 })} of your money is {top.length === 1 ? 'one company' : 'two companies'}: {top.map((c) => c.name).join(' and ')}. {pickedLine(top)}</span>
           <ul className={styles.lookthrough} aria-label="Where that money sits">

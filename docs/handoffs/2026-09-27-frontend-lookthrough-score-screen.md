@@ -6,7 +6,7 @@
 - **Status:** done
 - **PR / issue:** (this PR); closes the "holdings overlap" and "what you actually own" bullets of #44
 - **Branch:** feat/lookthrough-score-screen
-- **Follows:** 2026-09-26-frontend-be-the-fund-lesson.md, 2026-09-27-frontend-fund-explainer.md
+- **Follows:** [2026-09-26-frontend-be-the-fund-lesson.md](2026-09-26-frontend-be-the-fund-lesson.md), [2026-09-27-frontend-fund-explainer.md](2026-09-27-frontend-fund-explainer.md)
 
 ## What changed
 
@@ -20,8 +20,10 @@
   paint; a fund's live weights replace it when its call lands. A failed call keeps the snapshot. A fund
   with neither (SPY) is left out with no footnote: the numbers are floors and the copy says "at least".
 - **Which companies show:** the top two by dollars, only when the biggest is above 10% of the whole
-  portfolio. Otherwise: "No single company is more than 10% of your money, counting what sits inside
-  your funds." No holdings, no account, error: the old generic VOO line stays.
+  portfolio. Otherwise: "No company we can see is more than 10% of your money, counting what sits inside
+  your funds." ("we can see" because a fund we could not open may hide more.) Share classes fold into
+  one company (GOOG into GOOGL) before ranking. No holdings, no account, error: the old generic VOO
+  line stays.
 - New pure module `frontend/src/lib/lookthrough.ts` (`lookthrough`, `heldFunds`, `fromLiveFund`,
   `spotlight`, `floorShare`, `FUND_SNAPSHOTS`) with tests pinned to the sample account's numbers.
   `lib/fundPlay.ts` (VOO-only) is gone; nothing else used it.

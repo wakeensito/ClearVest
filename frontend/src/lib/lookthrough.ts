@@ -18,6 +18,7 @@ export type FundData = Readonly<Record<string, FundSnapshot>>
 export interface PortfolioHolding { symbol: string; name: string; type: string; value: number }
 
 export interface Exposure {
+  /** The company's main ticker; other share classes (GOOG into GOOGL) are folded in. */
   symbol: string
   name: string
   /** Dollars of the company held as its own shares. */
@@ -47,6 +48,9 @@ const STOCK_TYPES: ReadonlySet<string> = new Set(['equity'])
 export const CONCENTRATION_FLOOR = 0.1
 export const MAX_FUNDS = 5
 const SUFFIX_RE = /[\s,]+(inc|incorporated|corp|corporation|co|company|ltd|plc|holdings?)\.?$/i
+const CLASS_RE = /\s*\(?class [a-c]( shares?)?\)?$/i
+/** Share classes of one company roll up into the first-listed ticker, so concentration is per company. */
+const SHARE_CLASSES: Readonly<Record<string, string>> = { GOOG: 'GOOGL', 'BRK-B': 'BRK-A', 'BRK.B': 'BRK.A', FOX: 'FOXA', NWS: 'NWSA' }
 
 /**
  * Bundled fallback for the funds in the sample account. VOO's weights are the lesson's own, so they
@@ -91,9 +95,11 @@ const dollars = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0)
 
 /** "Apple Inc." and "Apple" are one company; keep the shorter, suffix-free spelling. */
 function shortName(name: string): string {
-  const trimmed = name.trim().replace(SUFFIX_RE, '')
+  const trimmed = name.trim().replace(CLASS_RE, '').replace(SUFFIX_RE, '')
   return trimmed || name.trim()
 }
+
+const company = (symbol: string) => SHARE_CLASSES[symbol] ?? symbol
 
 /**
  * Which funds to look inside, biggest position first, capped so an odd portfolio cannot fan out into
@@ -143,11 +149,11 @@ export function lookthrough(holdings: readonly PortfolioHolding[], funds: FundDa
     if (fund) {
       used.set(h.symbol, fund.asOf)
       for (const inside of fund.holdings) {
-        const r = row(inside.symbol, inside.name)
+        const r = row(company(inside.symbol), inside.name)
         r.via.set(fund.symbol, (r.via.get(fund.symbol) ?? 0) + value * inside.weight)
       }
     } else if (STOCK_TYPES.has(h.type)) {
-      row(h.symbol, h.name).direct += value
+      row(company(h.symbol), h.name).direct += value
     }
   }
   const companies = [...rows].map(([symbol, r]) => {

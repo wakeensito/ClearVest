@@ -82,6 +82,20 @@ describe('look-through', () => {
     expect(lookthrough([], FUND_SNAPSHOTS)).toEqual({ total: 0, companies: [], funds: [], asOf: null })
   })
 
+  it('folds share classes into one company before ranking', () => {
+    const result = lookthrough([
+      { symbol: 'GOOG', name: 'Alphabet Inc. Class C', type: 'equity', value: 600 },
+      { symbol: 'GOOGL', name: 'Alphabet Inc. Class A', type: 'equity', value: 600 },
+      { symbol: 'QQQ', name: 'QQQ', type: 'etf', value: 1000 },
+      { symbol: 'CUR:USD', name: 'US Dollar', type: 'cash', value: 7800 },
+    ], FUND_SNAPSHOTS)
+    const alphabet = result.companies.find((c) => c.symbol === 'GOOGL')
+    expect(result.companies.some((c) => c.symbol === 'GOOG')).toBe(false)
+    expect(alphabet).toMatchObject({ name: 'Alphabet', direct: 1200, total: 1260, share: 0.126 })
+    expect(alphabet?.viaFunds).toEqual([{ fund: 'QQQ', dollars: 60 }])
+    expect(spotlight(result).map((c) => c.symbol)).toEqual(['GOOGL', 'NVDA'])
+  })
+
   it('picks the funds to fetch by Plaid type or snapshot, biggest first, capped', () => {
     expect(heldFunds(undefined)).toEqual([])
     expect(heldFunds(SAMPLE)).toEqual(['VOO', 'QQQ', 'VGT'])
