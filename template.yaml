@@ -150,6 +150,10 @@ Resources:
           ALPHAVANTAGE_KEY_PARAM: !Ref AlphaVantageKeyParam
           SEC_USER_AGENT_PARAM: !Ref SecUserAgentParam
           FUND_MODEL_ID: !Ref FundModelId
+          # One attempt, short read timeout: a fund summary always has a template fallback, so a
+          # slow/throttled Bedrock call should fail fast rather than eat into the 29s budget.
+          BEDROCK_MAX_ATTEMPTS: '1'
+          BEDROCK_READ_TIMEOUT: '6'
       Policies:
         - DynamoDBCrudPolicy: {TableName: !Ref Table}
         - SQSSendMessagePolicy: {QueueName: !GetAtt MarketRefreshQueue.QueueName}

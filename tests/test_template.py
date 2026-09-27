@@ -42,7 +42,8 @@ def test_api_functions_and_refresh_worker_share_layer():
 
 def test_only_advisor_voice_and_market_fund_can_call_bedrock():
     res = load()["Resources"]
-    assert "bedrock" not in yaml.dump(res["PortfolioFn"]["Properties"]["Policies"])
+    for name in ("PortfolioFn", "MarketRefreshFn"):
+        assert "bedrock" not in yaml.dump(res[name]["Properties"]["Policies"])
     for name in ("AdvisorFn", "VoiceFn"):
         assert "bedrock:InvokeModel" in yaml.dump(res[name]["Properties"]["Policies"])
     # MarketFn may invoke ONLY the fund-explainer's Nova Micro model, never Advisor/Voice's model.

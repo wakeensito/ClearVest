@@ -154,7 +154,7 @@ paths:
       operationId: getFund
       tags:
       - Market
-      summary: Beginner "what is this?" explainer for an ETF, mutual fund or stock.
+      summary: Beginner "what is this?" explainer for an ETF, mutual fund, stock, index or cryptocurrency.
       parameters:
       - $ref: '#/components/parameters/UserId'
       - name: symbol
@@ -167,9 +167,10 @@ paths:
       responses:
         '200':
           description: >
-            Every number (expenseRatio, holdingsCount, topHoldings weights) comes from the
-            data provider, never the model. summary is a one-sentence beginner explanation;
-            summarySource says whether it was rewritten by the model or is the plain template.
+            Every number (expenseRatio, topHoldings weights) comes from the data provider, never
+            the model. summary is a one-sentence beginner explanation; summarySource says whether
+            it was rewritten by the model or is the plain template (always template for a
+            leveraged fund, an index, a cryptocurrency, or an unrecognized kind).
           content:
             application/json:
               schema:
@@ -179,9 +180,9 @@ paths:
                 name: Vanguard S&P 500 ETF
                 kind: etf
                 isIndexFund: true
+                leveraged: false
                 tracks: Standard & Poor's 500 Index
                 expenseRatio: 0.0003
-                holdingsCount: 504
                 topHoldings:
                 - symbol: NVDA
                   name: NVIDIA Corp
@@ -1128,9 +1129,9 @@ components:
       - name
       - kind
       - isIndexFund
+      - leveraged
       - tracks
       - expenseRatio
-      - holdingsCount
       - topHoldings
       - fundFamily
       - category
@@ -1146,15 +1147,13 @@ components:
           type: string
         kind:
           type: string
-          enum: [etf, mutual_fund, stock, other]
+          enum: [etf, mutual_fund, stock, index, crypto, other]
         isIndexFund:
+          type: boolean
+        leveraged:
           type: boolean
         tracks: *id001
         expenseRatio: *id002
-        holdingsCount:
-          type:
-          - integer
-          - 'null'
         topHoldings:
           type: array
           maxItems: 10
