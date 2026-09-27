@@ -182,10 +182,13 @@ const SEARCH_RESULTS = { results: [{ symbol: 'AAPL', name: 'Apple Inc.', exchang
     assert.notEqual(planTextAfter, planText, 'changing the plan should change the drift sentence');
     await record('plan switched', width);
 
-    // Hide portfolio values: every $ disappears from the xray card; percents remain.
+    // Hide portfolio values: every $ disappears from the xray card except the "every $10,000" fee
+    // rate line (a rate, not the client's dollars; same rule as OwnershipXray.test.ts); percents remain.
     await page.getByRole('button', { name: 'Hide portfolio values' }).click();
     const hiddenText = await page.locator('#xray').innerText();
-    assert(!hiddenText.includes('$'), 'hidden values should remove every $ from the xray card');
+    const RATE_LINE = /(?:That's about \$[\d,]+|Under \$1) a year on every \$10,000\./;
+    assert(RATE_LINE.test(hiddenText), 'hidden values should keep the "every $10,000" fee rate line');
+    assert(!hiddenText.replace(RATE_LINE, '').includes('$'), 'hidden values should remove every other $ from the xray card');
     assert(hiddenText.includes('%'), 'hidden values should keep percents');
     await record('hidden values', width);
     await page.getByRole('button', { name: 'Show portfolio values' }).click();
@@ -219,6 +222,7 @@ const SEARCH_RESULTS = { results: [{ symbol: 'AAPL', name: 'Apple Inc.', exchang
     await whatIf.waitFor();
     const before = await whatIf.innerText();
     assert(before.includes('risk score'), 'what-if sentence should mention risk score');
+    assert(before.includes('of your money'), 'what-if sentence should say "of your money"');
     assert(/%/.test(before) && /\$/.test(before), 'what-if card should show dollar and percent figures');
     await record('what-if NVDA', width);
     if (width === 375) await page.screenshot({ path: path.join(output, 'what-if-nvda-375.png'), fullPage: false });
@@ -230,19 +234,22 @@ const SEARCH_RESULTS = { results: [{ symbol: 'AAPL', name: 'Apple Inc.', exchang
     await record('what-if $5,000', width);
   }
 
-  // Unlinked: the research card renders exactly as before (chart intact), no what-if card.
-  // DESIGN.md §4.15 says nothing is shown here because "the portfolio page already invites
-  // linking" — there is no separate invite line on /markets today (see the task report).
+  // Unlinked on Markets: the research card renders (chart intact) with the one-line invite to
+  // /portfolio instead of the what-if card (DESIGN.md §4.15). The portfolio page itself passes
+  // invite={false} (covered by PortfolioPage.test.ts).
   holdingsMode = 'unlinked';
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(`${previewUrl}/markets?symbol=NVDA`);
   await page.getByRole('group', { name: 'NVDA interactive price chart' }).waitFor();
-  assert.equal(await page.locator('[data-what-if]').count(), 0, 'an unlinked account should not see the what-if card');
+  const invite = page.locator('[data-what-if-invite]');
+  await invite.waitFor({ state: 'visible' });
+  assert.equal(await invite.getAttribute('href'), '/portfolio', 'the invite should link to /portfolio');
+  assert.equal(await page.locator('[data-what-if="NVDA"]').count(), 0, 'an unlinked account should not see the what-if card');
   await record('unlinked markets', 375);
   holdingsMode = 'ok';
 
   assert.deepEqual(errors, []);
   console.table(results);
-  console.log('PASS: xray headline/fees/coverage, plan vs. today (suggested + switch), hidden values, degraded/pending fund states, ticker what-if (linked + amount change), unlinked markets. No overflow at 320/375/393. No page errors.');
+  console.log('PASS: xray headline/fees/coverage, plan vs. today (suggested + switch), hidden values (rate line kept), degraded/pending fund states, ticker what-if (linked + amount change), unlinked markets invite. No overflow at 320/375/393. No page errors.');
   await browser.close();
 })().catch((error) => { console.error(error); process.exit(1); });

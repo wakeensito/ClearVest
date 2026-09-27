@@ -91,7 +91,10 @@ const TEMPLATES_FIXTURE = [
   // are hypothetical add-amount labels, not the account's own figures, so hide-values never touches
   // them (DESIGN.md §4.15 has no such coupling; see the task report for the browser-smoke fix note).
   const mainTextShown = await page.locator('main').evaluate(el => { const c = el.cloneNode(true); c.querySelectorAll('[data-what-if]').forEach(n => n.remove()); return c.textContent ?? ''; });
-  assert(!mainTextShown.includes('$10,000') && !mainTextShown.includes('$5,000'),'Amounts are removed from DOM text');
+  // The fee rate "That's about $8 a year on every $10,000." is a rate, not the client's dollars, so
+  // hidden mode keeps it (DESIGN.md §4.14); ignore that one line.
+  const withoutRate = mainTextShown.replace(/(?:That's about \$[\d,]+|Under \$1) a year on every \$10,000\./g, '');
+  assert(!withoutRate.includes('$10,000') && !withoutRate.includes('$5,000'),'Amounts are removed from DOM text');
   await page.reload(); await page.getByRole('button',{name:'Show portfolio values'}).waitFor();
   assert.equal(await page.locator('[data-private-value]').innerText(),'••••','Privacy persists');
   await page.getByRole('button',{name:'Show portfolio values'}).click();
