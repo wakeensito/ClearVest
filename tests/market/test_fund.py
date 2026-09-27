@@ -222,7 +222,8 @@ def test_summary_accepts_a_good_reply(monkeypatch):
 
 
 @pytest.mark.parametrize("bad_reply", [
-    "This fund holds 500 companies together.\nTRACKS: NONE",  # contains a digit
+    "This fund charges a small 0.03 fee to manage your money.\nTRACKS: NONE",  # invented number
+    "This fund grew 2% last year for investors.\nTRACKS: NONE",  # invented number + %
     "This fund charges a small % fee to manage your money.\nTRACKS: NONE",  # contains %
     "TRACKS: NONE",  # empty sentence
     "   \nTRACKS: NONE",  # blank sentence
@@ -234,6 +235,25 @@ def test_summary_guardrails_reject_and_fall_back_to_template(monkeypatch, bad_re
     summary, source, tracks = fund._summarize("VOO", "etf", True, VOO_SUMMARY)
     assert source == "template"
     assert summary == "VOO is an index ETF that holds a basket of many investments in one."
+    assert tracks is None
+
+
+def test_number_verbatim_in_source_text_is_allowed(monkeypatch):
+    """"500" appears in VOO_SUMMARY ("...Standard & Poor's 500 Index..."), so a sentence that
+    mentions "S&P 500" is not treated as an invented number."""
+    reply = "This fund tracks the S&P 500, a group of large American companies.\nTRACKS: Standard & Poor's 500 Index"
+    monkeypatch.setattr(bedrock, "converse", lambda *a, **k: reply)
+    summary, source, tracks = fund._summarize("VOO", "etf", True, VOO_SUMMARY)
+    assert source == "model"
+    assert "S&P 500" in summary
+    assert tracks == "Standard & Poor's 500 Index"
+
+
+def test_number_not_in_source_text_is_rejected(monkeypatch):
+    reply = "This fund holds exactly 9999 companies for you.\nTRACKS: NONE"
+    monkeypatch.setattr(bedrock, "converse", lambda *a, **k: reply)
+    _summary, source, tracks = fund._summarize("VOO", "etf", True, VOO_SUMMARY)
+    assert source == "template"
     assert tracks is None
 
 
@@ -272,6 +292,47 @@ def test_stock_template_text():
     assert fund._template_summary("AAPL", "stock", False) == (
         "AAPL is one company's stock: owning a share means owning a small piece of that business."
     )
+
+
+@pytest.mark.parametrize("reply,expected_tracks", [
+    ("A short beginner sentence.\nTRACKS: Standard & Poor's 500 Index", "Standard & Poor's 500 Index"),
+    ("A short beginner sentence. TRACKS: Standard & Poor's 500 Index", "Standard & Poor's 500 Index"),  # same line
+    ('A short beginner sentence.\nTRACKS: "Standard & Poor\'s 500 Index"', "Standard & Poor's 500 Index"),  # quoted
+    ("A short beginner sentence.\nTRACKS: Standard & Poor's 500 Index.", "Standard & Poor's 500 Index"),  # trailing period
+    ("A short beginner sentence.\ntracks: Standard & Poor's 500 Index", "Standard & Poor's 500 Index"),  # lowercase marker
+])
+def test_parse_reply_handles_real_world_tracks_formatting(reply, expected_tracks):
+    sentence, tracks = fund._parse_reply(reply)
+    assert sentence == "A short beginner sentence."
+    assert tracks == expected_tracks
+
+
+def test_parse_reply_none_marker_is_no_tracks():
+    sentence, tracks = fund._parse_reply("A short beginner sentence.\nTRACKS: NONE")
+    assert sentence == "A short beginner sentence."
+    assert tracks is None
+
+
+def test_stock_summary_uses_stock_prompt_and_expects_no_tracks(monkeypatch):
+    captured = {}
+
+    def fake_converse(system, messages, max_tokens=120, model_id=None):
+        captured["system"] = system
+        return "Apple designs and sells smartphones, computers and other electronics worldwide."
+    monkeypatch.setattr(bedrock, "converse", fake_converse)
+    _summary, source, tracks = fund._summarize("AAPL", "stock", False, AAPL_INFO["longBusinessSummary"])
+    assert captured["system"] == fund.STOCK_SYSTEM_PROMPT
+    assert source == "model"
+    assert tracks is None
+
+
+def test_stock_summary_mentioning_fund_falls_back_to_template(monkeypatch):
+    reply = "Fund follows big tech company Apple's products and services."
+    monkeypatch.setattr(bedrock, "converse", lambda *a, **k: reply)
+    summary, source, tracks = fund._summarize("AAPL", "stock", False, AAPL_INFO["longBusinessSummary"])
+    assert source == "template"
+    assert tracks is None
+    assert summary == fund._stock_template("AAPL")
 
 
 # --- GET /market/fund route: validation, contract, caching, staleness -----------------------
