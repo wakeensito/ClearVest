@@ -13,7 +13,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:browser": "node scripts/browser-smoke.cjs",
-    "test:history-refresh": "node scripts/history-refresh-smoke.cjs"
+    "test:history-refresh": "node scripts/history-refresh-smoke.cjs",
+    "test:fund-explainer": "node scripts/fund-explainer-smoke.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.0",

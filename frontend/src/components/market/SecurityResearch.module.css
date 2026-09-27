@@ -3,6 +3,8 @@
 .heading { align-items: start; }
 .heading h2 { margin-bottom: 4px; }
 .toolbar { margin: 24px 0; }
+/* The fund identity line belongs to the search, so it sits closer than the chart does. */
+.toolbar:has(+ [data-fund-identity]) { margin-bottom: 12px; }
 .search { display: flex; width: 148px; border: 1px solid var(--cv-border-input); border-radius: var(--cv-radius); overflow: hidden; }
 .search input { width: 100%; min-width: 0; padding: 8px 12px; border: 0; background: var(--cv-surface); font-size: 14px; font-weight: 600; }
 .search button { display: grid; place-items: center; min-width: 44px; min-height: 44px; background: var(--cv-surface); border: 0; color: var(--cv-text-secondary); }
