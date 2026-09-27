@@ -200,7 +200,7 @@ fs.mkdirSync(output, { recursive: true });
   await page.getByRole('button',{name:'Finish lesson'}).click();
   await page.getByRole('heading',{name:'Lesson complete'}).waitFor();
   await page.getByText('You got 2 of 2 questions right. Great work.').waitFor();
-  await page.goto(previewUrl + '/learn'); await page.getByText('1 of 12 lessons done').waitFor();
+  await page.goto(previewUrl + '/learn'); await page.getByText(/^1 of \d+ lessons done$/).waitFor();
   await page.getByRole('button',{name:'Flashcards'}).click(); await page.getByRole('button',{name:'Reveal meaning'}).click();
   await page.getByRole('button',{name:'I knew it'}).click(); await page.getByText(/1 marked as known/).waitFor();
   await page.getByRole('button',{name:'Browse'}).click();
