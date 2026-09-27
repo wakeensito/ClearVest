@@ -2,6 +2,7 @@
 
 import math
 from datetime import date
+from itertools import zip_longest
 
 from clearvest.errors import UpstreamError
 
@@ -13,6 +14,8 @@ _FUND_KINDS = ("etf", "mutual_fund")
 # > 20% is almost certainly bad/misparsed data, not a real fund fee.
 _MAX_EXPENSE_RATIO = 0.2
 _MAX_TOP_HOLDINGS = 10
+# Market-wide headlines come from the S&P 500 index's own news feed; no key, no paid tier.
+_NEWS_MARKET_SYMBOL = "^GSPC"
 
 
 def history(symbol: str, start: date) -> list[tuple[str, float]]:
@@ -131,3 +134,46 @@ def fund_profile(symbol: str) -> dict:
         "sector": sector,
         "description": description,
     }
+
+
+def _first(*values):
+    return next((v for v in values if isinstance(v, str) and v.strip()), None)
+
+
+def news(symbols: list[str]) -> list[dict]:
+    """Publisher headlines for one or two symbols, or market-wide when `symbols` is empty. Rows are
+    normalized to the shape the news route filters (symbol, title, url, image, publisher,
+    publishedDate), so the route does not care which provider fed it. FMP's news endpoints are 402
+    on the free tier; Yahoo's feed needs no key."""
+    import yfinance as yf  # heavy (pandas); import only when a request needs it
+
+    yf.set_tz_cache_location("/tmp/yfinance")
+    feeds: list[list[dict]] = []
+    for symbol in symbols or [_NEWS_MARKET_SYMBOL]:
+        try:
+            items = yf.Ticker(symbol).news or []
+        except Exception as err:  # yfinance raises many types; all mean "Yahoo failed"
+            raise UpstreamError("yahoo", f"{type(err).__name__}: {err}") from err
+        rows: list[dict] = []
+        feeds.append(rows)
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            # yfinance >= 0.2.50 nests everything under "content"; older releases were flat.
+            content = item["content"] if isinstance(item.get("content"), dict) else item
+            links = [content.get(key) for key in ("canonicalUrl", "clickThroughUrl")]
+            url = _first(*(link.get("url") for link in links if isinstance(link, dict)), item.get("link"))
+            provider = content.get("provider") if isinstance(content.get("provider"), dict) else {}
+            thumb = content.get("thumbnail") if isinstance(content.get("thumbnail"), dict) else {}
+            resolutions = thumb.get("resolutions") if isinstance(thumb.get("resolutions"), list) else []
+            image = _first(thumb.get("originalUrl"), *(r.get("url") for r in resolutions if isinstance(r, dict)))
+            rows.append({
+                "symbol": symbol if symbols else "",
+                "title": content.get("title"),
+                "url": url,
+                "image": image,
+                "publisher": _first(provider.get("displayName"), item.get("publisher")),
+                "publishedDate": _first(content.get("pubDate"), content.get("displayTime")) or "",
+            })
+    # Interleave the feeds so a comparison shows both companies; the route keeps only the first six.
+    return [row for group in zip_longest(*feeds) for row in group if row is not None]

@@ -512,7 +512,7 @@ paths:
     get:
       operationId: getMarketNews
       tags: [Market]
-      description: Up to six publisher headlines, cached for one hour. Omit symbols for market-wide stock news. publishedAt retains the provider's timestamp without assuming a timezone; fetchedAt is API retrieval time.
+      description: Up to six publisher headlines from Yahoo Finance, cached for one hour. Omit symbols for market-wide stock news. publishedAt retains the provider's timestamp without assuming a timezone; fetchedAt is API retrieval time.
       parameters:
         - $ref: "#/components/parameters/UserId"
         - in: query
@@ -533,7 +533,7 @@ paths:
                   - {title: "Example headline: new products draw attention across the technology sector", url: "https://example.com/market-news/products", image: null, publisher: "Example publisher", publishedAt: "2026-09-25 13:00:00", symbol: MSFT}
                   - {title: "Example headline: market participants assess the latest economic data", url: "https://example.com/market-news/economy", image: null, publisher: "Example publisher", publishedAt: "2026-09-25 12:00:00", symbol: AAPL}
                 symbols: []
-                source: FMP
+                source: Yahoo Finance
                 fetchedAt: "2026-09-25T20:00:00Z"
                 stale: false
         "400":
@@ -1333,7 +1333,7 @@ components:
             type: string
         source:
           type: string
-          enum: [FMP]
+          enum: [Yahoo Finance]
         fetchedAt:
           type: string
           format: date-time

@@ -193,7 +193,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Up to six publisher headlines, cached for one hour. Omit symbols for market-wide stock news. publishedAt retains the provider's timestamp without assuming a timezone; fetchedAt is API retrieval time. */
+        /** @description Up to six publisher headlines from Yahoo Finance, cached for one hour. Omit symbols for market-wide stock news. publishedAt retains the provider's timestamp without assuming a timezone; fetchedAt is API retrieval time. */
         get: operations["getMarketNews"];
         put?: never;
         post?: never;
@@ -533,7 +533,7 @@ export interface components {
             articles: components["schemas"]["NewsArticle"][];
             symbols: string[];
             /** @enum {string} */
-            source: "FMP";
+            source: "Yahoo Finance";
             /** Format: date-time */
             fetchedAt: string;
             stale: boolean;
@@ -1426,7 +1426,7 @@ export interface operations {
                      *         }
                      *       ],
                      *       "symbols": [],
-                     *       "source": "FMP",
+                     *       "source": "Yahoo Finance",
                      *       "fetchedAt": "2026-09-25T20:00:00Z",
                      *       "stale": false
                      *     }

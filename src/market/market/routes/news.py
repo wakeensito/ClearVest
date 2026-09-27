@@ -1,4 +1,5 @@
-"""Cached publisher headlines, optionally for one or two researched securities."""
+"""Cached publisher headlines, optionally for one or two researched securities. Yahoo Finance via
+yfinance: FMP's news endpoints are 402 (paid tier only), which left this card dead on the live site."""
 
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
@@ -7,7 +8,7 @@ from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, cache
 from clearvest.errors import UpstreamError
 
-from market.providers import fmp
+from market.providers import yahoo
 from market.routes.history import parse_symbols
 
 router = Router()
@@ -25,7 +26,7 @@ def _web_url(value) -> str | None:
 
 
 def _fetch(symbols: list[str]) -> dict:
-    raw = fmp.stock_news(symbols)
+    raw = yahoo.news(symbols)
     articles, seen = [], set()
     for row in raw:
         if not isinstance(row, dict):
@@ -42,8 +43,8 @@ def _fetch(symbols: list[str]) -> dict:
                          "publisher": str(row.get("publisher") or row.get("site") or urlsplit(url).hostname),
                          "publishedAt": str(row.get("publishedDate") or ""), "symbol": symbol})
     if raw and not seen:
-        raise UpstreamError("fmp", "no usable news payload")
-    return {"articles": articles[:6], "symbols": symbols, "source": "FMP",
+        raise UpstreamError("yahoo", "no usable news payload")
+    return {"articles": articles[:6], "symbols": symbols, "source": "Yahoo Finance",
             "fetchedAt": datetime.now(UTC).isoformat()}
 
 
@@ -52,6 +53,6 @@ def news():
     api.user_id(router)
     raw_symbols = router.current_event.get_query_string_value("symbols")
     symbols = sorted(set(parse_symbols(raw_symbols, 1, 2))) if raw_symbols is not None else []
-    snapshot, stale = cache.get_or_fetch("fmp", f"news:{','.join(symbols) or 'market'}", TTL,
+    snapshot, stale = cache.get_or_fetch("yahoo", f"news:{','.join(symbols) or 'market'}", TTL,
                                          lambda: _fetch(symbols))
     return {**snapshot, "stale": stale}
