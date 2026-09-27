@@ -134,13 +134,25 @@ export function drift(actual: Mix, target: Mix, templateName: string): Drift {
     number
   >
 
+  // Prefer the largest OVER gap — being overweight somewhere is the actionable, sellable story
+  // for the client. Only fall back to the largest UNDER gap when nothing is overweight by 3+
+  // points. (Gaps always sum to 0 across the four classes, so an under-gap almost always has
+  // some offsetting over-gap somewhere; this rule picks the one worth leading with.)
   let largest: MixClass | null = null
-  let largestAbs = 0
+  let bestOver = 0
   for (const c of MIX_ORDER) {
-    const abs = Math.abs(gaps[c])
-    if (abs >= GAP_THRESHOLD && abs > largestAbs) {
+    if (gaps[c] >= GAP_THRESHOLD && gaps[c] > bestOver) {
+      bestOver = gaps[c]
       largest = c
-      largestAbs = abs
+    }
+  }
+  if (largest === null) {
+    let bestUnderAbs = 0
+    for (const c of MIX_ORDER) {
+      if (gaps[c] <= -GAP_THRESHOLD && Math.abs(gaps[c]) > bestUnderAbs) {
+        bestUnderAbs = Math.abs(gaps[c])
+        largest = c
+      }
     }
   }
 
@@ -155,7 +167,11 @@ export function drift(actual: Mix, target: Mix, templateName: string): Drift {
       ? `${n} points more in ${label} than the ${templateName} plan`
       : `${n} points less in ${label} than the ${templateName} plan`
 
-  const callouts = CALLOUT_CLASSES.filter((c) => actual[c] === 0 && target[c] >= 0.1).map((c) => `nothing in ${c}`)
+  // Never repeat the lead clause's own class in the tail (saying "less in bonds ... nothing in
+  // bonds" says the same thing twice).
+  const callouts = CALLOUT_CLASSES.filter((c) => c !== largest && actual[c] === 0 && target[c] >= 0.1).map(
+    (c) => `nothing in ${c}`,
+  )
 
   return { gaps, largest, sentence: [lead, ...callouts].join('; ') + '.' }
 }

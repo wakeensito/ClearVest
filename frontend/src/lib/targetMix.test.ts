@@ -281,15 +281,17 @@ describe('suggestTemplate', () => {
 })
 
 describe('drift', () => {
-  it('sample account vs sixty-forty: the biggest gap is the missing 40 points of bonds', () => {
+  it('sample account vs sixty-forty: leads with the overweight (stocks), not the larger underweight (bonds)', () => {
     // Same sample account as the actualMix test: stocks ≈ 0.9368, cash ≈ 0.0632, bonds/other 0.
     const actual: Mix = { stocks: 0.9368421052631579, bonds: 0, cash: 0.06315789473684211, other: 0 }
     const target: Mix = { stocks: 0.6, bonds: 0.4, cash: 0, other: 0 }
     const result = drift(actual, target, 'Classic 60/40')
-    // gaps: stocks +34, bonds -40, cash +6, other 0 — bonds has the largest |gap|, not stocks.
+    // gaps: stocks +34, bonds -40, cash +6, other 0 — bonds' |gap| (40) is bigger than stocks'
+    // (34), but an over-gap always wins over an under-gap, so stocks leads. The tail still calls
+    // out "nothing in bonds" since bonds isn't the lead class.
     expect(result.gaps).toEqual({ stocks: 34, bonds: -40, cash: 6, other: 0 })
-    expect(result.largest).toBe('bonds')
-    expect(result.sentence).toBe('40 points less in bonds than the Classic 60/40 plan; nothing in bonds.')
+    expect(result.largest).toBe('stocks')
+    expect(result.sentence).toBe('34 points more in stocks than the Classic 60/40 plan; nothing in bonds.')
   })
 
   it('a close mix (all gaps under 3 points) reads as close, with no largest', () => {
@@ -310,13 +312,28 @@ describe('drift', () => {
     expect(result.sentence).toBe('30 points more in stocks than the Bogleheads three-fund plan.')
   })
 
-  it('an underweight case leads with "less"', () => {
+  it('prefers a smaller over-gap over a larger under-gap, ties broken by MIX_ORDER', () => {
     const actual: Mix = { stocks: 0.5, bonds: 0.3, cash: 0.2, other: 0 }
     const target: Mix = { stocks: 0.7, bonds: 0.2, cash: 0.1, other: 0 }
     const result = drift(actual, target, 'Bogleheads three-fund')
+    // gaps: stocks -20, bonds +10, cash +10, other 0 — stocks' |gap| is the biggest, but bonds
+    // and cash are both over-gaps ≥ 3, so one of them leads (bonds, first in MIX_ORDER).
     expect(result.gaps).toEqual({ stocks: -20, bonds: 10, cash: 10, other: 0 })
+    expect(result.largest).toBe('bonds')
+    expect(result.sentence).toBe('10 points more in bonds than the Bogleheads three-fund plan.')
+  })
+
+  it('falls back to the largest under-gap only when no class is overweight by 3+ points', () => {
+    // Gaps always sum to 0 across the four classes, so an under-gap's offset has to land
+    // somewhere — spreading it across bonds/cash/other (each +2, below the 3-point threshold)
+    // keeps every over-gap sub-threshold while stocks is under by 6.
+    const actual: Mix = { stocks: 0.54, bonds: 0.22, cash: 0.12, other: 0.12 }
+    const target: Mix = { stocks: 0.6, bonds: 0.2, cash: 0.1, other: 0.1 }
+    const result = drift(actual, target, 'Model Y')
+    expect(result.gaps).toEqual({ stocks: -6, bonds: 2, cash: 2, other: 2 })
     expect(result.largest).toBe('stocks')
-    expect(result.sentence).toBe('20 points less in stocks than the Bogleheads three-fund plan.')
+    expect(result.sentence).toBe('6 points less in stocks than the Model Y plan.')
+    expect(result.sentence).not.toContain('nothing in')
   })
 
   it('appends nothing-in-cash when cash is zero and the target wants at least 10%', () => {
