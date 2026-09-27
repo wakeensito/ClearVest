@@ -60,6 +60,7 @@ describe('SuggestionList', () => {
     expect(text(list({ status: 'loading' }))).toBe('Searching…')
     expect(list({ status: 'loading' })).toContain('role="status"')
     expect(list({ status: 'hidden' })).toBe('')
+    expect(list({ status: 'loading' })).toContain('id="list"')
   })
 
   it('says so when nothing matches', () => {

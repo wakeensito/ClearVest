@@ -391,7 +391,7 @@ export interface components {
             marketCap: number | null;
             /**
              * Format: date
-             * @description Next scheduled earnings report on or after today (UTC); null for funds or when unknown.
+             * @description Next scheduled earnings report on or after today (UTC, checked on every response, including cached ones); null for funds or when unknown.
              */
             nextEarningsDate: string | null;
         } | null;
@@ -411,7 +411,7 @@ export interface components {
             pe: number | null;
             eps: number | null;
             ps: number | null;
-            /** @description Trailing-12-month dividend yield as a FRACTION (0.0045 = 0.45%). Null when there is no dividend or the provider value is missing or implausible (over 0.25). */
+            /** @description Trailing-12-month dividend yield as a FRACTION (0.0045 = 0.45%). 0 means the provider reports no dividend. Null means unknown - the value is missing, negative or implausible (over 0.25) - and must not be read as "no dividend". */
             dividendYield: number | null;
         } | null;
         AnnualValuation: {
