@@ -103,6 +103,16 @@ export function resolveRowSubmit(raw: string, rows: readonly Row[], highlighted:
   return resolveSubmit(raw, listed, -1)
 }
 
+/**
+ * Enter needs no search when the list already leads with a curated fund that is not an exact ticker
+ * match: a category word ("ETF", "bonds", "cheap") is answered by the rows on screen, so it never
+ * waits on (or is overruled by) the provider.
+ */
+export function answeredLocally(rows: readonly Row[]): boolean {
+  const first = rows[0]
+  return first?.type === 'security' && first.from === 'curated' && !first.exact
+}
+
 /** What a beginner can tap before typing anything (plan: unified search). */
 export const DEFAULT_CHIPS = ['index fund', 'ETF', 'Apple', 'S&P 500', 'bonds'] as const
 

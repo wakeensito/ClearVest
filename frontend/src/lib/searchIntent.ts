@@ -216,7 +216,9 @@ export function buildRows(raw: string, options: BuildOptions = {}): Built {
   const others = rows.filter(row => !row.exact)
   const ordered: Row[] = [...exactRows, ...others.filter(row => row.sameLabel), ...others.filter(row => !row.sameLabel)]
 
-  if (ticker && !exactFound && allowed('stock') && (ticker.length === 1 || down)) {
+  // Only when nothing else answered: with the providers down a one-word category ("bonds", "ETF")
+  // is ticker-shaped too, and a lookup row ahead of its curated funds would research BONDS or ETF.
+  if (ticker && !exactFound && rows.length === 0 && allowed('stock') && (ticker.length === 1 || down)) {
     ordered.unshift({ type: 'lookup', id: `l-${safeId(ticker)}`, symbol: ticker, group: 'other' })
   }
   const settled = !loading

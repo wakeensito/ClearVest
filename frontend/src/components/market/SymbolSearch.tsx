@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router'
 import type { FundKind } from '../../api/client'
 import { companySearchQuery, useCompanySearch } from '../../api/queries'
 import { HIGH_RISK, type FundState } from '../../lib/fundExplainer'
-import { chipsFor, compareTarget, escapeAction, moveHighlight, providerState, resolveRowSubmit, rowSuggestions, searchTerm, shouldAwaitSearch, type SubmitResult } from '../../lib/searchBox'
+import { answeredLocally, chipsFor, compareTarget, escapeAction, moveHighlight, providerState, resolveRowSubmit, rowSuggestions, searchTerm, shouldAwaitSearch, type SubmitResult } from '../../lib/searchBox'
 import { buildRows, GROUP_LABELS, providerTerm, showGroupHeaders, type ProviderState, type Row } from '../../lib/searchIntent'
 import { useDebounce } from '../../lib/useDebounce'
 import styles from './SymbolSearch.module.css'
@@ -100,8 +100,8 @@ export function SymbolSearch({
     event.preventDefault()
     const shown = showList ? highlighted : -1
     const loading = query.isFetching || (!query.data && !query.isError)
-    // A category word ("index fund", "bonds") is answered by the curated list already on screen.
-    const local = built.intent === 'name' && built.rows[0]?.type === 'security' && built.rows[0].from === 'curated'
+    // A category word ("index fund", "ETF", "bonds") is answered by the curated list already on screen.
+    const local = answeredLocally(built.rows)
     // Enter never races the search: settle the pause now and resolve against that search's answer.
     if (shown === -1 && typed && term !== '' && !local && shouldAwaitSearch(input, settled === term, loading, rowSuggestions(built.rows))) {
       const draft = input

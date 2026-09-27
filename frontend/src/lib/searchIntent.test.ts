@@ -174,13 +174,30 @@ describe('buildRows: tiers and merging', () => {
     expect(classify('apple stock')).toBe('name')
   })
 
-  it('I12: providers down → curated + a ticker row + "Live search is unavailable", never blank', () => {
+  it('I12: providers down → curated, else a ticker row, + "Live search is unavailable", never blank', () => {
     const down = buildRows('vo', { provider: { query: 'vo', status: 'error', results: [] } })
     expect(down.notice).toBe('Live search is unavailable')
-    expect(syms(down.rows)).toEqual(['LOOKUP:VO', 'VOO'])
+    expect(syms(down.rows)).toEqual(['VOO']) // a curated answer, so no lookup row ahead of it
     const both = buildRows('apple', { provider: done('apple', [], { unavailable: ['fmp', 'yahoo'] }) })
     expect(both.notice).toBe('Live search is unavailable')
     expect(syms(both.rows)).toEqual(['LOOKUP:APPLE'])
+  })
+
+  it('C1: providers down → a one-word category ("bonds", "ETF", "cheap", "tech") leads with curated funds, never a fake ticker', () => {
+    for (const word of ['bonds', 'ETF', 'cheap', 'tech']) {
+      const built = buildRows(word, { provider: { query: word, status: 'error', results: [] } })
+      expect(built.notice, word).toBe('Live search is unavailable')
+      const first = built.rows[0]
+      expect(first?.type, word).toBe('security')
+      expect(first?.type === 'security' && first.from, word).toBe('curated')
+      expect(syms(built.rows), word).not.toContain(`LOOKUP:${word.toUpperCase()}`)
+    }
+  })
+
+  it('C1: providers down → a real ticker nobody curated keeps its lookup row; one character always does', () => {
+    expect(syms(buildRows('AAPL', { provider: { query: 'AAPL', status: 'error', results: [] } }).rows)).toEqual(['LOOKUP:AAPL'])
+    expect(syms(buildRows('V', { provider: { query: 'V', status: 'error', results: [] } }).rows)[0]).toBe('LOOKUP:V')
+    expect(syms(buildRows('V').rows)[0]).toBe('LOOKUP:V')
   })
 
   it('I12: stale provider data is captioned', () => {

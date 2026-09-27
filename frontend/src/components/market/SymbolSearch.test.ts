@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import type { Fund } from '../../api/client'
 import { VOO } from '../../lib/fundExplainer.fixtures'
 import type { FundState } from '../../lib/fundExplainer'
-import { chipsFor, compareTarget, DEFAULT_CHIPS, escapeAction, providerState, resolveRowSubmit, type Suggestion } from '../../lib/searchBox'
+import { answeredLocally, chipsFor, compareTarget, DEFAULT_CHIPS, escapeAction, providerState, resolveRowSubmit, type Suggestion } from '../../lib/searchBox'
 import { buildRows, type ProviderResult, type Row } from '../../lib/searchIntent'
 import { CompanyComparison } from './CompanyComparison'
 import { ResearchWorkspace } from './ResearchWorkspace'
@@ -145,6 +145,30 @@ describe('Enter, Shift+Enter and Escape', () => {
       expect(result, word).not.toHaveProperty('error')
       expect(['ETF', 'BONDS', 'INDEX', 'CHEAP', 'MUTUAL']).not.toContain((result as { symbol?: string }).symbol)
     }
+  })
+
+  it('C1: with live search down, Enter on a category word researches its first curated fund', () => {
+    for (const word of ['bonds', 'ETF', 'cheap', 'tech']) {
+      const rows = buildRows(word, { provider: { query: word, status: 'error', results: [] } }).rows
+      const first = rows[0]
+      expect(first?.type === 'security' && first.from, word).toBe('curated')
+      expect(resolveRowSubmit(word, rows, -1), word).toEqual({ symbol: first?.type === 'security' ? first.symbol : '' })
+    }
+    const aapl = buildRows('AAPL', { provider: { query: 'AAPL', status: 'error', results: [] } }).rows
+    expect(resolveRowSubmit('AAPL', aapl, -1)).toEqual({ symbol: 'AAPL' })
+    expect(resolveRowSubmit('V', buildRows('V').rows, -1)).toEqual({ symbol: 'V' })
+  })
+
+  it('M3: Enter on "ETF", "bonds" or "cheap" is answered by the curated rows on screen, without awaiting the search', () => {
+    for (const word of ['ETF', 'bonds', 'cheap', 'index fund']) {
+      const rows = buildRows(word, { provider: { query: word, status: 'loading', results: [] } }).rows
+      expect(answeredLocally(rows), word).toBe(true)
+    }
+    // An exact curated ticker, a provider row, a lookup row or nothing yet still waits (or needs no wait).
+    expect(answeredLocally(buildRows('VOO', { provider: { query: 'VOO', status: 'loading', results: [] } }).rows)).toBe(false)
+    expect(answeredLocally(rowsFor('apple', [apple]))).toBe(false)
+    expect(answeredLocally(buildRows('V').rows)).toBe(false)
+    expect(answeredLocally([])).toBe(false)
   })
 
   it('S4: the advisor row (and a question) hands off, URL-encoded and capped at 80 characters', () => {
