@@ -5,6 +5,7 @@
 // "holdings after" account.
 
 import type { Fund, FundKind, Holding } from '../api/client'
+import { company } from './lookthrough'
 import { type FundMap, lookThrough } from './portfolioXray'
 import { currencyWhole } from './format'
 import { type RiskProfile, type RiskResult, riskScore } from './risk'
@@ -44,6 +45,8 @@ export interface WhatIfResult {
   addedShare: number
   /** The account already holds an ETF or mutual fund, so a 0% exposure may just be unseen. */
   holdsFunds: boolean
+  /** The security being added is a company (a stock), whose share is counted through the funds. */
+  isCompany: boolean
 }
 
 /** Holding types a dollar amount can actually be added as. index/other funds aren't a position. */
@@ -81,9 +84,10 @@ function directWeight(holdings: readonly Holding[], upper: string): number {
  */
 function exposureOf(holdings: readonly Holding[], lt: ReturnType<typeof lookThrough>, upper: string, mappedType: AddableType | null): number {
   if (mappedType === 'etf' || mappedType === 'mutual fund') return directWeight(holdings, upper)
-  const company = lt.companies.find(c => c.symbol === upper)
+  // lookThrough() folds share classes (GOOG → GOOGL), so look the company up by its main ticker.
+  const row = lt.companies.find(c => c.symbol === company(upper))
   // lookThrough() keeps only the top 10 companies; below that, the direct holding is still real.
-  return company ? company.share : directWeight(holdings, upper)
+  return row ? row.share : directWeight(holdings, upper)
 }
 
 function largestOf(lt: ReturnType<typeof lookThrough>): CompanyShare | null {
@@ -136,6 +140,7 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
   const exposureBefore = exposureOf(holdings, ltBefore, upper, mappedType)
   const largestBefore = largestOf(ltBefore)
   const holdsFunds = ltBefore.fundsTotal > 0
+  const isCompany = mappedType === 'equity'
 
   if (!addable) {
     return {
@@ -149,6 +154,7 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
       largestAfter: largestBefore,
       addedShare: 0,
       holdsFunds,
+      isCompany,
     }
   }
 
@@ -174,6 +180,7 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
     largestAfter,
     addedShare: safeDiv(dollars, newTotal),
     holdsFunds,
+    isCompany,
   }
 }
 
@@ -183,7 +190,9 @@ const about = (f: number) => (f > 0 && f < 0.005 ? 'under 1%' : `about ${pct(f)}
 
 /**
  * "Adding $1,000 of NVDA: NVDA would be about 22% of your money instead of 19% (counting your funds'
- * top 10 holdings), and your risk score would go from 44 to 47 out of 100 (Moderate)." Starting from
+ * top 10 holdings), and your risk score would go from 44 to 47 out of 100 (Moderate)." The
+ * "(counting …)" caveat only when the account holds funds and a company is being added: a fund's
+ * own share, or a stock-only account, is exact. Starting from
  * 0%: "… instead of none today", or, when the account holds funds (only their top 10 are counted),
  * "… instead of none we can see today". The risk label is repeated on both sides only when it
  * actually changes: "… would go from 44 (Moderate) to 68 (Aggressive) out of 100."
@@ -197,5 +206,6 @@ export function whatIfSentence(r: WhatIfResult, symbol: string, dollars: number)
     ? `your risk score would go from ${r.riskBefore.score} to ${r.riskAfter.score} out of 100 (${r.riskAfter.label})`
     : `your risk score would go from ${r.riskBefore.score} (${r.riskBefore.label}) to ${r.riskAfter.score} (${r.riskAfter.label}) out of 100`
 
-  return `Adding ${currencyWhole(dollars)} of ${symbol}: ${exposurePart} (counting your funds' top 10 holdings), and ${riskPart}.`
+  const caveat = r.holdsFunds && r.isCompany ? " (counting your funds' top 10 holdings)" : ''
+  return `Adding ${currencyWhole(dollars)} of ${symbol}: ${exposurePart}${caveat}, and ${riskPart}.`
 }

@@ -197,8 +197,26 @@ describe('whatIf', () => {
     const stocksOnly = holdings.filter(h => h.type !== 'etf')
     const result = whatIf({ holdings: stocksOnly, funds: {}, symbol: 'ORCL', fund: ORCL_FUND, dollars: 1000, profile })
     expect(result.holdsFunds).toBe(false)
-    expect(whatIfSentence(result, 'ORCL', 1000)).toMatch(/ORCL would be about \d+% of your money instead of none today \(/)
+    expect(whatIfSentence(result, 'ORCL', 1000)).toMatch(/ORCL would be about \d+% of your money instead of none today, and your risk score/)
     expect(whatIfSentence(result, 'ORCL', 1000)).not.toContain('we can see')
+    // No funds to look inside, so the top-10 caveat would be noise.
+    expect(whatIfSentence(result, 'ORCL', 1000)).not.toContain('counting your funds')
+  })
+
+  it('adding a fund never carries the "counting your funds\' top 10 holdings" caveat (its share is exact)', () => {
+    const result = whatIf({ holdings, funds, symbol: 'VOO', fund: VOO, dollars: 2000, profile })
+    expect(result.holdsFunds).toBe(true)
+    expect(whatIfSentence(result, 'VOO', 2000)).toMatch(/^Adding \$2,000 of VOO: VOO would be about \d+% of your money instead of \d+%, and your risk score/)
+  })
+
+  it('adding a share class (GOOG) finds the folded company row (GOOGL) a fund already holds', () => {
+    const alphabetFund: Fund = { ...VGT_FUND, topHoldings: [{ symbol: 'GOOGL', name: 'Alphabet Inc Class A', weight: 0.05 }] }
+    const GOOG_FUND: Fund = { ...NVDA_FUND, symbol: 'GOOG', name: 'Alphabet Inc Class C' }
+    const vgt = holdings.find(h => h.symbol === 'VGT')!
+    const result = whatIf({ holdings, funds: { VGT: alphabetFund }, symbol: 'GOOG', fund: GOOG_FUND, dollars: 1000, profile })
+    expect(result.exposureBefore).toBeCloseTo(vgt.weight * 0.05, 12)
+    const newTotal = totalValue + 1000
+    expect(result.exposureAfter).toBeCloseTo((vgt.value * 0.05 + 1000) / newTotal, 12)
   })
 
   it('adding an ETF (more VOO) uses direct portfolio share, not a look-through company share', () => {

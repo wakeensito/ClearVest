@@ -5,6 +5,7 @@
 import type { Fund, Holding } from '../api/client'
 import { normalizeType } from './assetTypes'
 import { shortName } from './fundExplainer'
+import { company } from './lookthrough'
 
 export type FundMap = Record<string, Fund | undefined>
 
@@ -55,10 +56,13 @@ function nameNormalize(name: string): string {
   return shortName(name).trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
-/** Company identity: uppercase symbol when present, else a normalized name key. */
+/**
+ * Company identity: the uppercase symbol, share classes folded into the main ticker (GOOG → GOOGL,
+ * the same map as lookthrough.ts), when present; else a normalized name key.
+ */
 export function companyKey(symbol: string | null | undefined, name: string): string {
   const sym = symbol?.trim().toUpperCase()
-  return sym ? sym : `${NAME_PREFIX}${nameNormalize(name)}`
+  return sym ? company(sym) : `${NAME_PREFIX}${nameNormalize(name)}`
 }
 
 /** Only long positions count anywhere in this module; shorts are skipped. */
@@ -89,7 +93,7 @@ export function lookThrough(holdings: readonly Holding[], funds: FundMap): LookT
   }
 
   const resolveBySymbol = (symbol: string, name: string): Acc => {
-    const key = symbol.trim().toUpperCase()
+    const key = companyKey(symbol, name)
     const acc = getOrCreate(key)
     const nk = nameNormalize(name)
     if (!nameIndex.has(nk)) nameIndex.set(nk, key)

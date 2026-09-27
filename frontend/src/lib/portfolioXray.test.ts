@@ -147,6 +147,27 @@ describe('lookThrough', () => {
     expect(nvda!.via.find(v => v.fund === 'VGT')?.share).toBeCloseTo(expectedVia, 12)
   })
 
+  it('folds share classes (GOOG into GOOGL, BRK-B into BRK-A) into one company row with the summed share', () => {
+    const alphabet: Fund = {
+      ...VGT_FUND,
+      topHoldings: [
+        { symbol: 'GOOGL', name: 'Alphabet Inc Class A', weight: 0.04 },
+        { symbol: 'GOOG', name: 'Alphabet Inc Class C', weight: 0.03 },
+        { symbol: 'BRK-B', name: 'Berkshire Hathaway Inc Class B', weight: 0.02 },
+      ],
+    }
+    const withGoog: Holding[] = [...holdings, { symbol: 'goog', name: 'Alphabet Inc Class C', type: 'equity', quantity: 1, price: 100, value: 100, weight: 0.01 }]
+    const result = lookThrough(withGoog, { VGT: alphabet })
+    const rows = result.companies.filter(c => c.symbol === 'GOOGL' || c.symbol === 'GOOG')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.symbol).toBe('GOOGL')
+    expect(rows[0]!.direct).toBeCloseTo(0.01, 12)
+    expect(rows[0]!.share).toBeCloseTo(0.01 + weightOf('VGT') * (0.04 + 0.03), 12)
+    expect(result.companies.find(c => c.symbol === 'BRK-B')).toBeUndefined()
+    expect(result.companies.find(c => c.symbol === 'BRK-A')?.share).toBeCloseTo(weightOf('VGT') * 0.02, 12)
+    expect(companyKey('goog', 'Alphabet Inc Class C')).toBe('GOOGL')
+  })
+
   it('companyKey uses uppercase symbol when present, else a normalized name key', () => {
     expect(companyKey('aapl', 'Apple Inc')).toBe('AAPL')
     expect(companyKey(null, 'Apple Inc')).toBe(companyKey(null, 'Apple Inc.'))
