@@ -244,7 +244,7 @@ def answer(user_id: str, message: str, mode: str = "chat", *, grounded: bool = F
             guardrails.check_grounding(reference, sanitized, reply)
             safety["grounding"] = "checked"
             cited = {int(n) for n in re.findall(r"\[(\d+)\]", reply)}
-            if any(n < 1 or n > len(sources) for n in cited):
+            if guardrails.enabled() and any(n < 1 or n > len(sources) for n in cited):
                 raise guardrails.Ungrounded()
     except guardrails.Ungrounded:
         sources = []
