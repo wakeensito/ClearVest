@@ -52,6 +52,18 @@ _ETF_NAME_RE = re.compile(r"\b(ETF|Trust)\b", re.IGNORECASE)
 # Heuristic only (B13): a 5-letter symbol ending in X is the common US mutual-fund ticker shape
 # (FXAIX, VFIAX, SWPPX); real yfinance/FMP data corrects a wrong guess after the user picks it.
 _MUTUAL_FUND_SYMBOL_RE = re.compile(r"^[A-Z]{4}X$")
+# search-only, name-based leveraged/inverse detection (I1): `LEVERAGED_RE` above is shared with
+# routes/fund.py's *description* text, which routinely says "short-term"/"short duration" for an
+# ordinary bond fund - widening it there would misflag those. Search only ever has the fund
+# NAME, where a bare "Short"/"Bear"/"UltraShort" (ProShares' and Direxion's actual naming
+# convention for inverse funds - e.g. SDS "UltraShort S&P500", SH "Short S&P500", a Direxion
+# "... Bear 1X ...") is unambiguous, so this pattern is deliberately separate and only ever
+# applied here. The negative lookahead after "short" excludes exactly the short-duration/
+# short-maturity bond-fund wording that would otherwise false-positive.
+_LEVERAGED_NAME_RE = re.compile(
+    r"\b(ultra(pro|short)?|bear|short(?![- ](term|duration|maturity|treasury|government|bond))|-?[1-9](\.\d+)?x)\b",
+    re.IGNORECASE,
+)
 _FUND_KINDS = frozenset({"etf", "mutual_fund"})
 _YAHOO_KINDS = frozenset({"etf", "mutual_fund", "stock", "index", "crypto"})
 
@@ -79,7 +91,7 @@ def _kind_heuristic(symbol: str, name: str) -> str:
 
 
 def _leveraged(kind: str, name: str) -> bool:
-    return kind in _FUND_KINDS and bool(LEVERAGED_RE.search(name))
+    return kind in _FUND_KINDS and bool(LEVERAGED_RE.search(name) or _LEVERAGED_NAME_RE.search(name))
 
 
 def _fmp_row(row) -> dict | None:
@@ -215,5 +227,12 @@ def search():
         merged = _merge(yahoo_rows + fmp_rows)
         return {"results": _rank(merged, query)[:MAX_RESULTS], "unavailable": sorted(unavailable)}
 
-    data, stale = cache.get_or_fetch("search", f"search:{CACHE_KEY_VERSION}:{query.casefold()}", TTL, fetch)
+    data, stale = cache.get_or_fetch(
+        "search", f"search:{CACHE_KEY_VERSION}:{query.casefold()}", TTL, fetch,
+        # I2: a partial result (one provider unavailable) is cached for 10 minutes, not the
+        # normal 24h TTL - a full 24h gap for a beginner-facing miss is too long to wait for the
+        # down provider to recover; an empty-jobs 1-character query has no "unavailable" key at
+        # all, so it falls through to the normal TTL like any other full success.
+        ttl_for=lambda v: 600 if v.get("unavailable") else TTL,
+    )
     return {**data, "stale": stale}

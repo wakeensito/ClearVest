@@ -45,6 +45,17 @@
      cache -> `502`.
 - `market.routes.fund.LEVERAGED_RE` is now public (was `_LEVERAGED_RE`) so `routes/search.py`
   reuses the exact same leveraged/inverse pattern instead of a second copy that could drift.
+- **I1 fix**: search only ever has the fund NAME (no description text), and `LEVERAGED_RE` alone
+  missed several real inverse/leveraged ETF names (SDS, QID, SH, PSQ, a Direxion "... Bear 1X
+  ..."); `search.py` now also matches its own search-only `_LEVERAGED_NAME_RE` (ultra/ultrashort/
+  bear/short-not-followed-by-term-duration-maturity-treasury-government-bond/Nx), so
+  `_leveraged` is `LEVERAGED_RE.search(name) or _LEVERAGED_NAME_RE.search(name)`, still gated on
+  `_FUND_KINDS` - `LEVERAGED_RE` itself stays untouched since `routes/fund.py` feeds it
+  description text where "short-term" is common, ordinary wording.
+- **I2 fix**: a partial result (one provider unavailable) was cached for the full 24h `TTL` like
+  a clean success; `search()`'s `cache.get_or_fetch` call now passes `ttl_for=lambda v: 600 if
+  v.get("unavailable") else TTL`, so a degraded row expires in 10 minutes and a clean row still
+  gets the normal 24h.
 - `docs/api/openapi.yaml`: `CompanySearch` gained `results[].kind` (enum
   `etf|mutual_fund|stock|index|crypto|other`), `results[].leveraged` (bool),
   `results[].source` (enum `fmp|yahoo|both`), and a new required top-level `unavailable: []`

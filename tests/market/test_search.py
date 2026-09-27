@@ -170,6 +170,42 @@ def test_leveraged_only_applies_to_fund_kinds():
     assert search._leveraged("index", "3x Leveraged Corp") is False
 
 
+@pytest.mark.parametrize("name", [
+    "ProShares UltraShort S&P500",  # SDS
+    "ProShares UltraShort QQQ",  # QID
+    "ProShares Short S&P500",  # SH
+    "ProShares Short QQQ",  # PSQ
+    "Direxion Daily S&P 500 Bear 1X Shares",
+])
+def test_leveraged_name_pattern_catches_inverse_and_short_funds(name):
+    """I1: `LEVERAGED_RE` (shared with routes/fund.py, tuned for descriptions - it never sees
+    "short" alone) misses these inverse/leveraged fund NAMES. search.py's own
+    `_LEVERAGED_NAME_RE` catches them by name alone."""
+    assert search._leveraged("etf", name) is True
+
+
+@pytest.mark.parametrize("name", [
+    "Vanguard Short-Term Treasury ETF",
+    "iShares Short Treasury Bond ETF",
+    "Schwab Short-Term U.S. Treasury ETF",
+    "Vanguard Short-Term Bond ETF",
+    "SPDR Portfolio Short Term Corporate Bond ETF",
+    "Invesco QQQ Trust",
+    "Vanguard S&P 500 ETF",
+])
+def test_leveraged_name_pattern_spares_short_duration_and_plain_funds(name):
+    """I1: "short" only reads as inverse/leveraged when it isn't followed by "term"/
+    "duration"/"maturity"/"treasury"/"government"/"bond" - a short-duration bond fund is not an
+    inverse fund, and a plain index/trust fund has no leveraged wording at all."""
+    assert search._leveraged("etf", name) is False
+
+
+def test_leveraged_name_pattern_still_gated_on_fund_kind():
+    """I1: `_LEVERAGED_NAME_RE` is name-only, so it must stay gated on fund kinds just like
+    `LEVERAGED_RE` - a STOCK named "Ultra Clean Holdings" is never leveraged."""
+    assert search._leveraged("stock", "Ultra Clean Holdings") is False
+
+
 @pytest.mark.parametrize("query,expected_jobs", [
     ("a", set()),                                          # 1 char: no call at all
     ("ap", {"yahoo", "fmp_symbol"}),                        # 2 chars ticker-like: no name search
@@ -498,6 +534,29 @@ def test_no_match_returns_empty_results_not_an_error(aws, monkeypatch):
     status, body = request("zzzznomatch")
     assert status == 200
     assert body["results"] == [] and body["unavailable"] == []
+
+
+def test_partial_result_cached_for_600s_not_24h(aws, monkeypatch):
+    """I2: a partial result (one provider unavailable) is cached for ~600s via `ttl_for`, not
+    the normal 24h TTL, so a retry happens soon instead of a stale gap sticking for a day."""
+    monkeypatch.setattr(fmp, "search_companies", lambda query, by_symbol: [fmp_row("AAPL", "Apple Inc.")])
+    def yahoo_fail(*_):
+        raise UpstreamError("yahoo", "timeout")
+    monkeypatch.setattr(yahoo, "search", yahoo_fail)
+    before = time.time()
+    request("apple")
+    row = db.get("CACHE#search", "search:v2:apple")
+    assert 500 < row["expiresAt"] - before < 700
+
+
+def test_full_result_cached_for_24h(aws, monkeypatch):
+    """I2: when both providers succeed, `unavailable` is empty and the normal 24h TTL applies."""
+    monkeypatch.setattr(fmp, "search_companies", lambda query, by_symbol: [fmp_row("AAPL", "Apple Inc.")])
+    monkeypatch.setattr(yahoo, "search", lambda query: [])
+    before = time.time()
+    request("apple")
+    row = db.get("CACHE#search", "search:v2:apple")
+    assert row["expiresAt"] - before > 86000
 
 
 def test_cache_hits_no_provider_call_on_second_request(aws, monkeypatch):
