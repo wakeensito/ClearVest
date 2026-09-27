@@ -343,8 +343,8 @@ compares with a model plan. Math lives in `lib/lookThrough.ts` and `lib/targetMi
 one-day cache as `useFund`, `retry: 1`, at most the 8 largest funds; a failed fund is simply
 missing). Only shown when an account is linked.
 
-**What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, main column directly
-above Holdings). A 13px secondary heading, then the headline sentence at 20/28 medium (18/26 on
+**What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, the first thing in the
+Portfolio main column, above Security research; Holdings stays below research). The pitch opens here. A 13px secondary heading, then the headline sentence at 20/28 medium (18/26 on
 phones): “Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT.” Whole percents;
 the fund part is the rounded total minus the rounded direct part, so the two parts add up on screen;
 “all of it inside VOO and QQQ.” with nothing direct, “all of it held directly.” with no fund; a sliver
@@ -374,9 +374,14 @@ the pick lives in component state only. Beside the label: `Badge` “Suggested f
 when the pick is the suggestion, “Pick a plan” (neutral) with no profile. Two `aria-hidden` 12px bars,
 “Today” and the plan name, slices in stocks/bonds/cash/other order coloured as their asset category
 (stocks `viz-1`, bonds `viz-4`, cash `viz-7`, other `viz-8`), then a small table: kind, Today, Plan at
-1 decimal. Under a rule, the lead sentence “Your mix is 14 points more in stocks than the Bogleheads
-three-fund plan; nothing in bonds.” (from `drift()`, given a subject), the plan description in tertiary,
-and “Ask the advisor why this matters →”, a prefilled, never-sent `/advisor?q=My mix is …`. While funds
+1 decimal. Under a rule, the lead sentence from `drift()`. When the biggest gap (3+ points) is bonds or
+cash that the account holds none of while the plan keeps 10%+, it leads with that: “Nothing in bonds,
+where the Classic 60/40 plan keeps 40%; 34 points more in stocks.” (the over-gap clause only when one of
+3+ points exists). Otherwise the largest over-gap leads, else the largest under-gap, given a subject:
+“Your mix is 30 points more in stocks than the Bogleheads three-fund plan.”, with a “; nothing in cash”
+tail that never repeats the lead class; all gaps under 3 read “Your mix is close to the … plan.” Then the
+plan description in tertiary and “Ask the advisor why this matters →”, a prefilled, never-sent
+`/advisor?q=` in the first person (“My mix is …” / “My mix has nothing in …”). While funds
 load or fail: “2 of 3 funds checked · assumes unchecked funds hold stocks”.
 
 **States.** Holdings loading: the `#xray` surface with a skeleton. Funds all loading: skeleton;

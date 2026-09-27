@@ -178,6 +178,8 @@ describe('mixLead and advisorMixHref', () => {
     expect(mixLead('34 points more in stocks than the Classic 60/40 plan; nothing in bonds.'))
       .toBe('Your mix is 34 points more in stocks than the Classic 60/40 plan; nothing in bonds.')
     expect(mixLead('Your mix is close to the Classic 60/40 plan.')).toBe('Your mix is close to the Classic 60/40 plan.')
+    expect(mixLead('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.'))
+      .toBe('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.')
   })
 
   it('prefills the advisor question in the first person', () => {
@@ -187,6 +189,8 @@ describe('mixLead and advisorMixHref', () => {
       .toBe('My mix is 34 points more in stocks than the Classic 60/40 plan; nothing in bonds. What should a beginner understand about that?')
     expect(decodeURIComponent(advisorMixHref('Your mix is close to the Classic 60/40 plan.').slice(11)))
       .toBe('My mix is close to the Classic 60/40 plan. What should a beginner understand about that?')
+    expect(decodeURIComponent(advisorMixHref('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.').slice(11)))
+      .toBe('My mix has nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks. What should a beginner understand about that?')
   })
 })
 

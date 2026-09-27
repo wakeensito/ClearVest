@@ -281,17 +281,38 @@ describe('suggestTemplate', () => {
 })
 
 describe('drift', () => {
-  it('sample account vs sixty-forty: leads with the overweight (stocks), not the larger underweight (bonds)', () => {
+  it('sample account vs sixty-forty: an empty class the plan wants leads, then the overweight', () => {
     // Same sample account as the actualMix test: stocks ≈ 0.9368, cash ≈ 0.0632, bonds/other 0.
     const actual: Mix = { stocks: 0.9368421052631579, bonds: 0, cash: 0.06315789473684211, other: 0 }
     const target: Mix = { stocks: 0.6, bonds: 0.4, cash: 0, other: 0 }
     const result = drift(actual, target, 'Classic 60/40')
-    // gaps: stocks +34, bonds -40, cash +6, other 0 — bonds' |gap| (40) is bigger than stocks'
-    // (34), but an over-gap always wins over an under-gap, so stocks leads. The tail still calls
-    // out "nothing in bonds" since bonds isn't the lead class.
+    // gaps: stocks +34, bonds -40 — bonds is the biggest gap AND the account holds none of it,
+    // so "nothing in bonds" leads and the largest over-gap follows.
     expect(result.gaps).toEqual({ stocks: 34, bonds: -40, cash: 6, other: 0 })
-    expect(result.largest).toBe('stocks')
-    expect(result.sentence).toBe('34 points more in stocks than the Classic 60/40 plan; nothing in bonds.')
+    expect(result.largest).toBe('bonds')
+    expect(result.sentence).toBe('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.')
+  })
+
+  it('sample account vs target-date-2065: nothing in bonds leads, then the largest over-gap (cash)', () => {
+    const actual: Mix = { stocks: 0.9368421052631579, bonds: 0, cash: 0.06315789473684211, other: 0 }
+    const target: Mix = { stocks: 0.9, bonds: 0.1, cash: 0, other: 0 }
+    const result = drift(actual, target, 'Target-date style (young investor)')
+    expect(result.gaps).toEqual({ stocks: 4, bonds: -10, cash: 6, other: 0 })
+    expect(result.largest).toBe('bonds')
+    expect(result.sentence).toBe('Nothing in bonds, where the Target-date style (young investor) plan keeps 10%; 6 points more in cash.')
+  })
+
+  it('an empty-class lead ends after the plan clause when nothing is overweight by 3+ points', () => {
+    const actual: Mix = { stocks: 0.62, bonds: 0, cash: 0.19, other: 0.19 }
+    const target: Mix = { stocks: 0.6, bonds: 0.1, cash: 0.17, other: 0.13 }
+    const result = drift(actual, target, 'Model Z')
+    expect(result.gaps).toEqual({ stocks: 2, bonds: -10, cash: 2, other: 6 })
+    // other +6 is an over-gap, so it follows; now make every over-gap sub-threshold:
+    const flat = drift({ stocks: 0.62, bonds: 0, cash: 0.19, other: 0.19 }, { stocks: 0.6, bonds: 0.1, cash: 0.17, other: 0.17 }, 'Model Z')
+    expect(flat.gaps).toEqual({ stocks: 2, bonds: -10, cash: 2, other: 2 })
+    expect(flat.largest).toBe('bonds')
+    expect(flat.sentence).toBe('Nothing in bonds, where the Model Z plan keeps 10%.')
+    expect(result.sentence).toBe('Nothing in bonds, where the Model Z plan keeps 10%; 6 points more in other.')
   })
 
   it('a close mix (all gaps under 3 points) reads as close, with no largest', () => {

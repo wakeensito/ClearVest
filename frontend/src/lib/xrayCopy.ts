@@ -106,16 +106,22 @@ export function feeCopy(fees: FundFees, hidden: boolean): FeeCopy | null {
 }
 
 const YOUR_MIX = 'Your mix is '
+const NOTHING_IN = 'Nothing in '
 
-/** targetMix.drift() sentences mostly lack a subject ("34 points more in stocks…"); give them one. */
+/**
+ * targetMix.drift() sentences either stand alone ("Your mix is close…", "Nothing in bonds, where…")
+ * or lack a subject ("34 points more in stocks…"); give the latter one.
+ */
 export function mixLead(sentence: string): string {
-  return sentence.startsWith(YOUR_MIX) ? sentence : `${YOUR_MIX}${sentence}`
+  return sentence.startsWith(YOUR_MIX) || sentence.startsWith(NOTHING_IN) ? sentence : `${YOUR_MIX}${sentence}`
 }
 
 /** Prefilled, never auto-sent (DESIGN.md §6.2). */
 export function advisorMixHref(sentence: string): string {
-  const body = sentence.startsWith(YOUR_MIX) ? sentence.slice(YOUR_MIX.length) : sentence
-  return `/advisor?q=${encodeURIComponent(`My mix is ${body} What should a beginner understand about that?`)}`
+  const mine = sentence.startsWith(NOTHING_IN)
+    ? `My mix has nothing in ${sentence.slice(NOTHING_IN.length)}`
+    : `My mix is ${sentence.startsWith(YOUR_MIX) ? sentence.slice(YOUR_MIX.length) : sentence}`
+  return `/advisor?q=${encodeURIComponent(`${mine} What should a beginner understand about that?`)}`
 }
 
 /** "1 of 3 funds checked · assumes unchecked funds hold stocks"; null once every fund is checked. */

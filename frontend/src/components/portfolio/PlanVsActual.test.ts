@@ -26,7 +26,7 @@ describe('PlanVsActual', () => {
     expect(selected(html)).toBe('three-fund')
     expect(text(html)).toContain('Compare with')
     expect(text(html)).toContain(SUGGESTED)
-    expect(text(html)).toContain('Your mix is 14 points more in stocks than the Bogleheads three-fund plan; nothing in bonds.')
+    expect(text(html)).toContain('Nothing in bonds, where the Bogleheads three-fund plan keeps 20%; 14 points more in stocks.')
     expect(text(html)).toContain('US stocks, international stocks and US bonds in one example weighting.')
   })
 
@@ -45,7 +45,7 @@ describe('PlanVsActual', () => {
   it('links a prefilled advisor question, never auto-sent', () => {
     const href = /href="(\/advisor\?q=[^"]+)"/.exec(render())?.[1] ?? ''
     expect(decodeURIComponent(href.replace('/advisor?q=', '')))
-      .toBe('My mix is 14 points more in stocks than the Bogleheads three-fund plan; nothing in bonds. What should a beginner understand about that?')
+      .toBe('My mix has nothing in bonds, where the Bogleheads three-fund plan keeps 20%; 14 points more in stocks. What should a beginner understand about that?')
     expect(href).not.toContain('send=')
   })
 
@@ -72,7 +72,7 @@ describe('PlanVsActual', () => {
     expect(text(html)).toContain('Today')
     expect(text(html)).toContain('Stocks 93.7%')
     expect(text(html)).not.toContain('Plan')
-    expect(text(html)).not.toContain('Your mix is')
+    expect(text(html)).not.toMatch(/Your mix is|Nothing in/)
   })
 
   it('renders nothing for an empty account', () => {

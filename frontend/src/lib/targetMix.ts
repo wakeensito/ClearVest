@@ -160,6 +160,25 @@ export function drift(actual: Mix, target: Mix, templateName: string): Drift {
     return { gaps, largest, sentence: `Your mix is close to the ${templateName} plan.` }
   }
 
+  // Exception: when the single biggest gap (by size, ties by MIX_ORDER) is a class the client holds
+  // none of while the plan keeps 10%+ there, "nothing in bonds" is the story — lead with it.
+  let biggest: MixClass | null = null
+  for (const c of MIX_ORDER) {
+    if (Math.abs(gaps[c]) >= GAP_THRESHOLD && (biggest === null || Math.abs(gaps[c]) > Math.abs(gaps[biggest]))) biggest = c
+  }
+  if (
+    biggest !== null &&
+    gaps[biggest] < 0 &&
+    (CALLOUT_CLASSES as readonly MixClass[]).includes(biggest) &&
+    actual[biggest] === 0 &&
+    target[biggest] >= 0.1
+  ) {
+    const empty = biggest
+    const lead = `Nothing in ${MIX_LABEL[empty].toLowerCase()}, where the ${templateName} plan keeps ${Math.round(target[empty] * 100)}%`
+    const over = gaps[largest] > 0 ? `; ${gaps[largest]} points more in ${MIX_LABEL[largest].toLowerCase()}` : ''
+    return { gaps, largest: empty, sentence: `${lead}${over}.` }
+  }
+
   const n = Math.abs(gaps[largest])
   const label = MIX_LABEL[largest].toLowerCase()
   const lead =
