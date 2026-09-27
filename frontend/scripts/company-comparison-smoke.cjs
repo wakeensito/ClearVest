@@ -63,6 +63,10 @@ fs.mkdirSync(output, { recursive: true });
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base + '/markets');
+    // Trading activity is collapsed below research until opened (DESIGN.md §4.9).
+    const openActivity = () => page.getByText('Market activity: most active, gainers and losers', { exact: true }).click();
+    assert.equal(await page.getByRole('region', { name: 'Top 10 most active', exact: true }).count(), 0, 'Board stays unmounted until opened');
+    await openActivity();
     const active = page.getByRole('region', { name: 'Top 10 most active', exact: true });
     await active.getByRole('button', { name: 'Research MSFT', exact: true }).waitFor();
     assert.equal(await active.locator('ol > li').count(), 10);
@@ -207,7 +211,7 @@ fs.mkdirSync(output, { recursive: true });
       if (state === 'error') { await comparison.getByRole('button', { name: 'Retry', exact: true }).waitFor(); mode = 'ok'; await comparison.getByRole('button', { name: 'Retry', exact: true }).click(); await comparison.getByRole('heading', { name: 'AMD vs NVDA', exact: true }).waitFor(); }
     }
     for (const state of ['error', 'stale', 'empty']) {
-      marketMode = state; await page.goto(base + '/markets'); await page.reload();
+      marketMode = state; await page.goto(base + '/markets'); await page.reload(); await openActivity();
       if (state === 'error') {
         await gainers.getByRole('button', { name: 'Retry', exact: true }).waitFor();
         await active.getByRole('button', { name: 'Research MSFT', exact: true }).waitFor();

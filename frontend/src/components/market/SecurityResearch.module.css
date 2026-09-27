@@ -4,7 +4,10 @@
 .heading h2 { margin-bottom: 4px; }
 .toolbar { margin: 24px 0; }
 /* The fund identity line belongs to the search, so it sits closer than the chart does. */
-.toolbar:has(+ [data-fund-identity]) { margin-bottom: 12px; }
+.toolbar:has(+ [data-fund-identity]), .toolbar:has(+ [data-identity-row]) { margin-bottom: 12px; }
+/* Identity line and the Watch toggle share a row; Watch wraps under the line on narrow phones. */
+.identityRow { display: flex; align-items: flex-start; justify-content: flex-end; flex-wrap: wrap; gap: 0 16px; margin-bottom: 16px; }
+.identityRow > [data-fund-identity] { flex: 1 1 16em; min-width: 0; margin-bottom: 0; }
 .search { flex: 1 1 240px; max-width: 360px; align-self: start; }
 .quote { align-items: end; margin-bottom: 8px; }
 .symbol { font-size: 14px; font-weight: 600; margin-right: 12px; }

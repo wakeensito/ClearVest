@@ -15,3 +15,9 @@
 .mode { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; color: var(--cv-text-secondary); }
 .mode button { min-height: 44px; padding: 8px 14px; background: var(--cv-surface); border: 1px solid var(--cv-border-input); border-radius: var(--cv-radius); color: var(--cv-accent); }
 .mode button[aria-pressed='true'] { background: var(--cv-accent-subtle); border-color: var(--cv-accent); }
+
+/* Trading activity is demoted below research: collapsed until asked for. */
+.activity { min-width: 0; }
+.activity > summary { display: flex; align-items: center; min-height: 48px; padding: 12px 16px; background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); color: var(--cv-text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; }
+.activity > summary:hover { color: var(--cv-accent); border-color: var(--cv-accent); }
+.activity[open] > summary { margin-bottom: 16px; }

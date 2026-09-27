@@ -135,8 +135,17 @@ null. Escape and neutralize formula-like CSV strings. Export happens entirely in
 
 ### 4.9 Compact market lists and research workspace
 
-Market overview and Compare companies use clearly bordered, filled buttons. Overview starts with two
-compact surfaces side by side. Top 10 most active has ten ranked rows in a 300px scroll region, showing
+Market overview and Compare companies use clearly bordered, filled buttons. Overview starts with the
+learner's watchlist (non-guided only; `components/market/Watchlist.tsx`, store `lib/watchlist.ts`):
+starred symbols, newest first, at most 20, per demo user on this device. Each row is the symbol (links to
+`/markets?symbol=X`), the name only if the page already cached it (else `—`, never a per-row fetch), the
+signed 1-year return as a gain/loss `Badge`, and a 44px remove `×`. Returns come from `/market/history`
+in chunks of five symbols; a pending refresh shows `Dots`. Empty: one sentence and a link to VOO. The
+Watch/Watching star toggle (`aria-pressed`) sits beside the fund identity line in Security research.
+
+Trading activity is demoted: below the research workspace, a collapsed `<details>` “Market activity:
+most active, gainers and losers” mounts the board (and its `/market/movers` calls) only once opened.
+Inside it, two compact surfaces sit side by side. Top 10 most active has ten ranked rows in a 300px scroll region, showing
 five 60px rows at once. The second surface switches between Top gainers and Top losers in place; only
 the selected list loads. Both support keyboard scrolling, signed daily moves and cached/empty/error
 states. Company symbols have FMP logo images, falling back to labelled initials when unavailable.

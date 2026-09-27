@@ -5,6 +5,7 @@ import { CompanyComparison } from '../components/market/CompanyComparison'
 import { MarketBoard } from '../components/market/MarketBoard'
 import { ContextHelp } from '../components/education/ContextHelp'
 import { ResearchWorkspace } from '../components/market/ResearchWorkspace'
+import { Watchlist } from '../components/market/Watchlist'
 import { companyPair } from '../lib/fundExplainer'
 import styles from './MarketsPage.module.css'
 
@@ -13,6 +14,8 @@ export function MarketsPage() {
   const view = params.get('view') === 'companies' ? 'companies' : 'overview'
   const [selected, setSelected] = useState<string[]>([])
   const guided = params.get('guided') === '1'
+  // Collapsed by default; the board (and its two /market/movers calls) mounts only once opened.
+  const [activityOpen, setActivityOpen] = useState(false)
   const research = useRef<HTMLDivElement>(null)
   const requested = params.get('symbol')?.trim().toUpperCase() ?? 'VOO'
   const symbol = /^[A-Z0-9.^-]{1,12}$/.test(requested) ? requested : 'VOO'
@@ -38,8 +41,12 @@ export function MarketsPage() {
     </nav>
     <div hidden={view !== 'companies'} className={styles.comparison}><CompanyComparison selected={selected} onSelectedChange={setSelected} /></div>
     {view === 'overview' && <>
-      {!guided && <MarketBoard comparisonSymbols={selected} selected={symbol} onResearch={openResearch} onCompare={(ticker) => { setSelected((current) => current.includes(ticker) ? current : current.length < 4 ? [...current, ticker] : current); switchView('companies') }} />}
+      {!guided && <Watchlist onResearch={openResearch} />}
       <div ref={research} className={styles.research}><ResearchWorkspace guided={guided} symbol={symbol} onSymbolChange={selectSymbol} onCompareCompanies={openCompanyComparison} /></div>
+      {!guided && <details className={styles.activity} open={activityOpen} onToggle={event => setActivityOpen(event.currentTarget.open)}>
+        <summary>Market activity: most active, gainers and losers</summary>
+        {activityOpen && <MarketBoard comparisonSymbols={selected} selected={symbol} onResearch={openResearch} onCompare={(ticker) => { setSelected((current) => current.includes(ticker) ? current : current.length < 4 ? [...current, ticker] : current); switchView('companies') }} />}
+      </details>}
     </>}
   </div>
 }
