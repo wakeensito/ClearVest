@@ -45,6 +45,12 @@ fs.mkdirSync(output, { recursive: true });
         if (marketMode === 'stale') body.stale = true;
         if (marketMode === 'empty') body.stocks = [];
       }
+      // The contract example always answers AAPL (and TQQQ); typing MSFT then Enter would research AAPL.
+      // Echo a ticker-shaped query back as its own exact match, as the fund-explainer smoke does.
+      if (url.pathname === '/market/search') {
+        const query = (url.searchParams.get('query') || '').trim().toUpperCase();
+        if (/^[A-Z0-9.^-]{1,6}$/.test(query) && query !== 'AAPL') body = { results: [{ symbol: query, name: query, exchange: 'NASDAQ', kind: 'stock', leveraged: false, source: 'both' }], unavailable: [], stale: false };
+      }
       if (url.pathname === '/market/compare-companies') {
         comparisons.push(url.searchParams.get('symbols'));
         if (mode === 'slow') await new Promise(resolve => setTimeout(resolve, 900));
@@ -108,10 +114,10 @@ fs.mkdirSync(output, { recursive: true });
     await left.getByRole('group', { name: 'NVDA interactive price chart' }).waitFor();
     await right.getByText('Enter a ticker above to load its chart and key figures.').waitFor();
     assert(!histories.includes(''), 'An empty second chart never requests a ticker');
-    await right.getByRole('combobox', { name: 'Search a ticker or company' }).fill('AAPL');
+    await right.getByRole('combobox', { name: 'Find a stock or fund' }).fill('AAPL');
     await right.getByRole('button', { name: 'Research symbol', exact: true }).click();
     await right.getByRole('group', { name: 'AAPL interactive price chart' }).waitFor();
-    await left.getByRole('combobox', { name: 'Search a ticker or company' }).fill('MSFT');
+    await left.getByRole('combobox', { name: 'Find a stock or fund' }).fill('MSFT');
     await left.getByRole('button', { name: 'Research symbol', exact: true }).click();
     await left.getByRole('group', { name: 'MSFT interactive price chart' }).waitFor();
     assert.equal(await right.getByRole('combobox').inputValue(), 'AAPL', 'Chart searches are independent');
