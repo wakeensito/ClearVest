@@ -91,11 +91,16 @@ export const useCompanyResearch = (symbol: string) => useQuery({
   staleTime: 15 * 60_000,
 })
 
-export const useCompanySearch = (query: string) => useQuery({
+/** Shared by the hook and by SymbolSearch's Enter, which awaits the same cached request. */
+export const companySearchQuery = (query: string) => ({
   queryKey: ['company-search', query.toLowerCase()],
   queryFn: () => api.searchCompanies(query),
-  enabled: query.trim().length > 0,
   staleTime: 15 * 60_000,
+})
+
+export const useCompanySearch = (query: string) => useQuery({
+  ...companySearchQuery(query),
+  enabled: query.trim().length > 0,
 })
 
 /** What a security is (kind, index, fees, top holdings). Fund facts change slowly, so keep them a day. */

@@ -19,6 +19,9 @@ export const searchTerm = (input: string) => {
  * chart (no round trip) unless suggestions are showing and none of them is that ticker: "apple" is
  * ticker-shaped too, and the user meant Apple Inc. Otherwise the first suggestion; with none yet,
  * the existing alert copy.
+ *
+ * Callers must not call this while a search for the draft is pending (see `shouldAwaitSearch`):
+ * with `[]`, "apple" resolves to the ticker APPLE.
  */
 export function resolveSubmit(input: string, suggestions: readonly Suggestion[], highlighted: number): { symbol: string } | { error: string } {
   const draft = input.trim().toUpperCase()
@@ -29,6 +32,18 @@ export function resolveSubmit(input: string, suggestions: readonly Suggestion[],
   if (ticker && (suggestions.length === 0 || suggestions.some((item) => item.symbol.toUpperCase() === draft))) return { symbol: draft }
   if (suggestions[0]) return { symbol: suggestions[0].symbol }
   return ticker ? { symbol: draft } : { error: EMPTY_SEARCH_ERROR }
+}
+
+/**
+ * Enter must never race the search. Wait for it when the draft is searched at all (two or more
+ * characters) and its search has not settled or is still loading, unless a listed suggestion is
+ * already exactly the typed ticker. Names wait too, so a quick Enter never shows the alert mid-search.
+ */
+export function shouldAwaitSearch(draft: string, settled: boolean, loading: boolean, suggestions: readonly Suggestion[]) {
+  if (!searchTerm(draft)) return false
+  const upper = draft.trim().toUpperCase()
+  if (suggestions.some((item) => item.symbol.toUpperCase() === upper)) return false
+  return !settled || loading
 }
 
 /** ArrowDown/ArrowUp: step through the options; past either end returns to the input (-1). */
