@@ -221,7 +221,11 @@ paths:
       operationId: searchCompanies
       tags:
       - Market
-      summary: Find securities by company name or ticker.
+      summary: >
+        Unified beginner search for a company, fund, ticker or index name. Merges Financial
+        Modeling Prep and Yahoo Finance results; `unavailable` lists any provider that could not
+        be reached (the other provider's results, and any curated data the frontend layers on
+        top, still come back).
       parameters:
       - $ref: '#/components/parameters/UserId'
       - name: query
@@ -244,6 +248,16 @@ paths:
                 - symbol: AAPL
                   name: Apple Inc.
                   exchange: NASDAQ
+                  kind: stock
+                  leveraged: false
+                  source: both
+                - symbol: TQQQ
+                  name: ProShares UltraPro QQQ
+                  exchange: NASDAQ
+                  kind: etf
+                  leveraged: true
+                  source: yahoo
+                unavailable: []
                 stale: false
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -1217,22 +1231,40 @@ components:
       type: object
       required:
       - results
+      - unavailable
       - stale
       properties:
         results:
           type: array
+          maxItems: 8
           items:
             type: object
             required:
             - symbol
             - name
             - exchange
+            - kind
+            - leveraged
+            - source
             properties:
               symbol:
                 type: string
               name:
                 type: string
               exchange: *id001
+              kind:
+                type: string
+                enum: [etf, mutual_fund, stock, index, crypto, other]
+              leveraged:
+                type: boolean
+              source:
+                type: string
+                enum: [fmp, yahoo, both]
+        unavailable:
+          type: array
+          items:
+            type: string
+            enum: [fmp, yahoo]
         stale:
           type: boolean
     FundHolding:

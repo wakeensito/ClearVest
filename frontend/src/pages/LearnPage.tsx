@@ -7,6 +7,7 @@ import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { PracticeReview } from '../features/learn/PracticeReview'
 import { Flashcards } from '../features/learn/Flashcards'
 import { GrowthCalculator } from '../features/learn/GrowthCalculator'
+import { examplesFor } from '../lib/curatedFunds'
 import { FAQ } from '../lib/faq'
 import { filterTerms, GLOSSARY_SOURCE, LEARNING_SOURCE } from '../lib/learning'
 import { resetProgress } from '../lib/learnProgress'
@@ -125,7 +126,7 @@ export function LearnPage() {
       {mode === 'browse' ? <>
         <label className={styles.search}><Search size={18} aria-hidden /><span className="sr-only">Search investing terms</span><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Try “ETF” or “risk”" /></label>
         <p className={styles.count} role="status">{terms.length} {terms.length === 1 ? 'term' : 'terms'}{search.trim() ? ' found' : ' to explore'}</p>
-        <div className={styles.terms}>{visibleTerms.map(({ term, meaning, example }) => <details key={term}><summary>{term}</summary><div><p>{meaning}</p><p className={styles.example}>{example}</p><Link to={ask(`Explain ${term.toLowerCase()} with a simple example.`)}>Ask for an example</Link></div></details>)}</div>
+        <div className={styles.terms}>{visibleTerms.map(({ term, meaning, example }) => <details key={term}><summary>{term}</summary><div><p>{meaning}</p><p className={styles.example}>{example}</p><TermExamples term={term} /><Link to={ask(`Explain ${term.toLowerCase()} with a simple example.`)}>Ask for an example</Link></div></details>)}</div>
         {!search.trim() && terms.length > 6 && <button type="button" className={styles.linkButton} onClick={() => setShowAllTerms(value => !value)}>{showAllTerms ? 'Show fewer terms' : `Explore all ${terms.length} terms`}</button>}
         {!terms.length && <div className={styles.empty}><p>No matching terms yet. Try a shorter word or ask the advisor.</p><button type="button" onClick={() => setSearch('')}>Clear search</button></div>}
       </> : <Flashcards />}
@@ -133,5 +134,15 @@ export function LearnPage() {
     </section>
     <p className={styles.source}>Educational information, not financial advice. Investing involves risk, including loss of principal. Progress stays in this browser when storage is available. If storage is blocked, it lasts until you reload.</p>
     <ConfirmDialog open={confirmReset} title="Reset lesson progress?" confirmLabel="Reset lessons" onClose={() => setConfirmReset(false)} onConfirm={() => { resetProgress(); setConfirmReset(false) }}>Your completed lessons will be cleared on this browser. Your research milestones will stay.</ConfirmDialog>
+  </div>
+}
+
+/** Real funds for a fund-type term ("VOO · Vanguard"), each opening its research page. */
+function TermExamples({ term }: { term: string }) {
+  const examples = examplesFor(term)
+  if (!examples.length) return null
+  return <div className={styles.termExamples}>
+    <span className="t-caption c-tertiary">Real examples</span>
+    <ul>{examples.map(fund => <li key={fund.symbol}><Link to={`/markets?symbol=${encodeURIComponent(fund.symbol)}`}><span className="t-mono">{fund.symbol}</span> · {fund.family ?? fund.name}</Link></li>)}</ul>
   </div>
 }

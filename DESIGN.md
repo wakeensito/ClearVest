@@ -62,6 +62,14 @@ One primary action per task. Secondary actions use an outlined white control; te
 Controls have a 6px radius. Research controls and navigation targets are at least 44px high. Fields have
 visible labels, error text, and keyboard focus. Do not imply an action exists with a decorative button.
 
+**Comboboxes** (`SymbolSearch`, §4.17): a visible label above the field (12px, secondary), an
+in-flow listbox under it (never a floating popover: it pushes content down, so it cannot hide behind
+a phone keyboard or widen a 320px screen), at most eight 44px rows that wrap long names instead of
+scrolling inside the list, and `aria-activedescendant` for the highlighted row. A row's secondary
+action (“Compare with VOO”) is a real button with `tabIndex=-1`; its keyboard path is Shift+Enter,
+named in the sr-only hint. Escape closes the list, then clears the field, and never reaches an
+enclosing dialog or explainer.
+
 ### 4.2 Work surfaces
 
 White, 1px border, 10px radius, 24px padding (16px mobile). No decorative shadows or gradients.
@@ -159,8 +167,17 @@ The primary Security research surface spans the full width below the compact lis
 selection scrolls to it and focuses its search. Show closing price, available-history return,
 annualized volatility, actual observation count, chart/table inspection and supported time ranges.
 
-Compare securities opens a native full-screen dialog with two independent research panels. The
-second starts empty until a ticker is submitted. Each has its own query, input, time range and local
+Research search is type-ahead with an explicit pick (§4.17): curated funds answer category words at
+once, names arrive after a pause, and nothing loads a chart until the user picks a row or presses
+Enter. Picking a symbol replaces the URL's `symbol`, re-keys the panel and moves focus to the
+research heading.
+
+Compare securities opens a native full-screen dialog with two independent research panels. From the
+“Compare securities” button the second starts empty until a ticker is submitted (no URL param). From
+a search row's “Compare with VOO” (or Shift+Enter), both sides are set and `compare=FXAIX` is pushed;
+the dialog follows that param, so a `?compare=` deep link opens it and Back closes it. Closing pops
+the entry it pushed, or replaces the URL when it arrived by link (Portfolio navigates to
+`/markets?symbol=VOO&compare=FXAIX`). Each has its own query, input, time range and local
 error/retry state. A 280ms inward transition fills the workspace with the two panels; disable it for
 reduced motion. Below 850px the panels stack. Use native modal focus containment, Escape/Exit
 comparison, restore trigger focus and lock background scrolling. Keep Exit available in a sticky
@@ -217,9 +234,9 @@ when the original comparison contract omits currency.
 `/market/company-research` caches profile, income, current ratios and historical ratios independently
 for one day. A section failure preserves other sections and exposes a retry. Each source keeps its
 original retrieval timestamp through a stale fallback. `/market/search` supports names and tickers.
-One search box (`SymbolSearch`) takes both: from two characters it suggests up to eight matches after a
-300 ms pause (in-flow listbox, name truncated, never blocks Enter); a ticker-shaped entry goes straight to
-the chart unless the suggestions say otherwise (`lib/searchBox.ts`). Browser demonstrations use contract fixtures, not live entitlement.
+One search box (`SymbolSearch`) takes both, plus fund category words (§4.17): from two characters it
+suggests up to eight matches after a 300 ms pause (in-flow listbox, never blocks Enter); a ticker-shaped
+entry goes straight to the chart unless the suggestions say otherwise (`lib/searchBox.ts`). Browser demonstrations use contract fixtures, not live entitlement.
 
 Explanations use everyday language, disclose details only when needed, and include local feedback on
 sales versus profit and on interpreting P/E. Contextual disclosures also explain charts, portfolios,
@@ -500,6 +517,49 @@ never checked: render anyway, and the data line says so (“0 of 3 funds checked
 **Phone.** No overflow at 320/375/393px; the presets keep one row and the amount box takes the next
 full row below 640px. Measured at 375px: about 570px tall with the biggest-company line, 530px at 393px.
 
+### 4.17 Unified beginner search
+
+Beginners don't know tickers. One box (`components/market/SymbolSearch.tsx`) takes whatever they
+type: a ticker, a company or fund name, or a category word (“index fund”, “ETF”, “S&P 500”,
+“Fidelity”, “bonds”, “cheap”). Rules are pure: `lib/searchIntent.ts` (`classify`, `buildRows`),
+`lib/curatedFunds.ts` (about 36 hand-checked index funds), `lib/searchBox.ts` (Enter, Shift+Enter,
+Escape). No AI model sits in the search path; questions hand off to the advisor.
+
+**Tiers, in list order.** (1) The exact ticker, from curated data or from provider data for *this*
+text only. (2) Curated funds, grouped by recipe and dealt round-robin so a list shows Vanguard *and*
+Fidelity *and* Schwab. (3) `GET /market/search` rows not already listed (kind-labelled; a leveraged
+fund reads “Leveraged ETF · high risk”, “high risk” in the loss colour). (4) “Look up V as a ticker”
+for a single letter, or a ticker-shaped query when live search is down. (5) “Ask the advisor: “…” →”
+when nothing else fits, or first and alone for a question (`?`, a question word, or more than six
+words). Curated and intent rules read the RAW text; only the provider call uses `normalizeQuery`, and
+it is never made for one character, a question or text with no letters.
+
+**Rows.** `SYMBOL · name` (mono symbol, the name wraps), a meta line with the kind label and, when
+comparing, “Same index as VOO” / “Similar mix to VTI” in accent, then the curated one-liner (12px,
+tertiary). Group headers (Funds · Companies · Indexes & crypto · Ask the advisor) appear only when
+the list mixes groups. A quiet caption above the list says “Searching…”, “Live search is
+unavailable”, “Previously saved results” or “No matches. Try a ticker such as VOO, or ask the
+advisor.”; a sr-only `role=status` announces “8 results for “index fund”” after the 300 ms pause.
+
+**Empty box.** Chips (44px, wrap at 320px): index fund · ETF · Apple · S&P 500 · bonds. A stock-only
+box (`kinds={['stock']}`, Compare companies) drops fund rows and fund chips and passes its own
+(Apple · Microsoft · Nike).
+
+**Enter** (`resolveRowSubmit`): the highlighted row; else a question goes to the advisor; else the
+first listed symbol, with `resolveSubmit`'s ticker precedence, so “ETF” or “bonds” research a fund,
+never the ticker ETF or BONDS. A name with nothing listed hands off to the advisor. Enter still waits
+for an in-flight search (`shouldAwaitSearch`) unless a curated list already answers a category word.
+
+**Compare hook.** With `current`, `currentFund` and `onCompare` (Security research outside the
+dialog, and the guided box), a plain fund row gets “Compare with VOO” when the researched symbol is a
+known plain fund and the row is another plain fund. Never for leveraged funds, stocks, indexes or
+crypto, never on the current symbol, and hidden while the current fund is still loading. On phones
+the button reads “Compare” (accessible name unchanged). It opens Compare securities with
+`compare=` (§4.9).
+
+**Phone.** Measured by `npm run test:security-search`: no horizontal overflow at 320/375/393px with
+eight rows and the explainer open, the compare dialog, the chips row and the stock-only list.
+
 ## 5. Layout and routes
 
 Desktop: 76px navigation, slim workspace information row, centered content up to 1440px with 40px
@@ -513,11 +573,12 @@ Mobile keeps five bottom navigation items with safe-area spacing: Home, Portfoli
 | `/portfolio` | Account summary, security research, searchable holdings, allocation and risk |
 | `/markets?symbol=VOO` | Compact discovery lists, full-width research, dual-chart comparison and related news |
 | `/markets?symbol=VOO&explain=1` | The same, with the fund explainer open under the identity line (§4.13); `explain=1` also works on `/portfolio` |
+| `/markets?symbol=VOO&compare=FXAIX` | The same, with Compare securities open on VOO and FXAIX and the real-difference strip (§4.9, §4.17); Back closes it |
 | `/markets?view=companies` | Build a visual company comparison, inspect exact values and export |
 | `/markets?symbol=AAPL&guided=1` | Guided company research, with optional price chart and company-name lookup |
 | `/advisor` | General questions without setup; optional saved profile/holdings provide more context |
 | `/welcome` | Profile and Plaid account linking; light introduction panel |
-| `/learn` | Beginner starter path (units and lessons), common questions, growth illustration, glossary with flashcards |
+| `/learn` | Beginner starter path (units and lessons), common questions, growth illustration, glossary with flashcards; fund-type terms list up to three real examples linking to `/markets?symbol=` |
 | `/learn/:lessonId` | One short lesson: idea cards, a two-question quick check, completion and next step |
 
 No sidebar full of nonfunctional trading tools. No buy/sell controls or fabricated market-open status.

@@ -44,7 +44,7 @@ _FUND_WORD_RE = re.compile(r"\bfund\b", re.IGNORECASE)
 _TRACKS_RE = re.compile(r"TRACKS\s*:\s*(.+)", re.IGNORECASE)
 _TRACKS_STRIP_CHARS = "\"'‘’“”.,;:!? "
 _TRACKS_LEADING_THE_RE = re.compile(r"^the\s+", re.IGNORECASE)
-_LEVERAGED_RE = re.compile(
+LEVERAGED_RE = re.compile(
     r"\b(leveraged|inverse|ultra(pro)?|daily (target|investment results)|[23]x)\b", re.IGNORECASE,
 )
 # Beginner-hostile phrasing the model could slip in even while obeying the word/number rules -
@@ -110,7 +110,7 @@ def _is_leveraged(kind: str, name: str, description: str, category: str | None) 
         return False
     if category and category.casefold().startswith("trading"):
         return True
-    return bool(_LEVERAGED_RE.search(f"{name} {description}"))
+    return bool(LEVERAGED_RE.search(f"{name} {description}"))
 
 
 def _clean_tracks(raw: str) -> str | None:

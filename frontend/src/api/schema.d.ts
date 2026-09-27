@@ -62,7 +62,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Find securities by company name or ticker. */
+        /** Unified beginner search for a company, fund, ticker or index name. Merges Financial Modeling Prep and Yahoo Finance results; `unavailable` lists any provider that could not be reached (the other provider's results, and any curated data the frontend layers on top, still come back). */
         get: operations["searchCompanies"];
         put?: never;
         post?: never;
@@ -476,7 +476,13 @@ export interface components {
                 symbol: string;
                 name: string;
                 exchange: string | null;
+                /** @enum {string} */
+                kind: "etf" | "mutual_fund" | "stock" | "index" | "crypto" | "other";
+                leveraged: boolean;
+                /** @enum {string} */
+                source: "fmp" | "yahoo" | "both";
             }[];
+            unavailable: ("fmp" | "yahoo")[];
             stale: boolean;
         };
         FundHolding: {
@@ -1133,9 +1139,21 @@ export interface operations {
                      *         {
                      *           "symbol": "AAPL",
                      *           "name": "Apple Inc.",
-                     *           "exchange": "NASDAQ"
+                     *           "exchange": "NASDAQ",
+                     *           "kind": "stock",
+                     *           "leveraged": false,
+                     *           "source": "both"
+                     *         },
+                     *         {
+                     *           "symbol": "TQQQ",
+                     *           "name": "ProShares UltraPro QQQ",
+                     *           "exchange": "NASDAQ",
+                     *           "kind": "etf",
+                     *           "leveraged": true,
+                     *           "source": "yahoo"
                      *         }
                      *       ],
+                     *       "unavailable": [],
                      *       "stale": false
                      *     }
                      */

@@ -4,7 +4,7 @@ import { AAPL, BND, BTC, SPX, TOP_TEN, TQQQ, VFIAX, VOO } from './fundExplainer.
 import {
   CRYPTO_WHY, FEE_UNAVAILABLE, LEVERAGED_WHY, NO_FEE, advisorHref, centsLabel, companyPair, dollarStrip, everyDollar, expenseRatioLabel, feePerTenThousand,
   feeSentence, firstSentence, holdingsOverlap, isExplainOpen, isFund, kindLabel, learnTopics, plainCategory, plainSector,
-  realDifference, shortName, withExplain,
+  compareWith, realDifference, shortName, withCompare, withExplain,
 } from './fundExplainer'
 
 describe('kindLabel', () => {
@@ -248,6 +248,39 @@ describe('URL sync', () => {
 
   it('prefills, but never submits, an advisor question', () => {
     expect(decodeURIComponent(advisorHref('VOO'))).toBe('/advisor?q=What is VOO, and what should a beginner know about owning it?')
+  })
+})
+
+describe('compare URL sync (compare=)', () => {
+  it('W1: a ?compare= deep link names the second security', () => {
+    expect(compareWith(new URLSearchParams('symbol=VOO&compare=FXAIX'))).toBe('FXAIX')
+    expect(compareWith(new URLSearchParams('symbol=VOO&compare=fxaix'))).toBe('FXAIX')
+    expect(compareWith(new URLSearchParams('symbol=VOO'))).toBeNull()
+  })
+
+  it('W2: compare equal to symbol, or not a ticker, reads as closed', () => {
+    expect(compareWith(new URLSearchParams('symbol=VOO&compare=VOO'))).toBeNull()
+    expect(compareWith(new URLSearchParams('symbol=VOO&compare=voo'))).toBeNull()
+    expect(compareWith(new URLSearchParams('symbol=VOO&compare=not a ticker'))).toBeNull()
+    expect(compareWith(new URLSearchParams('symbol=VOO&compare=<script>'))).toBeNull()
+    expect(compareWith(new URLSearchParams('symbol=VOO&compare='))).toBeNull()
+  })
+
+  it('W3: closing removes only compare; W4: explain=1 is kept beside it', () => {
+    expect(withCompare(new URLSearchParams('symbol=VOO&explain=1&compare=FXAIX'), null).toString()).toBe('symbol=VOO&explain=1')
+    expect(withCompare(new URLSearchParams('symbol=VOO&explain=1'), 'fxaix').toString()).toBe('symbol=VOO&explain=1&compare=FXAIX')
+  })
+
+  it('W5: a symbol change (live params copy) keeps compare', () => {
+    const next = withCompare(new URLSearchParams('symbol=VOO'), 'FXAIX')
+    next.set('symbol', 'VTI') // what MarketsPage.selectSymbol does
+    expect(compareWith(next)).toBe('FXAIX')
+  })
+
+  it('does not mutate the params it is given', () => {
+    const params = new URLSearchParams('symbol=VOO')
+    withCompare(params, 'FXAIX')
+    expect(params.toString()).toBe('symbol=VOO')
   })
 })
 

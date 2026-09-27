@@ -8,7 +8,9 @@
 /* Identity line and the Watch toggle share a row; Watch wraps under the line on narrow phones. */
 .identityRow { display: flex; align-items: flex-start; justify-content: flex-end; flex-wrap: wrap; gap: 0 16px; margin-bottom: 16px; }
 .identityRow > [data-fund-identity] { flex: 1 1 16em; min-width: 0; margin-bottom: 0; }
-.search { flex: 1 1 240px; max-width: 360px; align-self: start; }
+.search { flex: 1 1 240px; max-width: 480px; align-self: start; }
+/* Lines the range control up with the search field, under the search's visible label. */
+.range { align-self: start; margin-top: 20px; }
 .quote { align-items: end; margin-bottom: 8px; }
 .symbol { font-size: 14px; font-weight: 600; margin-right: 12px; }
 .price { font-size: 36px; line-height: 48px; letter-spacing: -0.035em; font-weight: 500; font-variant-numeric: tabular-nums; }
@@ -36,6 +38,7 @@
   .toolbar { gap: 8px; }
   .toolbar { flex-wrap: wrap; }
   .search { flex-basis: 100%; max-width: none; }
+  .range { margin-top: 0; }
   .quote { align-items: start; gap: 8px; }
   .quote > div:first-child > span { display: block; }
   .return { padding-top: 12px; }
@@ -48,6 +51,7 @@
 .compact .heading h2 { font-size: 18px; }
 .compact .toolbar { flex-wrap: wrap; gap: 10px; margin: 20px 0; }
 .compact .search { flex-basis: 100%; max-width: none; }
+.compact .range { margin-top: 0; }
 .compact .quote { align-items: start; flex-wrap: wrap; gap: 8px; }
 .compact .quote > div:first-child > span { display: block; }
 .compact .price { font-size: 30px; line-height: 38px; }

@@ -36,9 +36,14 @@ export interface SecurityResearchProps {
   explainable?: boolean
   /** The what-if card's one-line "link an account" invite (to /portfolio); off on the portfolio page. */
   invite?: boolean
+  /**
+   * Offer "Compare with <this symbol>" on fund rows of the search (Shift+Enter from the keyboard).
+   * Gets the other symbol and the one researched here. Off inside Compare securities.
+   */
+  onCompare?: (other: string, current: string) => void
 }
 
-export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, initialRange = '1y', onRangeChange, explainable = true, invite = true }: SecurityResearchProps) {
+export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, initialRange = '1y', onRangeChange, explainable = true, invite = true, onCompare }: SecurityResearchProps) {
   const [symbol, setSymbol] = useState(initialSymbol)
   const [range, setRange] = useState<HistoryRange>(initialRange)
   const query = useHistory(symbol, range)
@@ -52,8 +57,8 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
         {query.data?.stale && <Badge tone="stale">Cached data</Badge>}
       </div>
       <div className={styles.toolbar}>
-        <SymbolSearch value={symbol} onSelect={select} inputRef={inputRef} className={styles.search} />
-        <SegmentedControl label="History range" value={range} onChange={next => { setRange(next); onRangeChange?.(next) }} options={[{ value: '1y', label: '1Y' }, { value: '5y', label: '5Y' }, { value: '10y', label: '10Y' }]} />
+        <SymbolSearch value={symbol} onSelect={select} inputRef={inputRef} className={styles.search} current={symbol} currentFund={fundState} onCompare={onCompare ? (other) => onCompare(other, symbol) : undefined} />
+        <div className={styles.range}><SegmentedControl label="History range" value={range} onChange={next => { setRange(next); onRangeChange?.(next) }} options={[{ value: '1y', label: '1Y' }, { value: '5y', label: '5Y' }, { value: '10y', label: '10Y' }]} /></div>
       </div>
       {symbol && explainable && <div className={styles.identityRow} data-identity-row><FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} /><WatchButton symbol={symbol} /></div>}
       {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} onResearch={select} headingRef={headingRef} />}

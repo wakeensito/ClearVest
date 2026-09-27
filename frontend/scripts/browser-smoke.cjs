@@ -119,7 +119,7 @@ const TEMPLATES_FIXTURE = [
   await page.waitForURL(url=>url.searchParams.get('symbol')===holdings[0].symbol);
   await page.goto(previewUrl + '/markets?symbol=QQQ');
   await page.getByRole('group',{name:'QQQ interactive price chart'}).waitFor();
-  await page.getByRole('combobox',{name:'Search a ticker or company'}).fill('');
+  await page.getByRole('combobox',{name:'Find a stock or fund'}).fill('');
   await page.getByRole('button',{name:'Research symbol',exact:true}).click();
   await page.getByRole('alert').waitFor();
   await page.screenshot({path:path.join(output,'markets-desktop.png'),fullPage:true});

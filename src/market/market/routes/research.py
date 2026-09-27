@@ -7,10 +7,10 @@ from datetime import UTC, date, datetime
 
 from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, cache
-from clearvest.errors import InvalidInput, UpstreamError
+from clearvest.errors import UpstreamError
 
 from market.providers import fmp
-from market.routes.history import SYMBOL, parse_symbols
+from market.routes.history import parse_symbols
 
 router = Router()
 SECTIONS = ("profile", "income", "valuation", "history")
@@ -145,36 +145,3 @@ def research():
             body["sources"].append({"section": section, "provider": "FMP",
                                     "fetchedAt": snapshot["fetchedAt"], "stale": stale})
     return body
-
-
-@router.get("/market/search")
-def search():
-    api.user_id(router)
-    query = (router.current_event.get_query_string_value("query") or "").strip()
-    if not 1 <= len(query) <= 80 or any(ord(char) < 32 for char in query):
-        raise InvalidInput("query: enter a company name or ticker, up to 80 characters")
-
-    def fetch():
-        def lookup(by_symbol):
-            try:
-                return fmp.search_companies(query, by_symbol)
-            except UpstreamError:
-                return None
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            batches = list(pool.map(lookup, (True, False)))
-        if all(batch is None for batch in batches):
-            raise UpstreamError("fmp", "company search unavailable")
-        results, seen = [], set()
-        for row in [r for batch in batches if batch for r in batch]:
-            if not isinstance(row, dict):
-                continue
-            symbol = str(row.get("symbol", "")).upper()
-            name = _text(row.get("name"))
-            if not SYMBOL.fullmatch(symbol) or not name or symbol in seen:
-                continue
-            seen.add(symbol)
-            results.append({"symbol": symbol, "name": name, "exchange": _text(row.get("exchangeShortName"))})
-        results.sort(key=lambda row: row["symbol"] != query.upper())
-        return {"results": results[:8]}
-    data, stale = cache.get_or_fetch("fmp", f"search:v1:{query.casefold()}", TTL, fetch)
-    return {**data, "stale": stale}

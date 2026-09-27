@@ -1,6 +1,6 @@
 import { ArrowRight, Search, SlidersHorizontal, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { ScoutTarget } from '../features/advisor/ScoutTarget'
 import { useScoutContext } from '../features/advisor/scoutContext'
 import { ContextHelp } from '../components/education/ContextHelp'
@@ -31,6 +31,7 @@ export function PortfolioPage() {
   const context = useScoutContext()
   const researchChange = (key: string, value: string) => { const next = new URLSearchParams(params); next.set(key, value); setParams(next, { replace: true }) }
   const holdings = useHoldings()
+  const navigate = useNavigate()
   const notLinked = hasCode(holdings.error, 'NOT_LINKED')
   const [filter, setFilter] = useState('')
   const [hidden, setHidden] = useState(() => read('cv-hide-balances') === 'true')
@@ -53,7 +54,7 @@ export function PortfolioPage() {
           {!notLinked && <QueryView query={holdings} label="Loading what you own" noun="Your holdings" skeleton={<OwnershipXraySkeleton />}>
             {(data) => <OwnershipXray data={data} hideValues={hidden} />}
           </QueryView>}
-          <SecurityResearch invite={false} key={context.symbol} initialSymbol={context.symbol} initialRange={context.range} onSymbolChange={s => researchChange('symbol', s)} onRangeChange={r => researchChange('range', r)} />
+          <SecurityResearch invite={false} onCompare={(other, current) => void navigate(`/markets?symbol=${encodeURIComponent(current)}&compare=${encodeURIComponent(other)}`)} key={context.symbol} initialSymbol={context.symbol} initialRange={context.range} onSymbolChange={s => researchChange('symbol', s)} onRangeChange={r => researchChange('range', r)} />
           {!notLinked && <section className={styles.holdings} aria-labelledby="holdings-heading">
             <div className={styles.holdingsHeader}>
               <div><h2 id="holdings-heading" className="t-h2">Holdings</h2><p className="t-body-sm c-secondary">Holdings are investments you own. Select a symbol to learn about it.</p></div>
