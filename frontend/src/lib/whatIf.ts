@@ -32,13 +32,18 @@ export interface WhatIfResult {
   holdingsAfter: Holding[]
   riskBefore: RiskResult
   riskAfter: RiskResult
-  /** This company's look-through share of the portfolio, as a fraction (0..1). */
+  /**
+   * This company's share of the portfolio, as a fraction (0..1). A lower bound: funds are only
+   * looked through their top 10 holdings, so a company can also sit, uncounted, deeper in a fund.
+   */
   exposureBefore: number
   exposureAfter: number
   largestBefore: CompanyShare | null
   largestAfter: CompanyShare | null
   /** dollars / (total + dollars); 0 when not addable. */
   addedShare: number
+  /** The account already holds an ETF or mutual fund, so a 0% exposure may just be unseen. */
+  holdsFunds: boolean
 }
 
 /** Holding types a dollar amount can actually be added as. index/other funds aren't a position. */
@@ -130,6 +135,7 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
   const ltBefore = lookThrough(holdings, funds)
   const exposureBefore = exposureOf(holdings, ltBefore, upper, mappedType)
   const largestBefore = largestOf(ltBefore)
+  const holdsFunds = ltBefore.fundsTotal > 0
 
   if (!addable) {
     return {
@@ -142,6 +148,7 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
       largestBefore,
       largestAfter: largestBefore,
       addedShare: 0,
+      holdsFunds,
     }
   }
 
@@ -166,6 +173,7 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
     largestBefore,
     largestAfter,
     addedShare: safeDiv(dollars, newTotal),
+    holdsFunds,
   }
 }
 
@@ -173,14 +181,18 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
 const pct = wholePercent
 
 /**
- * "Adding $1,000 of NVDA: your NVDA exposure goes from 19% to 22% (counting what your funds hold),
- * and your risk score from 44 to 47 (Moderate)." The risk label is repeated on both sides only when
+ * "Adding $1,000 of NVDA: your NVDA exposure goes from 19% to 22% (counting your funds' top 10 holdings),
+ * and your risk score from 44 to 47 (Moderate)." Starting from 0%: "you'd go from owning no ORCL to 9%",
+ * or, when the account holds funds (only their top 10 are counted), "you'd go from no ORCL we can see
+ * to 9%". The risk label is repeated on both sides only when
  * it actually changes: "... from 44 (Moderate) to 68 (Aggressive)."
  */
 export function whatIfSentence(r: WhatIfResult, symbol: string, dollars: number): string {
   const exposurePart =
     r.exposureBefore === 0
-      ? `you'd go from owning no ${symbol} to ${pct(r.exposureAfter)}`
+      ? r.holdsFunds
+        ? `you'd go from no ${symbol} we can see to ${pct(r.exposureAfter)}`
+        : `you'd go from owning no ${symbol} to ${pct(r.exposureAfter)}`
       : `your ${symbol} exposure goes from ${pct(r.exposureBefore)} to ${pct(r.exposureAfter)}`
 
   const sameLabel = r.riskBefore.label === r.riskAfter.label
@@ -188,5 +200,5 @@ export function whatIfSentence(r: WhatIfResult, symbol: string, dollars: number)
     ? `your risk score from ${r.riskBefore.score} to ${r.riskAfter.score} (${r.riskAfter.label})`
     : `your risk score from ${r.riskBefore.score} (${r.riskBefore.label}) to ${r.riskAfter.score} (${r.riskAfter.label})`
 
-  return `Adding ${currencyWhole(dollars)} of ${symbol}: ${exposurePart} (counting what your funds hold), and ${riskPart}.`
+  return `Adding ${currencyWhole(dollars)} of ${symbol}: ${exposurePart} (counting your funds' top 10 holdings), and ${riskPart}.`
 }

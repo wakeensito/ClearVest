@@ -1,5 +1,6 @@
-import { useId, useState, type CSSProperties } from 'react'
+import { useId, useState } from 'react'
 import type { Fund, Holding } from '../../api/client'
+import { hasCode } from '../../api/errors'
 import { useHoldings, useProfile } from '../../api/queries'
 import type { FundState } from '../../lib/fundExplainer'
 import { currencyWhole } from '../../lib/format'
@@ -36,8 +37,9 @@ export function WhatIfCard({ symbol, state }: { symbol: string; state: FundState
   const fund = state.status === 'success' ? state.fund : null
 
   if (!fund || !ADDABLE.has(fund.kind) || !holdings.data) return null
-  // A 404 means no saved profile: score without it, like the backend. Wait for anything else.
+  // A 404 means no saved profile: score without it, like the backend. Any other error: nothing.
   if (profile.isPending) return null
+  if (profile.isError && !hasCode(profile.error, 'NOT_FOUND')) return null
   if (fundMap.pending && fundMap.loaded === 0 && fundMap.total > 0) return null
   const rows = holdings.data.holdings
   if (!(rows.reduce((sum, h) => sum + Math.max(h.value, 0), 0) > 0)) return null
@@ -60,7 +62,7 @@ interface BodyProps {
   coverage: { checked: number; total: number }
 }
 
-export function WhatIfBody({ symbol, fund, holdings, funds, profile, coverage }: BodyProps) {
+function WhatIfBody({ symbol, fund, holdings, funds, profile, coverage }: BodyProps) {
   const id = useId()
   const [preset, setPreset] = useState<Preset>('1000')
   const [raw, setRaw] = useState('')
@@ -136,11 +138,11 @@ function RiskFigure({ result }: { result: WhatIfResult }) {
       </dd>
       <dd className={styles.scale} aria-hidden>
         <span className={styles.bands}>
-          {BANDS.map((b) => <span key={b.from} data-active={after >= b.from && after <= b.to ? '' : undefined} />)}
+          {BANDS.map((b) => <span key={b.from} />)}
         </span>
         <span className={styles.shift} style={{ left: `${Math.min(before, after)}%`, width: `${Math.abs(after - before)}%` }} />
-        <span className={styles.before} style={{ left: `${before}%` } as CSSProperties} />
-        <span className={styles.after} style={{ left: `${after}%` } as CSSProperties} />
+        <span className={styles.before} style={{ left: `${before}%` }} />
+        <span className={styles.after} style={{ left: `${after}%` }} />
       </dd>
     </div>
   )

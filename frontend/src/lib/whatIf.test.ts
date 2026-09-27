@@ -99,7 +99,7 @@ const NVDA_FUND: Fund = {
 }
 
 // A stock that appears in none of the sample account's fund fixtures above, so its look-through
-// exposure before adding is exactly 0 ("you'd go from owning no ORCL...").
+// exposure before adding is exactly 0 ("you'd go from no ORCL we can see...", since the account holds funds).
 const ORCL_FUND: Fund = {
   ...NVDA_FUND,
   symbol: 'ORCL',
@@ -156,7 +156,7 @@ describe('whatIf', () => {
     expect(result.largestAfter).toEqual({ symbol: 'NVDA', name: 'NVIDIA', share: expect.any(Number) })
 
     expect(whatIfSentence(result, 'NVDA', 1000)).toBe(
-      "Adding $1,000 of NVDA: your NVDA exposure goes from 17% to 20% (counting what your funds hold), and your risk score from 34 to 35 (Moderate)."
+      "Adding $1,000 of NVDA: your NVDA exposure goes from 17% to 20% (counting your funds' top 10 holdings), and your risk score from 34 to 35 (Moderate)."
     )
   })
 
@@ -180,12 +180,20 @@ describe('whatIf', () => {
     expect(result.exposureBefore).toBe(0)
     expect(result.exposureAfter).toBeCloseTo(5000 / newTotal, 12)
 
-    expect(whatIfSentence(result, 'ORCL', 5000)).toContain("you'd go from owning no ORCL to")
+    expect(whatIfSentence(result, 'ORCL', 5000)).toContain("you'd go from no ORCL we can see to")
   })
 
   it('a tiny first purchase reads "under 1%", never "0%"', () => {
     const result = whatIf({ holdings, funds, symbol: 'ORCL', fund: ORCL_FUND, dollars: 10, profile })
-    expect(whatIfSentence(result, 'ORCL', 10)).toContain("you'd go from owning no ORCL to under 1%")
+    expect(whatIfSentence(result, 'ORCL', 10)).toContain("you'd go from no ORCL we can see to under 1%")
+  })
+
+  it('a stock-only account has nothing unseen, so a 0% start reads "owning no"', () => {
+    const stocksOnly = holdings.filter(h => h.type !== 'etf')
+    const result = whatIf({ holdings: stocksOnly, funds: {}, symbol: 'ORCL', fund: ORCL_FUND, dollars: 1000, profile })
+    expect(result.holdsFunds).toBe(false)
+    expect(whatIfSentence(result, 'ORCL', 1000)).toContain("you'd go from owning no ORCL to")
+    expect(whatIfSentence(result, 'ORCL', 1000)).not.toContain('we can see')
   })
 
   it('adding an ETF (more VOO) uses direct portfolio share, not a look-through company share', () => {
