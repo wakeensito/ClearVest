@@ -62,13 +62,15 @@ type "fxaix" and press Shift+Enter; open `/markets?symbol=VOO&compare=FXAIX` dir
 - **The provider only searches the settled draft** (`settled === term`), so a prefilled "VOO" settling
   after the user typed "v" costs no call. The smoke asserts that one letter and a question make no
   `/market/search` request.
-- **The "Look up X as a ticker" row appears only when nothing else answered.** With the providers
-  down, a one-word category ("bonds", "ETF", "cheap", "tech") is ticker-shaped too, and a lookup row
-  ahead of its curated funds made Enter research BONDS/ETF. A real uncurated ticker (AAPL while down)
-  and one letter ("V") keep the row.
-- **Enter answers locally whenever the list leads with a non-exact curated fund** (`answeredLocally`
-  in searchBox.ts), so "ETF", "bonds" or "cheap" never wait for the provider. A fast Enter on a ticker
-  prefix with a curated match ("vo") therefore takes the curated fund (VOO) rather than waiting for VO.
+- **The "Look up X as a ticker" row appears only when nothing but symbol-prefix guesses answered.**
+  With the providers down, a one-word category ("bonds", "ETF", "cheap", "tech") is ticker-shaped
+  too, and a lookup row ahead of its curated funds made Enter research BONDS/ETF. A real uncurated
+  ticker (AAPL while down), one letter ("V") and a prefix like "vo" (VO is a real fund; VOO only
+  matched by prefix) keep the row. `curatedMatches` reports `matchedBy` ('exact' | 'tags' | 'name' |
+  'prefix') and rows carry it.
+- **Enter answers locally only for a curated fund found by tags/synonyms or name** (`answeredLocally`
+  in searchBox.ts), so "ETF", "bonds" or "cheap" never wait for the provider. A prefix hit ("vo")
+  still waits, so a fast Enter can land on the real VO.
 - **Closing the compare dialog returns focus to what opened it.** `openCompare` remembers
   `document.activeElement` (the search box after Shift+Enter); "Compare securities", a deep link, or
   an opener that left the page fall back to the "Compare securities" button (`focusReturnTarget`).

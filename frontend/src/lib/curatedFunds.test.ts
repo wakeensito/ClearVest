@@ -115,6 +115,15 @@ describe('curatedMatches', () => {
     expect(symbols('apple')).toEqual([])
   })
 
+  it('says why each fund matched: exact symbol, tags/synonyms, name words, or a symbol prefix', () => {
+    const by = (text: string) => [...new Set(curatedMatches(text).map(match => match.matchedBy))]
+    expect(curatedMatches('voo')[0]!.matchedBy).toBe('exact')
+    for (const word of ['bonds', 'ETF', 'cheap', 'tech', 'index fund', 's&p 500']) expect(by(word), word).not.toContain('prefix')
+    expect(by('bonds')).toEqual(['tags'])
+    expect(by('vanguard')).toEqual(['tags']) // fund families are tags
+    expect(by('vo')).toEqual(['prefix'])
+  })
+
   it('never exceeds the limit', () => {
     for (const q of ['index fund', 'etf', 'low fee', 'vanguard']) expect(curatedMatches(q).length).toBeLessThanOrEqual(8)
   })

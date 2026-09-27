@@ -104,13 +104,13 @@ export function resolveRowSubmit(raw: string, rows: readonly Row[], highlighted:
 }
 
 /**
- * Enter needs no search when the list already leads with a curated fund that is not an exact ticker
- * match: a category word ("ETF", "bonds", "cheap") is answered by the rows on screen, so it never
- * waits on (or is overruled by) the provider.
+ * Enter needs no search when the list already leads with a curated fund found through its tags,
+ * synonyms or name: a category word ("ETF", "bonds", "cheap") or a name word is answered by the rows on
+ * screen. A symbol-prefix guess ("vo" → VOO) still waits: the user may mean the real ticker VO.
  */
 export function answeredLocally(rows: readonly Row[]): boolean {
   const first = rows[0]
-  return first?.type === 'security' && first.from === 'curated' && !first.exact
+  return first?.type === 'security' && first.from === 'curated' && !first.exact && (first.matchedBy === 'tags' || first.matchedBy === 'name')
 }
 
 /** What a beginner can tap before typing anything (plan: unified search). */

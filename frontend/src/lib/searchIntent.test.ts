@@ -174,10 +174,10 @@ describe('buildRows: tiers and merging', () => {
     expect(classify('apple stock')).toBe('name')
   })
 
-  it('I12: providers down → curated, else a ticker row, + "Live search is unavailable", never blank', () => {
+  it('I12: providers down → curated + a ticker row + "Live search is unavailable", never blank', () => {
     const down = buildRows('vo', { provider: { query: 'vo', status: 'error', results: [] } })
     expect(down.notice).toBe('Live search is unavailable')
-    expect(syms(down.rows)).toEqual(['VOO']) // a curated answer, so no lookup row ahead of it
+    expect(syms(down.rows)).toEqual(['LOOKUP:VO', 'VOO']) // VO is a real ticker; VOO only matched by prefix
     const both = buildRows('apple', { provider: done('apple', [], { unavailable: ['fmp', 'yahoo'] }) })
     expect(both.notice).toBe('Live search is unavailable')
     expect(syms(both.rows)).toEqual(['LOOKUP:APPLE'])

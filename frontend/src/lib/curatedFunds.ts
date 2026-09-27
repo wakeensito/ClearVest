@@ -201,9 +201,19 @@ export function scoreFund(fund: CuratedFund, text: string): number {
   return 0
 }
 
+/**
+ * Why a fund matched. Only 'tags' and 'name' answer a category word ("bonds", "vanguard"); a
+ * 'prefix' hit ("vo" → VOO) is a guess next to a ticker the user may really mean (VO).
+ */
+export type MatchedBy = 'exact' | 'tags' | 'name' | 'prefix'
+
+export const matchedByScore = (score: number): MatchedBy =>
+  score === SCORE.exact ? 'exact' : score >= SCORE.tags ? 'tags' : score >= SCORE.name ? 'name' : 'prefix'
+
 export interface CuratedMatch {
   fund: CuratedFund
   score: number
+  matchedBy: MatchedBy
 }
 
 export const MAX_CURATED = 8
@@ -217,7 +227,7 @@ const QUOTAS = [3, 3, 2]
  * groups match, the leftover room is dealt round-robin from every group.
  */
 export function curatedMatches(text: string, limit = MAX_CURATED): CuratedMatch[] {
-  const scored = CURATED_FUNDS.map(fund => ({ fund, score: scoreFund(fund, text) })).filter(match => match.score > 0)
+  const scored = CURATED_FUNDS.map(fund => { const score = scoreFund(fund, text); return { fund, score, matchedBy: matchedByScore(score) } }).filter(match => match.score > 0)
   const exact = scored.filter(match => match.score === SCORE.exact)
   const rest = scored.filter(match => match.score !== SCORE.exact)
   const groups = RECIPE_ORDER

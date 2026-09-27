@@ -8,7 +8,7 @@
 
 import type { FundKind } from '../api/client'
 import type { Suggestion } from './searchBox'
-import { curatedFund, curatedMatches, recipeOf, RECIPES, type CuratedFund } from './curatedFunds'
+import { curatedFund, curatedMatches, recipeOf, RECIPES, type CuratedFund, type MatchedBy } from './curatedFunds'
 import { isFund, kindLabel, normalizeKind, type FundState } from './fundExplainer'
 
 /**
@@ -83,6 +83,8 @@ export interface SecurityRow {
   exchange: string | null
   /** The exact ticker the user typed. */
   exact: boolean
+  /** Why a curated-tier row matched the text (`curatedMatches`); null for exact and provider rows. */
+  matchedBy: MatchedBy | null
   /** Show "Compare with <current>". */
   compare: boolean
   /** "Same index as VOO" / "Similar mix to VTI", or null. */
@@ -132,13 +134,13 @@ const groupOf = (kind: FundKind): SecurityRow['group'] => (isFund(kind) ? 'funds
 const safeId = (symbol: string) => symbol.replace(/[^A-Za-z0-9]/g, char => `_${char.charCodeAt(0)}`)
 export const advisorHref = (text: string) => `/advisor?q=${encodeURIComponent(text.trim().slice(0, MAX_QUERY))}`
 
-function fromCurated(fund: CuratedFund, exact: boolean): SecurityRow {
+function fromCurated(fund: CuratedFund, exact: boolean, matchedBy: MatchedBy | null = null): SecurityRow {
   const kind = fund.kind
   return {
     type: 'security', id: `c-${safeId(fund.symbol)}`, symbol: fund.symbol, name: fund.name, kind, leveraged: false,
     // Every curated fund is a plain index fund (curatedFunds.test.ts pins it).
     label: kindLabel({ kind, isIndexFund: kind !== 'index', leveraged: false }), group: groupOf(kind), from: 'curated',
-    oneLiner: fund.oneLiner, exchange: null, exact, compare: false, sameLabel: null,
+    oneLiner: fund.oneLiner, exchange: null, exact, matchedBy, compare: false, sameLabel: null,
   }
 }
 
@@ -151,7 +153,7 @@ function fromProvider(result: ProviderResult, exact: boolean): SecurityRow {
   return {
     type: 'security', id: `p-${safeId(symbol)}`, symbol, name: result.name, kind, leveraged,
     label: kindLabel({ kind, isIndexFund: false, leveraged }), group: groupOf(kind), from: 'provider',
-    oneLiner: null, exchange: result.exchange ?? null, exact, compare: false, sameLabel: null,
+    oneLiner: null, exchange: result.exchange ?? null, exact, matchedBy: null, compare: false, sameLabel: null,
   }
 }
 
@@ -195,8 +197,8 @@ export function buildRows(raw: string, options: BuildOptions = {}): Built {
     const row = curated ? fromCurated(curated, true) : hit ? fromProvider(hit, true) : null
     if (row && allowed(row.kind)) { rows.push(row); exactFound = true }
   }
-  for (const { fund } of curatedMatches(text)) {
-    if (!has(fund.symbol) && allowed(fund.kind)) rows.push(fromCurated(fund, false))
+  for (const { fund, matchedBy } of curatedMatches(text)) {
+    if (!has(fund.symbol) && allowed(fund.kind)) rows.push(fromCurated(fund, false, matchedBy))
   }
   for (const result of provider.results) {
     const row = fromProvider(result, false)
@@ -216,9 +218,11 @@ export function buildRows(raw: string, options: BuildOptions = {}): Built {
   const others = rows.filter(row => !row.exact)
   const ordered: Row[] = [...exactRows, ...others.filter(row => row.sameLabel), ...others.filter(row => !row.sameLabel)]
 
-  // Only when nothing else answered: with the providers down a one-word category ("bonds", "ETF")
-  // is ticker-shaped too, and a lookup row ahead of its curated funds would research BONDS or ETF.
-  if (ticker && !exactFound && rows.length === 0 && allowed('stock') && (ticker.length === 1 || down)) {
+  // Only when nothing but symbol-prefix guesses answered: with the providers down a one-word category
+  // ("bonds", "ETF") is ticker-shaped too, and a lookup row ahead of its curated funds would research
+  // BONDS or ETF. "vo" keeps it: VO is a real fund, and VOO only matched by prefix.
+  const guessesOnly = rows.every(row => row.matchedBy === 'prefix')
+  if (ticker && !exactFound && guessesOnly && allowed('stock') && (ticker.length === 1 || down)) {
     ordered.unshift({ type: 'lookup', id: `l-${safeId(ticker)}`, symbol: ticker, group: 'other' })
   }
   const settled = !loading

@@ -171,6 +171,21 @@ describe('Enter, Shift+Enter and Escape', () => {
     expect(answeredLocally([])).toBe(false)
   })
 
+  it('M3: a ticker-shaped prefix ("vo") is not a category word: a fast Enter waits, and when down researches VO', () => {
+    const pending = buildRows('vo', { provider: { query: 'vo', status: 'loading', results: [] } }).rows
+    expect(answeredLocally(pending)).toBe(false)
+    const down = buildRows('vo', { provider: { query: 'vo', status: 'error', results: [] } }).rows
+    expect(resolveRowSubmit('vo', down, -1)).toEqual({ symbol: 'VO' })
+    for (const word of ['bonds', 'ETF', 'cheap', 'tech']) {
+      const rows = buildRows(word, { provider: { query: word, status: 'loading', results: [] } }).rows
+      expect(answeredLocally(rows), word).toBe(true)
+      expect(resolveRowSubmit(word, rows, -1), word).toEqual({ symbol: rows[0]?.type === 'security' ? rows[0].symbol : '' })
+    }
+    const voo = buildRows('voo', { provider: { query: 'voo', status: 'loading', results: [] } }).rows
+    expect(voo[0]?.type === 'security' && voo[0].exact).toBe(true)
+    expect(resolveRowSubmit('voo', voo, -1)).toEqual({ symbol: 'VOO' })
+  })
+
   it('S4: the advisor row (and a question) hands off, URL-encoded and capped at 80 characters', () => {
     const rows = rowsFor('what is an index fund?')
     expect(resolveRowSubmit('what is an index fund?', rows, 0)).toEqual({ advisor: '/advisor?q=what%20is%20an%20index%20fund%3F' })
