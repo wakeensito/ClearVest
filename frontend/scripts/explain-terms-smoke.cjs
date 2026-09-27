@@ -32,6 +32,28 @@ const assert = require('assert');
     assert(!(await p.evaluate(() => document.documentElement.scrollWidth > innerWidth)), 'no overflow');
     await p.close();
   }
+  // Markets: the fund explainer's "What is it?" sentence and the compare-companies help text.
+  const m = await b.newPage({ viewport: { width: 390, height: 844 } });
+  m.on('pageerror', e => errors.push(e.message));
+  const fund = { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', kind: 'etf', isIndexFund: true, leveraged: false, tracks: "Standard & Poor's 500 Index",
+    expenseRatio: 0.0003, topHoldings: [{ symbol: 'NVDA', name: 'NVIDIA Corp', weight: 0.08 }, { symbol: 'AAPL', name: 'Apple Inc', weight: 0.07 }],
+    summary: 'VOO is an index fund that owns shares of about 500 of the biggest U.S. companies.', summarySource: 'template', asOf: '2026-09-26', stale: false,
+    fundFamily: 'Vanguard', category: 'Large Blend', sector: null };
+  await m.route(/127\.0\.0\.1:4010\/market\/fund/, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fund) }));
+  await m.goto(base + '/markets?symbol=VOO');
+  await m.getByRole('button', { name: 'What is this?' }).first().click();
+  await m.getByRole('button', { name: 'index fund: what does this mean?' }).click();
+  const fundDialog = m.getByRole('dialog', { name: 'Index fund explained' });
+  assert.equal(await fundDialog.getByRole('link').getAttribute('href'), '/learn/funds');
+  const fb = await fundDialog.boundingBox();
+  assert(fb.x >= 0 && fb.x + fb.width <= 390, 'fund popover inside a 390px viewport');
+  await m.keyboard.press('Escape');
+  await m.goto(base + '/markets?view=companies');
+  await m.getByText('How do I compare companies fairly?').click();
+  await m.getByRole('button', { name: 'P/E: what does this mean?' }).click();
+  assert.equal(await m.getByRole('dialog', { name: 'P/E ratio explained' }).getByRole('link').getAttribute('href'), '/markets?symbol=AAPL&guided=1');
+  assert(!(await m.evaluate(() => document.documentElement.scrollWidth > innerWidth)), 'no overflow on Markets');
+  await m.close();
   assert.deepEqual(errors, []);
-  console.log('Tap-to-explain checks passed: advisor terms, popover in viewport (desktop + 390px), lesson and research links, Escape/outside close, focus return, related lesson.'); await b.close();
+  console.log('Tap-to-explain checks passed: advisor terms, popover in viewport (desktop + 390px), lesson and research links, Escape/outside close, focus return, related lesson; Markets fund explainer and compare help.'); await b.close();
 })().catch(e => { console.error(e.message.slice(0, 600)); process.exit(1) });

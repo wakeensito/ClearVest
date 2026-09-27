@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import type { Fund } from '../../api/client'
 import { date } from '../../lib/format'
 import { HIGH_RISK, advisorHref, dollarStrip, everyDollar, expenseRatioLabel, feeSentence, firstSentence, isFund, isPlainIndexFund, kindLabel, learnTopics, normalizeKind, realDifference, type FundState, type Topic, type TopicId } from '../../lib/fundExplainer'
+import { ExplainText } from '../education/Term'
 import { Button } from '../ui/Button'
 import { Skeleton } from '../ui/Skeleton'
 import styles from './FundExplainer.module.css'
@@ -88,7 +89,7 @@ export function FundLesson({ fund, symbol, onSeeFinancials, onResearch, compact 
     <ol className={`${styles.steps} ${fundLike ? '' : styles.single}`}>
       <li>
         <h4><span aria-hidden>1</span>What is it?</h4>
-        <p className={styles.sentence}>{firstSentence(fund.summary)}</p>
+        <p className={styles.sentence}><ExplainText text={firstSentence(fund.summary)} /></p>
         {kind === 'index' && <>
           <p className={styles.sentence}>You can’t buy an index directly; index funds like VOO copy it.</p>
           {onResearch && <button type="button" className={styles.link} onClick={() => onResearch('VOO')}>Research VOO <span aria-hidden>→</span></button>}
@@ -141,7 +142,7 @@ export function KeepLearning({ topics, symbol, initial = null }: { topics: Topic
     </div>
     <div id={answerId} className={styles.answerSlot} aria-live="polite">
       {topic && <div className={styles.answer} data-topic={topic.id}>
-        <p className={styles.sentence}>{topic.answer}</p>
+        <p className={styles.sentence}><ExplainText text={topic.answer} /></p>
         {topic.id === 'compare' && <Comparison />}
         {next ? <button type="button" className={styles.link} onClick={() => setOpenId(next.id)}>Next: {next.label} <span aria-hidden>→</span></button>
           : <Link className={styles.link} to={advisorHref(symbol)}>Ask the advisor about {symbol} <span aria-hidden>→</span></Link>}
