@@ -2,25 +2,28 @@ import { useId, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import type { AnnualIncome, CompanyResearch } from '../../api/client'
 import { useCompanyResearch } from '../../api/queries'
-import { financialAmount, historicalPE, revenueChange, usablePE } from '../../lib/researchEducation'
-import { date, multiple, percentFromFraction, timestamp } from '../../lib/format'
+import { dividendSentence, dividendYieldLabel, financialAmount, historicalPE, marketCapSentence, peVersusUsual, revenueChange, usablePE } from '../../lib/researchEducation'
+import { date, MISSING, multiple, percentFromFraction, timestamp } from '../../lib/format'
 import { QuickCheck } from '../education/QuickCheck'
 import { QueryView } from '../QueryView'
 import { CompanyLogo } from './CompanyLogo'
 import styles from './CompanyFinancials.module.css'
 
-const steps = ['The business', 'Sales & profit', 'Price & value']
-export function CompanyFinancials({ symbol }: { symbol: string }) {
+const steps = ['The business', 'Sales & profit', 'Price & value', 'Payouts']
+const headings = ['What does this business do?', 'Is the business earning money?', 'What price are investors paying?', 'Does it pay you to wait?']
+const last = steps.length - 1
+/** `initialStep` opens a later step directly (deep links, render tests). */
+export function CompanyFinancials({ symbol, initialStep = 0 }: { symbol: string; initialStep?: number }) {
   const query = useCompanyResearch(symbol)
   return <section className={styles.panel} aria-label={`${symbol} company financials`} data-company-financials={symbol} tabIndex={-1}>
     <QueryView query={query} label={`Loading ${symbol} company financials`} noun={`${symbol} company financials`}>
-      {data => <FinancialStory key={symbol} data={data} retry={() => void query.refetch()} retrying={query.isFetching} />}
+      {data => <FinancialStory key={symbol} data={data} initialStep={initialStep} retry={() => void query.refetch()} retrying={query.isFetching} />}
     </QueryView>
   </section>
 }
 
-function FinancialStory({ data, retry, retrying }: { data: CompanyResearch; retry: () => void; retrying: boolean }) {
-  const [step, setStep] = useState(0)
+function FinancialStory({ data, initialStep, retry, retrying }: { data: CompanyResearch; initialStep: number; retry: () => void; retrying: boolean }) {
+  const [step, setStep] = useState(Math.min(Math.max(0, Math.trunc(initialStep) || 0), last))
   const id = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const { profile, income, valuation } = data
@@ -30,14 +33,18 @@ function FinancialStory({ data, retry, retrying }: { data: CompanyResearch; retr
   const change = revenueChange(income)
   const pe = usablePE(valuation?.pe, valuation?.eps)
   const history = historicalPE(data.history)
+  const comparison = history && peVersusUsual(pe, history.median, history.count)
+  const worth = profile && !profile.isFund ? marketCapSentence(profile.marketCap, profile.currency) : null
+  const dividendYield = valuation?.dividendYield
+  const earnings = profile && !profile.isFund && profile.nextEarningsDate ? date(profile.nextEarningsDate) : null
   const next = () => { setStep(value => value + 1); requestAnimationFrame(() => heading.current?.focus()) }
   return <>
-    <header className={styles.header}><CompanyLogo symbol={data.symbol} /><div><h2>Understand {profile?.name ?? data.symbol}</h2><p>{data.symbol}{profile?.sector ? ` · ${profile.sector}` : ''} · A guided look at the business</p></div></header>
+    <header className={styles.header}><CompanyLogo symbol={data.symbol} /><div><h2>Understand {profile?.name ?? data.symbol}</h2><p>{data.symbol}{profile?.sector ? ` · ${profile.sector}` : ''} · A guided look at the business</p>{worth && <p data-market-cap>{worth}</p>}{earnings && earnings !== MISSING && <p className={styles.earnings} data-next-earnings>Next earnings report (when it shares its results): {earnings}</p>}</div></header>
     <nav className={styles.steps} aria-label="Company research steps">{steps.map((label, index) => <button key={label} onClick={() => setStep(index)} aria-pressed={step === index}><span>{index + 1}</span>{label}</button>)}</nav>
     {data.unavailable.length > 0 && <p className={styles.notice} role="status">Some company information could not load. You can explore the available figures. <button onClick={retry} disabled={retrying}>{retrying ? 'Retrying…' : 'Retry missing data'}</button></p>}
     {data.sources.some(source => source.stale) && <p className={styles.notice}>Showing some previously saved figures while the provider is unavailable. Check the dates below.</p>}
     <div className={styles.story}>
-      <h3 ref={heading} tabIndex={-1}>{step === 0 ? 'What does this business do?' : step === 1 ? 'Is the business earning money?' : 'What price are investors paying?'}</h3>
+      <h3 ref={heading} tabIndex={-1}>{headings[step]}</h3>
       {profile?.isFund ? <div className={styles.fund}><p><strong>{profile.name} is a fund.</strong> A fund holds a collection of investments. It does not have company sales or earnings in the same way as a single business.</p><p>Start with what it owns, its fees and how widely it spreads its investments. A fund’s P/E can describe its holdings, so it should not be read as one company’s earnings.</p><Link to="/learn/funds">Explore funds in Learn</Link><p>To practice reading company statements, search for a company such as Apple (AAPL) or Microsoft (MSFT).</p></div> : <>
         {step === 0 && <>
           <p className={styles.lede}>Before looking at a share price, find out how the company earns its money.</p>
@@ -62,12 +69,17 @@ function FinancialStory({ data, retry, retrying }: { data: CompanyResearch; retr
           <p className={styles.lede}>A good business can still have an expensive share price. P/E connects the price of one share to the earnings behind it.</p>
           <div className={styles.valuation}><div><span>Price / earnings (P/E)</span><strong>{pe === null ? 'Not meaningful or unavailable' : multiple(pe)}</strong><span>Provider ratio · Trailing 12 months</span></div><p>{pe === null ? 'P/E is not useful when earnings are zero or negative. We also leave it blank when the provider has no usable figure.' : `At ${multiple(pe)}, investors pay about ${pe.toLocaleString('en-US', { maximumFractionDigits: 1 })} units of share price for each unit of annual earnings per share. This is not a promised return or payback period.`}</p></div>
           <details className={styles.details}><summary>How is P/E calculated?</summary><p>Share price ÷ earnings per share = P/E. For example, a $60 share with $3 in annual earnings per share has a P/E of 20. These are made-up numbers.</p><p>“Trailing 12 months” means the most recent year of reported earnings. A forecast P/E uses estimates instead, so the two may differ.</p></details>
-          <div className={styles.prompt}><strong>What is a typical P/E?</strong><p>There is no single right number. Compare similar businesses, their growth, risks and their own history. A lower P/E can reflect concerns about the company, rather than a bargain.</p>{history ? <p><strong>{multiple(history.median)}</strong> is the middle value of {history.count} available positive annual P/E observations for {data.symbol}. This is the company’s historical context, not an industry average or a target price. Annual observations and today’s trailing ratio use different dates.</p> : <p>We need at least three positive annual observations to show a historical middle value. There is not enough available data here.</p>}</div>
+          <div className={styles.prompt}><strong>What is a typical P/E?</strong><p>There is no single right number. Compare similar businesses, their growth, risks and their own history. A lower P/E can reflect concerns about the company, rather than a bargain.</p>{history ? <p><strong>{multiple(history.median)}</strong> is the middle value of {history.count} available positive annual P/E observations for {data.symbol}. This is the company’s historical context, not an industry average or a target price. Annual observations and today’s trailing ratio use different dates.</p> : <p>We need at least three positive annual observations to show a historical middle value. There is not enough available data here.</p>}{comparison && <p data-pe-comparison>{comparison}</p>}</div>
           {data.history.length > 0 && <details className={styles.details}><summary>See the historical P/E observations</summary><ul className={styles.history}>{data.history.map(row => <li key={row.year}><span>Financial year {row.year} · {date(row.date)}</span><strong>{usablePE(row.pe) === null ? 'Not meaningful / unavailable' : multiple(row.pe)}</strong></li>)}</ul><p className={styles.small}>Zero, negative and missing ratios are excluded from the historical middle value.</p></details>}
           <QuickCheck milestone="pe" question="Does a lower P/E always mean a better investment?" answers={[{ text: 'No, I need more context', correct: true, explanation: 'Growth, risks, debt and the type of business matter too. One ratio cannot give the whole answer.' }, { text: 'Yes, lower is always better', correct: false, explanation: 'A low P/E might reflect a business facing problems. Compare similar companies and ask why the ratio differs. Try again.' }]} />
           <Link to={`/markets?view=companies&symbol=${encodeURIComponent(data.symbol)}`}>Compare company ratios side by side</Link>
         </>}
-        {step < 2 && <button className={styles.next} onClick={next}>Next: {steps[step + 1]}</button>}
+        {step === 3 && <>
+          <p className={styles.lede}>Some companies share part of their profit with shareholders as cash. This payment is called a dividend.</p>
+          {dividendYield != null ? <div className={styles.valuation} data-dividend><div><span>Dividend yield</span><strong>{dividendYieldLabel(dividendYield)}</strong><span>Provider ratio · Trailing 12 months</span></div><p>{dividendSentence(dividendYield)}</p></div> : <p className={styles.empty} data-dividend>{dividendSentence(null)}</p>}
+          <div className={styles.prompt}><strong>Ask yourself</strong><p>A dividend is not promised. Companies can raise, cut or stop it. A yield can also look high because the share price fell, so check why before counting on the cash.</p></div>
+        </>}
+        {step < last && <button className={styles.next} onClick={next}>Next: {steps[step + 1]}</button>}
       </>}
     </div>
     <details className={styles.sources}><summary>Sources & dates</summary><p>Financial data from FMP. These are reported figures, not forecasts. Retrieved dates below are not the dates a company reported its results.</p><ul>{data.sources.map(source => <li key={source.section}>{({ profile: 'Company description', income: 'Income statements', valuation: 'Current ratios', history: 'Historical ratios' })[source.section]}: {timestamp(source.fetchedAt)}{source.stale ? ' · Saved data (provider unavailable)' : ''}</li>)}</ul><p>Learn more: <a href="https://www.sec.gov/about/reports-publications/investorpubsbegfinstmtguide" target="_blank" rel="noreferrer">SEC guide to financial statements</a> and <a href="https://www.finra.org/investors/investing/investment-products/stocks/evaluating-stocks" target="_blank" rel="noreferrer">FINRA guide to evaluating stocks</a>.</p></details>

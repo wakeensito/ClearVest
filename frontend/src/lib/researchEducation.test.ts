@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { components } from '../api/schema'
 type AnnualIncome = components['schemas']['AnnualIncome']
-import { financialAmount, historicalPE, revenueChange, usablePE } from './researchEducation'
+import { dividendSentence, dividendYieldLabel, financialAmount, historicalPE, marketCapSentence, peVersusUsual, revenueChange, usablePE } from './researchEducation'
 const row = (year: string, revenue: number | null, currency: string | null = 'USD'): AnnualIncome => ({ date: `${year}-12-31`, year, currency, revenue, costOfRevenue: null, grossProfit: null, operatingIncome: null, netIncome: null, epsDiluted: null })
 describe('financial teaching calculations', () => {
   it('does not call missing, zero-base, skipped-year or mixed-currency data growth', () => {
@@ -31,5 +31,34 @@ describe('financial teaching calculations', () => {
     expect(financialAmount(1000000, 'EUR', true)).toContain('EUR')
     expect(financialAmount(5, null)).toBe('5')
     expect(financialAmount(5, 'invalid')).toBe('5')
+  })
+  it('compares P/E with its usual level only past a 15% band, without verdicts', () => {
+    expect(peVersusUsual(28, 24)).toBe('Investors are paying more than usual for each dollar of profit: 28.0× today vs about 24.0× across 5 recent years.')
+    expect(peVersusUsual(20, 24)).toBe('Investors are paying less than usual for each dollar of profit: 20.0× today vs about 24.0× across 5 recent years.')
+    expect(peVersusUsual(24, 24)).toBe('About the same as its usual 24.0×.')
+    expect(peVersusUsual(28, 24, 3)).toContain('across 3 recent years.') // never claims more years than observed
+    expect(peVersusUsual(27.6, 24)).toContain('more than usual') // exactly ×1.15
+    expect(peVersusUsual(27.5, 24)).toBe('About the same as its usual 24.0×.')
+    expect(peVersusUsual(20.4, 24)).toContain('less than usual') // exactly ×0.85
+    expect(peVersusUsual(20.5, 24)).toBe('About the same as its usual 24.0×.')
+    for (const [pe, median] of [[null, 24], [28, null], [undefined, 24], [NaN, 24], [28, 0], [-5, 24]] as const) expect(peVersusUsual(pe, median)).toBeNull()
+    for (const pe of [10, 24, 40]) expect(peVersusUsual(pe, 24)).not.toMatch(/cheap|expensive|bargain|overvalued|undervalued/i)
+  })
+  it('explains a dividend yield that arrives as a fraction, or says there is none', () => {
+    expect(dividendSentence(0.0045)).toBe('Each year the company pays out about 0.45% of its share price in cash.')
+    expect(dividendSentence(0.0239)).toContain('2.39%')
+    expect(dividendSentence(0)).toBe('This company has not paid a cash dividend over the last 12 months. Any return would come from the share price changing.')
+    expect(dividendYieldLabel(0)).toBe('No dividend')
+    expect(dividendYieldLabel(0.0045)).toBe('0.45%')
+    for (const value of [null, undefined, -0.01, NaN]) {
+      expect(dividendSentence(value)).toBe('Dividend information isn’t available for this company.')
+      expect(dividendYieldLabel(value)).toBe('Not available')
+    }
+  })
+  it('states market value compactly in the reported currency', () => {
+    expect(marketCapSentence(3.4e12, 'USD')).toBe('Worth about USD\u00a03.4T on the market')
+    expect(marketCapSentence(5009416510920, 'USD')).toBe('Worth about USD\u00a05T on the market')
+    expect(marketCapSentence(null, 'USD')).toBeNull()
+    expect(marketCapSentence(0, 'USD')).toBeNull()
   })
 })

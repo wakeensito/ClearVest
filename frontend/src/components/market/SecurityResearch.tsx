@@ -1,6 +1,6 @@
-import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { AreaSeries, ColorType, CrosshairMode, createChart, type IChartApi, type ISeriesApi } from 'lightweight-charts'
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import type { HistoryRange, HistorySeries } from '../../api/client'
 import { toFundState, useFund, useHistory } from '../../api/queries'
@@ -11,10 +11,12 @@ import { historyRefreshInterval } from '../../lib/historyRefresh'
 import { QueryView } from '../QueryView'
 import { Badge } from '../ui/Badge'
 import { SegmentedControl } from '../ui/SegmentedControl'
-import { CompanyNameSearch } from './CompanyNameSearch'
 import { ContextHelp } from '../education/ContextHelp'
 import { CompanyLogo } from './CompanyLogo'
 import { FundExplainer, FundIdentity } from './FundExplainer'
+import { SymbolSearch } from './SymbolSearch'
+import { WatchButton } from './Watchlist'
+import { WhatIfCard } from './WhatIfCard'
 import styles from './SecurityResearch.module.css'
 
 export interface SecurityResearchProps {
@@ -27,26 +29,17 @@ export interface SecurityResearchProps {
    * (Compare securities), which shows a compact explainer under each side instead.
    */
   explainable?: boolean
+  /** The what-if card's one-line "link an account" invite (to /portfolio); off on the portfolio page. */
+  invite?: boolean
 }
 
-export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, explainable = true }: SecurityResearchProps) {
+export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, explainable = true, invite = true }: SecurityResearchProps) {
   const [symbol, setSymbol] = useState(initialSymbol)
-  const [input, setInput] = useState(initialSymbol)
   const [range, setRange] = useState<HistoryRange>('1y')
-  const [error, setError] = useState('')
   const query = useHistory(symbol, range)
-  const inputId = useId()
   const { id: explainId, open: explainOpen, state: fundState, inputRef, headingRef, show, close, retry, seeFinancials } = useExplainer(symbol, explainable)
-  const select = (next: string) => { setError(''); setSymbol(next); setInput(next); onSymbolChange?.(next) }
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    const next = input.trim().toUpperCase()
-    if (!/^[A-Z0-9.^-]{1,12}$/.test(next)) {
-      setError('Enter one ticker symbol, such as VOO or BRK-B.')
-      return
-    }
-    select(next)
-  }
+  // The search box owns its draft and error; a new symbol (from here or the explainer) resets both.
+  const select = (next: string) => { setSymbol(next); onSymbolChange?.(next) }
   return (
     <section className={`${styles.panel} ${compact ? styles.compact : ''}`} aria-label={title}>
       <div className={styles.heading}>
@@ -54,16 +47,12 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
         {query.data?.stale && <Badge tone="stale">Cached data</Badge>}
       </div>
       <div className={styles.toolbar}>
-        <form onSubmit={submit} className={styles.search}>
-          <label htmlFor={inputId} className="sr-only">Research a ticker symbol</label>
-          <input ref={inputRef} id={inputId} value={input} onChange={(event) => setInput(event.target.value)} maxLength={12} spellCheck={false} autoCapitalize="characters" aria-invalid={!!error} aria-describedby={error ? `${inputId}-error` : undefined} />
-          <button type="submit" aria-label="Research symbol"><Search size={17} aria-hidden /></button>
-        </form>
+        <SymbolSearch value={symbol} onSelect={select} inputRef={inputRef} className={styles.search} />
         <SegmentedControl label="History range" value={range} onChange={setRange} options={[{ value: '1y', label: '1Y' }, { value: '5y', label: '5Y' }, { value: '10y', label: '10Y' }]} />
       </div>
-      {error && <p id={`${inputId}-error`} role="alert" className="t-body-sm c-loss">{error}</p>}
-      {symbol && explainable && <FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} />}
+      {symbol && explainable && <div className={styles.identityRow} data-identity-row><FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} /><WatchButton symbol={symbol} /></div>}
       {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} onResearch={select} headingRef={headingRef} />}
+      {symbol && explainable && <WhatIfCard symbol={symbol} state={fundState} invite={invite} />}
       {!symbol ? <div className={styles.empty}>Enter a ticker above to load its chart and key figures.</div> : <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
         {(data) => {
           const series = data.series.find((item) => item.symbol.toUpperCase() === symbol)
@@ -81,7 +70,6 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
           </>
         }}
       </QueryView>}
-      <CompanyNameSearch onSelect={select} />
       <ContextHelp title="How do I read this chart?"><p>The line shows the price of one share over time. Choose 1Y, 5Y or 10Y to change the period. A rising line means the share price increased during that period; it does not tell you what happens next.</p><p>Price return is the percentage change between the first and last available prices. Volatility describes how much prices moved around. Neither tells you whether a company earns a profit.</p></ContextHelp>
       <div className={styles.footer}>
         <span>Prices are in the security’s quote currency. This is not your account’s performance.</span>

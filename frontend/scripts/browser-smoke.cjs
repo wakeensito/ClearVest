@@ -8,6 +8,20 @@ const assert = require('node:assert/strict');
 const contract = yaml.load(fs.readFileSync(path.resolve(__dirname, '../../docs/api/openapi.yaml'), 'utf8'));
 const output = path.resolve(__dirname, '../node_modules/.cache/clearvest-review');
 fs.mkdirSync(output, { recursive: true });
+// OwnershipXray / PlanVsActual (DESIGN.md §4.14) need /market/fund and /market/templates: the
+// default holdings example's only ETF is VTI, and its suggested plan (contract profile: age 24,
+// long horizon, medium risk) is target-date-2065, so the real five templates (mirrors
+// src/market/market/data/templates.json) must include it, not just the contract's one-item example.
+const FUND_FIXTURES = {
+  VTI: { symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', kind: 'etf', isIndexFund: true, leveraged: false, tracks: 'CRSP US Total Market Index', expenseRatio: 0.0003, topHoldings: [{ symbol: 'NVDA', name: 'NVIDIA Corp', weight: 0.07 }, { symbol: 'AAPL', name: 'Apple Inc', weight: 0.06 }], summary: 'VTI is a fund that owns shares of thousands of U.S. companies of all sizes.', summarySource: 'template', asOf: '2026-09-26', stale: false, fundFamily: 'Vanguard', category: 'Total Stock Market', sector: null },
+};
+const TEMPLATES_FIXTURE = [
+  { id: 'sixty-forty', name: 'Classic 60/40', description: 'A traditional balanced portfolio: 60% total US stock market, 40% total US bond market.', allocations: [{ asset: 'VTI', weight: 0.6 }, { asset: 'BND', weight: 0.4 }], source: 'https://www.bogleheads.org/wiki/Asset_allocation' },
+  { id: 'three-fund', name: 'Bogleheads three-fund', description: 'US stocks, international stocks and US bonds in one example weighting; the Bogleheads wiki treats the exact split as a matter of personal risk tolerance.', allocations: [{ asset: 'VTI', weight: 0.5 }, { asset: 'VXUS', weight: 0.3 }, { asset: 'BND', weight: 0.2 }], source: 'https://www.bogleheads.org/wiki/Three-fund_portfolio' },
+  { id: 'all-weather', name: 'All Weather (Ray Dalio, popularized)', description: 'A risk-balanced mix of stocks, long-term bonds, intermediate bonds, gold and commodities meant to hold up across growth and inflation regimes.', allocations: [{ asset: 'VTI', weight: 0.3 }, { asset: 'TLT', weight: 0.4 }, { asset: 'IEI', weight: 0.15 }, { asset: 'GLD', weight: 0.075 }, { asset: 'DBC', weight: 0.075 }], source: 'https://www.bridgewater.com/research-and-insights/the-all-weather-story' },
+  { id: 'buffett-90-10', name: 'Buffett 90/10', description: "Warren Buffett's suggestion for his estate: 90% in a low-cost S&P 500 fund, 10% in short-term government bonds.", allocations: [{ asset: 'VOO', weight: 0.9 }, { asset: 'SHV', weight: 0.1 }], source: 'https://www.berkshirehathaway.com/letters/2013ltr.pdf' },
+  { id: 'target-date-2065', name: 'Target-date style (young investor)', description: 'An approximate glide-path starting point for a decades-long horizon, weighted toward US and international stocks with a small bond allocation.', allocations: [{ asset: 'VTI', weight: 0.54 }, { asset: 'VXUS', weight: 0.36 }, { asset: 'BND', weight: 0.07 }, { asset: 'BNDX', weight: 0.03 }], source: 'https://investor.vanguard.com/investment-products/mutual-funds/target-retirement-funds' },
+];
 (async () => {
   const browser = await chromium.launch({executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined, headless:true});
   const context = await browser.newContext({viewport:{width:1440,height:1100},colorScheme:'dark',timezoneId:'America/New_York'});
@@ -26,6 +40,11 @@ fs.mkdirSync(output, { recursive: true });
       else if(historyMode==='empty') body={series:[]};
       else body={...body,series:body.series.filter(s=>s.symbol===url.searchParams.get('symbols')),stale:historyMode==='stale'};
     }
+    if(url.pathname==='/market/fund') {
+      const symbol=url.searchParams.get('symbol');
+      body=FUND_FIXTURES[symbol] ?? {...FUND_FIXTURES.VTI,symbol,name:symbol};
+    }
+    if(url.pathname==='/market/templates') body=TEMPLATES_FIXTURE;
     if(url.pathname==='/profile' && route.request().method()==='PUT') {
       profileWrites.push(route.request().postDataJSON());
       if(profileSaveMode==='error') {status=500;body={error:{code:'INTERNAL',message:'Unable to save',requestId:null}};}
@@ -41,6 +60,11 @@ fs.mkdirSync(output, { recursive: true });
   await page.clock.install({time:new Date('2026-09-26T11:59:30-04:00')});
   await page.goto(previewUrl + '/portfolio');
   await page.getByRole('group',{name:'VOO interactive price chart'}).waitFor();
+  // "What you really own" and "Your plan vs. today" (DESIGN.md §4.14) must mount with real cards,
+  // not the fallback {} the generic contract-example route would otherwise hand /market/fund and
+  // /market/templates (a single mismatched template would leave the plan picker unrendered).
+  await page.locator('#xray').getByText('is about', {exact:false}).waitFor();
+  await page.getByLabel('Compare with').waitFor();
   await page.evaluate(()=>document.fonts.ready);
   for(const weight of [400,600,700]) {
     assert(await page.evaluate(async weight => {const faces=await document.fonts.load(`${weight} 16px SamsungOne`);return faces.some(face=>face.status==='loaded'&&face.family==='SamsungOne')},weight),`SamsungOne ${weight} must load from bundled webfont`);
@@ -63,7 +87,14 @@ fs.mkdirSync(output, { recursive: true });
   await page.clock.resume();
   await page.getByRole('button',{name:'Hide portfolio values'}).click();
   assert.equal(await page.locator('[data-private-value]').innerText(),'••••');
-  assert(!await page.locator('main').innerText().then(text=>text.includes('$10,000')||text.includes('$5,000')),'Amounts are removed from DOM text');
+  // Exclude the "what would this do to my portfolio?" calculator: its $500/$1,000/$5,000 presets
+  // are hypothetical add-amount labels, not the account's own figures, so hide-values never touches
+  // them (DESIGN.md §4.15 has no such coupling; see the task report for the browser-smoke fix note).
+  const mainTextShown = await page.locator('main').evaluate(el => { const c = el.cloneNode(true); c.querySelectorAll('[data-what-if]').forEach(n => n.remove()); return c.textContent ?? ''; });
+  // The fee rate "That's about $8 a year on every $10,000." is a rate, not the client's dollars, so
+  // hidden mode keeps it (DESIGN.md §4.14); ignore that one line.
+  const withoutRate = mainTextShown.replace(/(?:That's about \$[\d,]+|Under \$1) a year on every \$10,000\./g, '');
+  assert(!withoutRate.includes('$10,000') && !withoutRate.includes('$5,000'),'Amounts are removed from DOM text');
   await page.reload(); await page.getByRole('button',{name:'Show portfolio values'}).waitFor();
   assert.equal(await page.locator('[data-private-value]').innerText(),'••••','Privacy persists');
   await page.getByRole('button',{name:'Show portfolio values'}).click();
@@ -88,12 +119,13 @@ fs.mkdirSync(output, { recursive: true });
   assert(new URL(page.url()).searchParams.get('symbol')===holdings[0].symbol);
   await page.goto(previewUrl + '/markets?symbol=QQQ');
   await page.getByRole('group',{name:'QQQ interactive price chart'}).waitFor();
-  await page.getByRole('textbox',{name:'Research a ticker symbol'}).fill('bad ticker');
+  await page.getByRole('combobox',{name:'Search a ticker or company'}).fill('');
   await page.getByRole('button',{name:'Research symbol',exact:true}).click();
   await page.getByRole('alert').waitFor();
   await page.screenshot({path:path.join(output,'markets-desktop.png'),fullPage:true});
   historyMode='error'; await page.reload();
   await page.getByRole('button',{name:'Retry',exact:true}).waitFor();
+  await page.getByText('Market activity: most active, gainers and losers',{exact:true}).click();
   await page.getByRole('heading',{name:'Top 10 most active',exact:true}).waitFor();
   historyMode='ok'; await page.getByRole('button',{name:'Retry',exact:true}).click();
   await page.getByRole('group',{name:'QQQ interactive price chart'}).waitFor();
@@ -225,6 +257,6 @@ fs.mkdirSync(output, { recursive: true });
   assert(plaidRequests.length>0,'Explicit linking loads Plaid');
   assert(requests.some(url=>url==='/plaid/exchange'),'Link success exchanges the public token');
   assert.deepEqual(errors,[]);
-  console.log('PASS: light-only theme; chart, keyboard, table, range; holdings search and research links; validation; provider error/retry; stale/empty history; 320/390/768 layouts; advisor prefill; onboarding; empty/unlinked holdings. Bundled SamsungOne, landscape, logo removal, automatic local-time greeting, profile radios/cancel/save/retry, persistent privacy, glossary, starter lesson/quiz/progress, flashcards and pre-profile access verified. No page errors.');
+  console.log('PASS: light-only theme; chart, keyboard, table, range; holdings search and research links; validation; provider error/retry; stale/empty history; 320/390/768 layouts; advisor prefill; onboarding; empty/unlinked holdings. Bundled SamsungOne, landscape, logo removal, automatic local-time greeting, profile radios/cancel/save/retry, persistent privacy, glossary, starter lesson/quiz/progress, flashcards and pre-profile access verified. What you really own / plan vs. today mount on real fund + template fixtures. No page errors.');
   await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

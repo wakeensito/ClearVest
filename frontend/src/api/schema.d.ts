@@ -385,6 +385,15 @@ export interface components {
             industry: string | null;
             currency: string | null;
             isFund: boolean;
+            /** @description Volatility relative to the market (1 moves with it). Data only. */
+            beta: number | null;
+            /** @description Market value of all shares, in the profile currency. Null when missing or not positive. */
+            marketCap: number | null;
+            /**
+             * Format: date
+             * @description Next scheduled earnings report on or after today (UTC, checked on every response, including cached ones); null for funds or when unknown.
+             */
+            nextEarningsDate: string | null;
         } | null;
         AnnualIncome: {
             /** Format: date */
@@ -402,6 +411,8 @@ export interface components {
             pe: number | null;
             eps: number | null;
             ps: number | null;
+            /** @description Trailing-12-month dividend yield as a FRACTION (0.0045 = 0.45%). 0 means the provider reports no dividend. Null means unknown - the value is missing, negative or implausible (over 0.25) - and must not be read as "no dividend". */
+            dividendYield: number | null;
         } | null;
         AnnualValuation: {
             /** Format: date */
@@ -754,7 +765,10 @@ export interface operations {
                      *         "sector": "Technology",
                      *         "industry": "Consumer electronics",
                      *         "currency": "USD",
-                     *         "isFund": false
+                     *         "isFund": false,
+                     *         "beta": 1.1,
+                     *         "marketCap": 3400000000000,
+                     *         "nextEarningsDate": "2026-10-29"
                      *       },
                      *       "income": [
                      *         {
@@ -794,7 +808,8 @@ export interface operations {
                      *       "valuation": {
                      *         "pe": 20,
                      *         "eps": 5,
-                     *         "ps": 4
+                     *         "ps": 4,
+                     *         "dividendYield": 0.0045
                      *       },
                      *       "history": [
                      *         {
@@ -1659,44 +1674,24 @@ export interface operations {
                     /**
                      * @example [
                      *       {
-                     *         "id": "three-fund-boglehead",
-                     *         "name": "Three-Fund Boglehead",
-                     *         "description": "A simple, low-cost mix of total US stock, total international stock and total bond market funds.",
+                     *         "id": "three-fund",
+                     *         "name": "Bogleheads three-fund",
+                     *         "description": "US stocks, international stocks and US bonds in one example weighting; the Bogleheads wiki treats the exact split as a matter of personal risk tolerance.",
                      *         "allocations": [
                      *           {
-                     *             "asset": "US Total Stock Market",
-                     *             "weight": 0.6
+                     *             "asset": "VTI",
+                     *             "weight": 0.5
                      *           },
                      *           {
-                     *             "asset": "International Total Stock Market",
-                     *             "weight": 0.2
+                     *             "asset": "VXUS",
+                     *             "weight": 0.3
                      *           },
                      *           {
-                     *             "asset": "US Total Bond Market",
+                     *             "asset": "BND",
                      *             "weight": 0.2
                      *           }
                      *         ],
                      *         "source": "https://www.bogleheads.org/wiki/Three-fund_portfolio"
-                     *       },
-                     *       {
-                     *         "id": "target-date-2065",
-                     *         "name": "Target Date 2065 Style",
-                     *         "description": "An age-based glide path favoring equities for a long time horizon.",
-                     *         "allocations": [
-                     *           {
-                     *             "asset": "US Total Stock Market",
-                     *             "weight": 0.54
-                     *           },
-                     *           {
-                     *             "asset": "International Total Stock Market",
-                     *             "weight": 0.36
-                     *           },
-                     *           {
-                     *             "asset": "US Total Bond Market",
-                     *             "weight": 0.1
-                     *           }
-                     *         ],
-                     *         "source": "https://investor.vanguard.com/investment-products/mutual-funds/profile/vfifx"
                      *       }
                      *     ]
                      */

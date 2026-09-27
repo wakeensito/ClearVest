@@ -63,6 +63,10 @@ fs.mkdirSync(output, { recursive: true });
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base + '/markets');
+    // Trading activity is collapsed below research until opened (DESIGN.md §4.9).
+    const openActivity = () => page.getByText('Market activity: most active, gainers and losers', { exact: true }).click();
+    assert.equal(await page.getByRole('region', { name: 'Top 10 most active', exact: true }).count(), 0, 'Board stays unmounted until opened');
+    await openActivity();
     const active = page.getByRole('region', { name: 'Top 10 most active', exact: true });
     await active.getByRole('button', { name: 'Research MSFT', exact: true }).waitFor();
     assert.equal(await active.locator('ol > li').count(), 10);
@@ -104,25 +108,25 @@ fs.mkdirSync(output, { recursive: true });
     await left.getByRole('group', { name: 'NVDA interactive price chart' }).waitFor();
     await right.getByText('Enter a ticker above to load its chart and key figures.').waitFor();
     assert(!histories.includes(''), 'An empty second chart never requests a ticker');
-    await right.getByRole('textbox', { name: 'Research a ticker symbol' }).fill('AAPL');
+    await right.getByRole('combobox', { name: 'Search a ticker or company' }).fill('AAPL');
     await right.getByRole('button', { name: 'Research symbol', exact: true }).click();
     await right.getByRole('group', { name: 'AAPL interactive price chart' }).waitFor();
-    await left.getByRole('textbox', { name: 'Research a ticker symbol' }).fill('MSFT');
+    await left.getByRole('combobox', { name: 'Search a ticker or company' }).fill('MSFT');
     await left.getByRole('button', { name: 'Research symbol', exact: true }).click();
     await left.getByRole('group', { name: 'MSFT interactive price chart' }).waitFor();
-    assert.equal(await right.getByRole('textbox').inputValue(), 'AAPL', 'Chart searches are independent');
+    assert.equal(await right.getByRole('combobox').inputValue(), 'AAPL', 'Chart searches are independent');
     await right.getByRole('button', { name: '5Y', exact: true }).click();
     assert.equal(await left.getByRole('button', { name: '1Y', exact: true }).getAttribute('aria-pressed'), 'true');
     await right.getByRole('button', { name: 'View as table', exact: true }).click();
     await right.getByRole('table', { name: 'AAPL closing prices' }).waitFor();
     await right.getByRole('button', { name: 'View chart', exact: true }).click();
     brokenHistory = 'FAIL';
-    await right.getByRole('textbox').fill('FAIL'); await right.getByRole('button', { name: 'Research symbol', exact: true }).click();
+    await right.getByRole('combobox').fill('FAIL'); await right.getByRole('button', { name: 'Research symbol', exact: true }).click();
     await right.getByRole('button', { name: 'Retry', exact: true }).waitFor();
     await left.getByRole('group', { name: 'MSFT interactive price chart' }).waitFor();
     brokenHistory = ''; await right.getByRole('button', { name: 'Retry', exact: true }).click();
     await right.getByRole('group', { name: 'FAIL interactive price chart' }).waitFor();
-    await right.getByRole('textbox').fill('AAPL'); await right.getByRole('button', { name: 'Research symbol', exact: true }).click();
+    await right.getByRole('combobox').fill('AAPL'); await right.getByRole('button', { name: 'Research symbol', exact: true }).click();
     await dialog.getByRole('region', { name: 'Market news', exact: true }).getByText('The latest headlines connected to MSFT and AAPL.').waitFor();
     await dialog.screenshot({ path: path.join(output, 'research-compare-desktop.png') });
     for (const width of [320, 390, 768]) {
@@ -207,7 +211,7 @@ fs.mkdirSync(output, { recursive: true });
       if (state === 'error') { await comparison.getByRole('button', { name: 'Retry', exact: true }).waitFor(); mode = 'ok'; await comparison.getByRole('button', { name: 'Retry', exact: true }).click(); await comparison.getByRole('heading', { name: 'AMD vs NVDA', exact: true }).waitFor(); }
     }
     for (const state of ['error', 'stale', 'empty']) {
-      marketMode = state; await page.goto(base + '/markets'); await page.reload();
+      marketMode = state; await page.goto(base + '/markets'); await page.reload(); await openActivity();
       if (state === 'error') {
         await gainers.getByRole('button', { name: 'Retry', exact: true }).waitFor();
         await active.getByRole('button', { name: 'Research MSFT', exact: true }).waitFor();

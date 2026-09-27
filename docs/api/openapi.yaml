@@ -52,6 +52,9 @@ paths:
                   industry: Consumer electronics
                   currency: USD
                   isFund: false
+                  beta: 1.1
+                  marketCap: 3400000000000
+                  nextEarningsDate: '2026-10-29'
                 income:
                 - date: '2025-12-31'
                   year: '2025'
@@ -84,6 +87,7 @@ paths:
                   pe: 20
                   eps: 5
                   ps: 4
+                  dividendYield: 0.0045
                 history:
                 - date: '2025-12-31'
                   year: '2025'
@@ -661,28 +665,17 @@ paths:
                 items:
                   $ref: "#/components/schemas/Template"
               example:
-                - id: three-fund-boglehead
-                  name: Three-Fund Boglehead
-                  description: A simple, low-cost mix of total US stock, total international stock and total bond market funds.
+                - id: three-fund
+                  name: Bogleheads three-fund
+                  description: US stocks, international stocks and US bonds in one example weighting; the Bogleheads wiki treats the exact split as a matter of personal risk tolerance.
                   allocations:
-                    - asset: US Total Stock Market
-                      weight: 0.6
-                    - asset: International Total Stock Market
-                      weight: 0.2
-                    - asset: US Total Bond Market
+                    - asset: VTI
+                      weight: 0.5
+                    - asset: VXUS
+                      weight: 0.3
+                    - asset: BND
                       weight: 0.2
                   source: https://www.bogleheads.org/wiki/Three-fund_portfolio
-                - id: target-date-2065
-                  name: Target Date 2065 Style
-                  description: An age-based glide path favoring equities for a long time horizon.
-                  allocations:
-                    - asset: US Total Stock Market
-                      weight: 0.54
-                    - asset: International Total Stock Market
-                      weight: 0.36
-                    - asset: US Total Bond Market
-                      weight: 0.1
-                  source: https://investor.vanguard.com/investment-products/mutual-funds/profile/vfifx
 
   /advisor/chat:
     post:
@@ -969,6 +962,9 @@ components:
       - industry
       - currency
       - isFund
+      - beta
+      - marketCap
+      - nextEarningsDate
       properties:
         name:
           type: string
@@ -981,6 +977,23 @@ components:
         currency: *id001
         isFund:
           type: boolean
+        beta:
+          type:
+          - number
+          - 'null'
+          description: Volatility relative to the market (1 moves with it). Data only.
+        marketCap:
+          type:
+          - number
+          - 'null'
+          description: Market value of all shares, in the profile currency. Null when missing or not positive.
+        nextEarningsDate:
+          type:
+          - string
+          - 'null'
+          format: date
+          description: Next scheduled earnings report on or after today (UTC, checked on every response,
+            including cached ones); null for funds or when unknown.
     AnnualIncome:
       type: object
       required:
@@ -1017,10 +1030,18 @@ components:
       - pe
       - eps
       - ps
+      - dividendYield
       properties:
         pe: *id002
         eps: *id002
         ps: *id002
+        dividendYield:
+          type:
+          - number
+          - 'null'
+          description: Trailing-12-month dividend yield as a FRACTION (0.0045 = 0.45%). 0 means the
+            provider reports no dividend. Null means unknown - the value is missing, negative or
+            implausible (over 0.25) - and must not be read as "no dividend".
     AnnualValuation:
       type: object
       required:

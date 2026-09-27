@@ -99,7 +99,8 @@ function shortName(name: string): string {
   return trimmed || name.trim()
 }
 
-const company = (symbol: string) => SHARE_CLASSES[symbol] ?? symbol
+/** A share-class ticker → the company's main ticker (GOOG → GOOGL); anything else unchanged. */
+export const company = (symbol: string) => SHARE_CLASSES[symbol] ?? symbol
 
 /**
  * Which funds to look inside, biggest position first, capped so an odd portfolio cannot fan out into
