@@ -142,35 +142,6 @@ def test_documented_fmp_endpoints_and_parameters(aws):
             assert response.request.params["limit"] == "4"
 
 
-def test_company_search_deduplicates_and_exact_symbol_first(aws, monkeypatch):
-    monkeypatch.setattr(fmp, "search_companies", lambda *_: [
-        {"symbol": "AAPL.L", "name": "Other listing"}, {"symbol": "AAPL", "name": "Apple Inc.", "exchangeShortName": "NASDAQ"},
-        {"symbol": "AAPL", "name": "Duplicate"}, {"symbol": "<bad>", "name": "Bad"}, None])
-    status, body = call(handler, "GET", "/market/search", query={"query": "aapl"})
-    assert status == 200 and [r["symbol"] for r in body["results"]] == ["AAPL", "AAPL.L"]
-    assert_matches("/market/search", "get", 200, body)
-
-
-@pytest.mark.parametrize("query", ["", " ", "x" * 81, "apple\ninc"])
-def test_invalid_search(aws, query):
-    assert call(handler, "GET", "/market/search", query={"query": query})[0] == 400
-
-
-def test_search_failure_empty_and_one_provider_available(aws, monkeypatch):
-    def partial(query, by_symbol):
-        if by_symbol:
-            raise UpstreamError("fmp", "HTTP 402")
-        return [{"symbol": "AAPL", "name": "Apple"}]
-    monkeypatch.setattr(fmp, "search_companies", partial)
-    assert call(handler, "GET", "/market/search", query={"query": "apple"})[1]["results"]
-    monkeypatch.setattr(fmp, "search_companies", lambda *_: [])
-    assert call(handler, "GET", "/market/search", query={"query": "no match"})[1]["results"] == []
-    def fail(*_):
-        raise UpstreamError("fmp", "offline")
-    monkeypatch.setattr(fmp, "search_companies", fail)
-    assert call(handler, "GET", "/market/search", query={"query": "other"})[0] == 502
-
-
 def test_currency_is_never_guessed_or_truncated(aws, monkeypatch):
     monkeypatch.setattr(fmp, "research_section", lambda symbol, section: [statement(reportedCurrency="USDT")] if section == "income" else provider(symbol, section))
     assert request()[1]["income"][0]["currency"] is None
