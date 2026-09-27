@@ -1,6 +1,8 @@
 """Yahoo Finance via yfinance: the primary price source (data team, #15). No key needed."""
 
 import math
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from datetime import date
 from itertools import zip_longest
 
@@ -16,6 +18,9 @@ _MAX_EXPENSE_RATIO = 0.2
 _MAX_TOP_HOLDINGS = 10
 # Market-wide headlines come from the S&P 500 index's own news feed; no key, no paid tier.
 _NEWS_MARKET_SYMBOL = "^GSPC"
+# `.news` has no timeout parameter (yfinance posts with 30s) and MarketFn has 29s in total, so a
+# hanging Yahoo would time out the Lambda instead of reaching the route's 502 / stale-cache path.
+_NEWS_TIMEOUT = 8
 
 
 def history(symbol: str, start: date) -> list[tuple[str, float]]:
@@ -140,6 +145,18 @@ def _first(*values):
     return next((v for v in values if isinstance(v, str) and v.strip()), None)
 
 
+def _news_items(yf, symbol: str) -> list:
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        return pool.submit(lambda: yf.Ticker(symbol).news).result(timeout=_NEWS_TIMEOUT) or []
+    except FutureTimeout as err:
+        raise UpstreamError("yahoo", f"news timed out after {_NEWS_TIMEOUT}s for {symbol}") from err
+    except Exception as err:  # yfinance raises many types; all mean "Yahoo failed"
+        raise UpstreamError("yahoo", f"{type(err).__name__}: {err}") from err
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)  # never wait on a hung request
+
+
 def news(symbols: list[str]) -> list[dict]:
     """Publisher headlines for one or two symbols, or market-wide when `symbols` is empty. Rows are
     normalized to the shape the news route filters (symbol, title, url, image, publisher,
@@ -150,10 +167,7 @@ def news(symbols: list[str]) -> list[dict]:
     yf.set_tz_cache_location("/tmp/yfinance")
     feeds: list[list[dict]] = []
     for symbol in symbols or [_NEWS_MARKET_SYMBOL]:
-        try:
-            items = yf.Ticker(symbol).news or []
-        except Exception as err:  # yfinance raises many types; all mean "Yahoo failed"
-            raise UpstreamError("yahoo", f"{type(err).__name__}: {err}") from err
+        items = _news_items(yf, symbol)
         rows: list[dict] = []
         feeds.append(rows)
         for item in items:

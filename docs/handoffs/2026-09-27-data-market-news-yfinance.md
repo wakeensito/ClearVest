@@ -21,13 +21,18 @@
   the requested ticker; market-wide rows carry `""`, as before.
 - **Two-symbol requests interleave the feeds**, so a comparison shows both companies instead of the
   first company's ten headlines filling all six slots.
+- **Each symbol's fetch runs under an 8s timeout** (`_NEWS_TIMEOUT`). `.news` has no timeout parameter
+  and MarketFn has 29s in total, so a hung Yahoo would have timed out the Lambda instead of reaching
+  the route's 502 / stale-cache path.
+- **An empty feed is cached for 5 minutes, not an hour** (`TTL_EMPTY`). yfinance hides parse failures
+  (a 429 page, an odd JSON body) behind an empty list, so "no articles" may be an outage.
 - Cache namespace moved from `CACHE#fmp` to `CACHE#yahoo` for `news:*` keys. `fmp.stock_news` is gone;
   nothing else called it.
 
 ## How to run / verify it
 
 ```bash
-.venv/Scripts/python.exe -m pytest -q          # 327 passed
+.venv/Scripts/python.exe -m pytest -q          # 329 passed
 uvx ruff@0.16.5 check .
 cd frontend && npm run typecheck && npm run lint && npm test   # gen:api runs inside typecheck
 ```
@@ -57,6 +62,10 @@ After deploy: `curl -H "X-User-Id: <uuid>" "$API/market/news?symbols=AAPL"` shou
   calls, well under a second warm; a cold Lambda adds the pandas import (~2s).
 - Yahoo may throttle Lambda IPs (known from the fund route). The 1-hour cache plus stale fallback
   from `cache.get_or_fetch` covers a burst; a cold cache under throttling is still a 502.
+- **"Related" is Yahoo's related, not ours.** AAPL's feed includes stories about Alphabet or Nvidia
+  that mention Apple in passing; the card shows them under the Apple logo. Yahoo's per-story ticker
+  tags (`content.finance.stockTickers`) came back empty on every item with the pinned yfinance, so
+  there is nothing to filter on. Found in review; left as is.
 - `npm run typecheck` regenerates `frontend/src/api/schema.d.ts`; this PR's regeneration is a real
   change (the `source` enum), unlike the LF-only noise from other branches.
 

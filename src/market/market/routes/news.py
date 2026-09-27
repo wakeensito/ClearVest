@@ -13,6 +13,9 @@ from market.routes.history import parse_symbols
 
 router = Router()
 TTL = 3600
+# yfinance hides parse failures (a 429 page, an odd JSON body) behind an empty list, so an empty
+# result may be an outage. Keep it briefly rather than for an hour over the last good headlines.
+TTL_EMPTY = 300
 
 
 def _web_url(value) -> str | None:
@@ -54,5 +57,6 @@ def news():
     raw_symbols = router.current_event.get_query_string_value("symbols")
     symbols = sorted(set(parse_symbols(raw_symbols, 1, 2))) if raw_symbols is not None else []
     snapshot, stale = cache.get_or_fetch("yahoo", f"news:{','.join(symbols) or 'market'}", TTL,
-                                         lambda: _fetch(symbols))
+                                         lambda: _fetch(symbols),
+                                         ttl_for=lambda value: TTL if value["articles"] else TTL_EMPTY)
     return {**snapshot, "stale": stale}

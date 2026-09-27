@@ -6,6 +6,7 @@ monkeypatched, so no test touches the network.
 """
 
 import sys
+import threading
 import time
 import types
 
@@ -90,6 +91,25 @@ def test_missing_fields_and_flat_legacy_shape(monkeypatch):
     assert len(rows) == 2
 
 
+def test_hung_yahoo_becomes_upstream_error_not_a_lambda_timeout(monkeypatch):
+    release = threading.Event()
+
+    class HangingTicker:
+        @property
+        def news(self):
+            release.wait(2)
+            return []
+
+    install_yfinance(monkeypatch, {"AAPL": HangingTicker()})
+    monkeypatch.setattr(yahoo, "_NEWS_TIMEOUT", 0.05)
+    started = time.time()
+    with pytest.raises(UpstreamError) as err:
+        yahoo.news(["AAPL"])
+    assert "timed out" in err.value.detail
+    assert time.time() - started < 1  # did not wait for the hung request
+    release.set()
+
+
 def test_yfinance_failure_and_empty_feed(monkeypatch):
     install_yfinance(monkeypatch, {"AAPL": FakeTicker(error=RuntimeError("boom")), "MSFT": FakeTicker(None)})
     with pytest.raises(UpstreamError):
@@ -131,6 +151,13 @@ def test_limit_empty_and_invalid_payload(aws, monkeypatch):
     assert call(handler, "GET", "/market/news", query={"symbols": "AAPL"})[1]["articles"] == []
     monkeypatch.setattr(yahoo, "news", lambda _: [{"error": "unavailable"}])
     assert call(handler, "GET", "/market/news", query={"symbols": "MSFT"})[0] == 502
+
+
+def test_empty_feed_is_cached_briefly_not_for_an_hour(aws, monkeypatch):
+    monkeypatch.setattr(yahoo, "news", lambda _: [])
+    assert call(handler, "GET", "/market/news", query={"symbols": "AAPL"})[1]["articles"] == []
+    row = db.get("CACHE#yahoo", "news:AAPL")
+    assert row["expiresAt"] - time.time() <= 300
 
 
 @pytest.mark.parametrize("symbols", ["", "A,B,C", "bad ticker"])
