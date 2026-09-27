@@ -6,19 +6,16 @@
 // Run everything here on the RAW input. A search box may trim a trailing "fund"/"etf" before calling
 // the provider, but "index fund" and "ETF" are exactly what the curated tier answers.
 
-import type { FundKind, Schemas } from '../api/client'
+import type { FundKind } from '../api/client'
+import type { Suggestion } from './searchBox'
 import { curatedFund, curatedMatches, recipeOf, RECIPES, type CuratedFund } from './curatedFunds'
 import { isFund, kindLabel, normalizeKind, type FundState } from './fundExplainer'
 
-// TODO(contract): drop the intersection once docs/api/openapi.yaml ships the v2 search schema and
-// `npm run gen:api` regenerates `CompanySearch` with these fields.
-type SearchV2 = {
-  kind?: 'etf' | 'mutual_fund' | 'stock' | 'index' | 'crypto' | 'other'
-  leveraged?: boolean
-  source?: 'fmp' | 'yahoo' | 'both'
-}
-/** One provider hit. `kind`/`leveraged`/`source` are optional until the v2 contract lands. */
-export type ProviderResult = Schemas['CompanySearch']['results'][number] & SearchV2
+/**
+ * One provider hit (the v2 `CompanySearch` row). `kind`/`leveraged`/`source` stay optional here so a
+ * stale v1 row (no kind) still renders: `guessKind` fills the gap with the backend's heuristic.
+ */
+export type ProviderResult = Suggestion
 
 export type Intent = 'empty' | 'invalid' | 'open' | 'ticker' | 'name'
 
