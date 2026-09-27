@@ -661,28 +661,17 @@ paths:
                 items:
                   $ref: "#/components/schemas/Template"
               example:
-                - id: three-fund-boglehead
-                  name: Three-Fund Boglehead
-                  description: A simple, low-cost mix of total US stock, total international stock and total bond market funds.
+                - id: three-fund
+                  name: Bogleheads three-fund
+                  description: US stocks, international stocks and US bonds in one example weighting; the Bogleheads wiki treats the exact split as a matter of personal risk tolerance.
                   allocations:
-                    - asset: US Total Stock Market
-                      weight: 0.6
-                    - asset: International Total Stock Market
-                      weight: 0.2
-                    - asset: US Total Bond Market
+                    - asset: VTI
+                      weight: 0.5
+                    - asset: VXUS
+                      weight: 0.3
+                    - asset: BND
                       weight: 0.2
                   source: https://www.bogleheads.org/wiki/Three-fund_portfolio
-                - id: target-date-2065
-                  name: Target Date 2065 Style
-                  description: An age-based glide path favoring equities for a long time horizon.
-                  allocations:
-                    - asset: US Total Stock Market
-                      weight: 0.54
-                    - asset: International Total Stock Market
-                      weight: 0.36
-                    - asset: US Total Bond Market
-                      weight: 0.1
-                  source: https://investor.vanguard.com/investment-products/mutual-funds/profile/vfifx
 
   /advisor/chat:
     post:
