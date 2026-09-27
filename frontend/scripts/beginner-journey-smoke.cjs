@@ -72,7 +72,7 @@ fs.mkdirSync(output, { recursive: true });
     await page.getByText('1 of 3 ideas explored.', { exact: false }).waitFor();
     assert.equal(await page.getByRole('link', { name: 'Start your first lesson' }).getAttribute('href'), '/learn/what-is-investing', 'Primary action above the fold starts lesson 1');
     assert.equal(await page.getByRole('link', { name: /Next: What investing actually is/ }).getAttribute('href'), '/learn/what-is-investing', 'Correct quick check leads into lesson 1');
-    await page.getByRole('region', { name: 'Your progress' }).getByText('0 of 12 lessons done', { exact: false }).waitFor();
+    await page.getByRole('region', { name: 'Your progress' }).getByText(/0 of \d+ lessons done/).waitFor();
     await page.reload(); await page.getByText('1 of 3 ideas explored.', { exact: false }).waitFor();
     await audit('Homepage');
     await page.screenshot({ path: path.join(output, 'beginner-home-desktop.png'), fullPage: true });

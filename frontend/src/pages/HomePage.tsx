@@ -52,7 +52,7 @@ export function HomePage() {
           <h3>Starter lessons</h3>
           <p className={styles.progressCount}><strong>{lessonsDone}</strong> of {ALL_LESSONS.length} lessons done</p>
           <div className={styles.meter} role="progressbar" aria-label="Starter lessons completed" aria-valuemin={0} aria-valuemax={ALL_LESSONS.length} aria-valuenow={lessonsDone}><span style={{ width: `${(lessonsDone / ALL_LESSONS.length) * 100}%` }} /></div>
-          <Link to="/learn" className={styles.progressLink}>{started ? 'See your starter path' : 'See all 12 lessons'}</Link>
+          <Link to="/learn" className={styles.progressLink}>{started ? 'See your starter path' : `See all ${ALL_LESSONS.length} lessons`}</Link>
         </div>
         <div className={styles.progressBlock}>
           <h3>Research skills</h3>
