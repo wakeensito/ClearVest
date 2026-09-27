@@ -174,3 +174,22 @@ def test_deadline_cannot_skip_safety(monkeypatch):
         guardrails.mask_input("question")
     with pytest.raises(UpstreamError):
         bedrock.converse("system", [])
+
+
+def test_guardrails_off_switch_skips_every_policy(monkeypatch):
+    monkeypatch.setenv("GUARDRAILS_ENABLED", "false")
+    monkeypatch.delenv("ADVISOR_GUARDRAIL_ID")
+    monkeypatch.setattr(aws_mod, "guardrails", lambda: pytest.fail("guardrail applied while off"))
+    client = aws_mod.bedrock()
+    shape = client.meta.service_model.operation_model("Converse").input_shape
+
+    def converse(**kw):
+        validate_parameters(kw, shape)
+        assert "guardrailConfig" not in kw
+        assert kw["messages"][0]["content"][0] == {"text": "Explain my QQQ holding"}
+        return {"stopReason": "end_turn", "output": {"message": {"content": [{"text": "QQQ is 34.5% of your portfolio."}]}}}
+
+    monkeypatch.setattr(aws_mod, "bedrock", lambda: SimpleNamespace(converse=converse))
+    assert guardrails.mask_input("Explain my QQQ holding") == "Explain my QQQ holding"
+    guardrails.check_grounding("reference", "question", "reply")
+    assert "34.5%" in bedrock.converse("system", [{"role": "user", "content": [{"text": "Explain my QQQ holding"}]}])

@@ -350,14 +350,12 @@ Resources:
           MODEL_ID: !Ref ModelId
           ADVISOR_GUARDRAIL_ID: !GetAtt AdvisorGuardrail.GuardrailId
           ADVISOR_GUARDRAIL_VERSION: !GetAtt AdvisorGuardrailVersion.Version
+          GUARDRAILS_ENABLED: 'false'  # demo: guardrails off; set 'true' to re-enable
       Policies:
         - DynamoDBCrudPolicy: {TableName: !Ref Table}
         - Statement:
             - Effect: Allow
               Action: bedrock:InvokeModel
-              Condition:
-                StringEquals:
-                  bedrock:GuardrailIdentifier: !Sub '${AdvisorGuardrail.GuardrailArn}:${AdvisorGuardrailVersion.Version}'
               Resource:
                 - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}'
                 # A us.* profile routes to any US region, so the model ARN needs a region wildcard.
@@ -381,6 +379,7 @@ Resources:
           MODEL_ID: !Ref ModelId
           ADVISOR_GUARDRAIL_ID: !GetAtt AdvisorGuardrail.GuardrailId
           ADVISOR_GUARDRAIL_VERSION: !GetAtt AdvisorGuardrailVersion.Version
+          GUARDRAILS_ENABLED: 'false'  # demo: guardrails off; set 'true' to re-enable
           BEDROCK_MAX_ATTEMPTS: '1'
           BEDROCK_READ_TIMEOUT: '7'
           AUDIO_BUCKET: !Ref AudioBucket
@@ -397,9 +396,6 @@ Resources:
               Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ElevenLabsKeyParam}'
             - Effect: Allow
               Action: bedrock:InvokeModel
-              Condition:
-                StringEquals:
-                  bedrock:GuardrailIdentifier: !Sub '${AdvisorGuardrail.GuardrailArn}:${AdvisorGuardrailVersion.Version}'
               Resource:
                 - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ModelId}'
                 - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/${FoundationModelId}'

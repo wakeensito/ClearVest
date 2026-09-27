@@ -234,7 +234,9 @@ def test_advisor_guardrail_version_and_model_permission_are_bound_together():
         assert env["BEDROCK_MAX_ATTEMPTS"] == "1"
         statements = [s for p in props["Policies"] if "Statement" in p for s in p["Statement"]]
         invoke = next(s for s in statements if s["Action"] == "bedrock:InvokeModel")
-        assert invoke["Condition"]["StringEquals"]["bedrock:GuardrailIdentifier"] == "${AdvisorGuardrail.GuardrailArn}:${AdvisorGuardrailVersion.Version}"
+        # Demo switch: guardrails are off, so inference must not require a guardrail.
+        assert env["GUARDRAILS_ENABLED"] == "false"
+        assert "Condition" not in invoke
         apply = next(s for s in statements if s["Action"] == "bedrock:ApplyGuardrail")
         assert "*" not in str(apply["Resource"])
     assert "GROUNDING_GUARDRAIL_ID" not in resources["VoiceFn"]["Properties"]["Environment"]["Variables"]

@@ -17,6 +17,11 @@ class Ungrounded(Intervention):
     """A standalone answer could not be supported by its supplied source."""
 
 
+def enabled() -> bool:
+    """GUARDRAILS_ENABLED=false turns every Bedrock guardrail off (demo switch). Defaults to on."""
+    return os.environ.get("GUARDRAILS_ENABLED", "true").strip().lower() != "false"
+
+
 def config(prefix: str = "ADVISOR") -> dict:
     identifier = os.environ.get(f"{prefix}_GUARDRAIL_ID", "")
     version = os.environ.get(f"{prefix}_GUARDRAIL_VERSION", "")
@@ -56,6 +61,8 @@ def _actions(value):
 
 def mask_input(text: str) -> str:
     """Screen the question before inference or persistence; only accept explicit masking."""
+    if not enabled():
+        return text
     result = _apply("INPUT", [{"text": {"text": text}}])
     if result["action"] == "NONE":
         return text
@@ -69,6 +76,8 @@ def mask_input(text: str) -> str:
 
 def check_grounding(reference: str, question: str, reply: str) -> None:
     """Source-based single-turn QA only; do not use this to certify conversational chat."""
+    if not enabled():
+        return
     result = _apply("OUTPUT", [
         {"text": {"text": reference, "qualifiers": ["grounding_source"]}},
         {"text": {"text": question, "qualifiers": ["query"]}},

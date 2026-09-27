@@ -55,22 +55,27 @@ def _trim_truncated(text: str) -> str:
 
 
 def converse(system: str, messages: list[dict], max_tokens: int = 600, model_id: str | None = None) -> str:
-    policy = guardrails.config()
+    guarded = guardrails.enabled()
+    policy = guardrails.config() if guarded else None
     timeout = int(os.environ.get("BEDROCK_READ_TIMEOUT", "12"))
     attempts = int(os.environ.get("BEDROCK_MAX_ATTEMPTS", "2"))
     if api.remaining_seconds() < (timeout + 3) * attempts + 1:
         raise UpstreamError("bedrock", "insufficient time for guarded inference")
     try:
-        resp = aws.bedrock().converse(
-            modelId=model_id or os.environ["MODEL_ID"],
-            guardrailConfig={**policy, "trace": "disabled"},
-            system=[{"text": system}],
+        kwargs = {}
+        if guarded:
+            kwargs["guardrailConfig"] = {**policy, "trace": "disabled"}
             # Explicit guard_content also enables prompt-attack evaluation on user text.
-            messages=[{**m, "content": [
+            messages = [{**m, "content": [
                 {"guardContent": {"text": {"text": block["text"], "qualifiers": ["guard_content"]}}}
                 if "text" in block else block for block in m["content"]
-            ]} for m in messages],
+            ]} for m in messages]
+        resp = aws.bedrock().converse(
+            modelId=model_id or os.environ["MODEL_ID"],
+            system=[{"text": system}],
+            messages=messages,
             inferenceConfig={"maxTokens": max_tokens, "temperature": 0.3},
+            **kwargs,
         )
         if resp.get("stopReason") in {"guardrail_intervened", "content_filtered"}:
             raise guardrails.Intervention()
