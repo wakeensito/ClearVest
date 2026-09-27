@@ -149,6 +149,61 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '502':
           $ref: '#/components/responses/Upstream'
+  /market/fund:
+    get:
+      operationId: getFund
+      tags:
+      - Market
+      summary: Beginner "what is this?" explainer for an ETF, mutual fund or stock.
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 12
+      responses:
+        '200':
+          description: >
+            Every number (expenseRatio, holdingsCount, topHoldings weights) comes from the
+            data provider, never the model. summary is a one-sentence beginner explanation;
+            summarySource says whether it was rewritten by the model or is the plain template.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Fund'
+              example:
+                symbol: VOO
+                name: Vanguard S&P 500 ETF
+                kind: etf
+                isIndexFund: true
+                tracks: Standard & Poor's 500 Index
+                expenseRatio: 0.0003
+                holdingsCount: 504
+                topHoldings:
+                - symbol: NVDA
+                  name: NVIDIA Corp
+                  weight: 0.08082
+                - symbol: AAPL
+                  name: Apple Inc
+                  weight: 0.070339
+                - symbol: MSFT
+                  name: Microsoft Corp
+                  weight: 0.056958
+                fundFamily: Vanguard
+                category: Large Blend
+                sector: null
+                summary: This fund spreads your money across hundreds of well-known American
+                  companies in a single investment.
+                summarySource: model
+                asOf: '2026-09-27'
+                stale: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '502':
+          $ref: '#/components/responses/Upstream'
 
   /health:
     get:
@@ -1052,6 +1107,70 @@ components:
               name:
                 type: string
               exchange: *id001
+        stale:
+          type: boolean
+    FundHolding:
+      type: object
+      required:
+      - symbol
+      - name
+      - weight
+      properties:
+        symbol: *id001
+        name:
+          type: string
+        weight:
+          type: number
+    Fund:
+      type: object
+      required:
+      - symbol
+      - name
+      - kind
+      - isIndexFund
+      - tracks
+      - expenseRatio
+      - holdingsCount
+      - topHoldings
+      - fundFamily
+      - category
+      - sector
+      - summary
+      - summarySource
+      - asOf
+      - stale
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [etf, mutual_fund, stock, other]
+        isIndexFund:
+          type: boolean
+        tracks: *id001
+        expenseRatio: *id002
+        holdingsCount:
+          type:
+          - integer
+          - 'null'
+        topHoldings:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/FundHolding'
+        fundFamily: *id001
+        category: *id001
+        sector: *id001
+        summary:
+          type: string
+        summarySource:
+          type: string
+          enum: [model, template]
+        asOf:
+          type: string
+          format: date
         stale:
           type: boolean
     Error:

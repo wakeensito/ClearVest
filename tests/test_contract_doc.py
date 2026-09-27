@@ -7,7 +7,7 @@ ROUTES = {
     ("/plaid/link-token", "post"), ("/plaid/exchange", "post"), ("/plaid/sandbox-link", "post"),
     ("/portfolio/holdings", "get"), ("/portfolio/risk", "get"),
     ("/market/history", "get"), ("/market/compare-companies", "get"), ("/market/macro", "get"),
-    ("/market/templates", "get"),
+    ("/market/templates", "get"), ("/market/fund", "get"),
     ("/advisor/chat", "post"), ("/advisor/retirement-accounts", "get"), ("/advisor/history", "delete"),
     ("/voice/upload-url", "post"), ("/voice/turn", "post"), ("/voice/speak", "post"),
 }
