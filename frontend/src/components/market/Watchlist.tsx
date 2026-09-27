@@ -46,7 +46,7 @@ export function Watchlist({ onResearch }: { onResearch?: (symbol: string) => voi
 
   if (symbols.length === 0) {
     return <Card title="Your watchlist">
-      <p className="t-body-sm c-secondary">Star a security on its page to keep an eye on it here. <Link to="/markets?symbol=VOO">Look at VOO</Link></p>
+      <p className="t-body-sm c-secondary">Star a stock or fund on its page to keep an eye on it here. <Link to="/markets?symbol=VOO">Look at VOO</Link></p>
     </Card>
   }
 

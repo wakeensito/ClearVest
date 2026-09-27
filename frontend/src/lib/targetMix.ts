@@ -5,6 +5,7 @@
 import type { Fund, Holding } from '../api/client'
 import type { components } from '../api/schema'
 import { normalizeType } from './assetTypes'
+import { percentFromFraction } from './format'
 
 export type Template = components['schemas']['Template']
 export type Profile = components['schemas']['Profile']
@@ -130,6 +131,13 @@ const GAP_THRESHOLD = 3
 /** Classes that are worth calling out by name when the client holds nothing there at all. */
 const CALLOUT_CLASSES = ['bonds', 'cash'] as const
 
+/** 0.9368 → "94%": whole percents, as the plan sentence says them. */
+const whole = (f: number) => percentFromFraction(f, { digits: 0 })
+
+/** "Stocks: 94% today vs 60% in the plan" — both numbers, never a bare "N points" gap. */
+const compare = (c: MixClass, actual: Mix, target: Mix, plan: string) =>
+  `${MIX_LABEL[c]}: ${whole(actual[c])} today vs ${whole(target[c])} in ${plan}`
+
 /** `actual`/`target` are fractions (0..1); `templateName` is the plan's display name. */
 export function drift(actual: Mix, target: Mix, templateName: string): Drift {
   const gaps = Object.fromEntries(MIX_ORDER.map((c) => [c, Math.round((actual[c] - target[c]) * 100)])) as Record<
@@ -177,17 +185,12 @@ export function drift(actual: Mix, target: Mix, templateName: string): Drift {
     target[biggest] >= 0.1
   ) {
     const empty = biggest
-    const lead = `Nothing in ${MIX_LABEL[empty].toLowerCase()}, where the ${templateName} plan keeps ${Math.round(target[empty] * 100)}%`
-    const over = gaps[largest] > 0 ? `; ${gaps[largest]} points more in ${MIX_LABEL[largest].toLowerCase()}` : ''
-    return { gaps, largest: empty, sentence: `${lead}${over}.` }
+    const lead = `Nothing in ${MIX_LABEL[empty].toLowerCase()}, where the ${templateName} plan keeps ${whole(target[empty])}.`
+    const over = gaps[largest] > 0 ? ` ${compare(largest, actual, target, 'the plan')}.` : ''
+    return { gaps, largest: empty, sentence: `${lead}${over}` }
   }
 
-  const n = Math.abs(gaps[largest])
-  const label = MIX_LABEL[largest].toLowerCase()
-  const lead =
-    gaps[largest] > 0
-      ? `${n} points more in ${label} than the ${templateName} plan`
-      : `${n} points less in ${label} than the ${templateName} plan`
+  const lead = compare(largest, actual, target, `the ${templateName} plan`)
 
   // Never repeat the lead clause's own class in the tail (saying "less in bonds ... nothing in
   // bonds" says the same thing twice).

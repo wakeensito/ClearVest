@@ -2,9 +2,10 @@
 // Copy only: the math lives in lookThrough.ts and targetMix.ts. Fractions in, words out; every
 // number goes through format.ts.
 
-import { expenseRatioLabel } from './fundExplainer'
+import { expenseRatioLabel, feePerTenThousand, NO_FEE } from './fundExplainer'
 import { currencyWhole, percentFromFraction } from './format'
 import type { Exposure, FundFees, LookThrough } from './lookThrough'
+import { MIX_LABEL } from './targetMix'
 
 const HALF_PERCENT = 0.005
 
@@ -71,6 +72,8 @@ export function coverageCaption({ checked, total, coverage, asOf }: { checked: n
 
 export interface FeeCopy {
   cost: string
+  /** "That's about $8 a year on every $10,000." A rate, so Hide portfolio values keeps it. */
+  perTenThousand: string | null
   tenYear: string | null
   cheapest: string | null
   /** Funds that loaded without a fee, or whose request failed. */
@@ -82,6 +85,13 @@ export interface FeeCopy {
 export const FEES_PENDING = 'Adding up fees…'
 
 const aboutDollars = (n: number) => (n < 0.5 ? 'under $1' : `about ${currencyWhole(n)}`)
+
+/** The blended ratio on every $10,000; null without a positive rate. */
+function perTenThousandLine(ratio: number | null): string | null {
+  const fee = feePerTenThousand(ratio)
+  if (fee === null || fee === NO_FEE) return null
+  return fee === 'under $1' ? 'Under $1 a year on every $10,000.' : `That's about ${fee} a year on every $10,000.`
+}
 
 /**
  * The "What it costs" sentences, for settled fee data (the card shows FEES_PENDING while any
@@ -98,20 +108,22 @@ export function feeCopy(fees: FundFees, hidden: boolean, { notChecked = [] }: { 
   const tail = { unknown, notChecked: notCheckedLine }
   if (fees.rows.length === 0 || fees.blendedRatio == null) {
     if (!unknown && !notCheckedLine) return null
-    return { cost: "Fee information isn't available for your funds.", tenYear: null, cheapest: null, ...tail }
+    return { cost: "Fee information isn't available for your funds.", perTenThousand: null, tenYear: null, cheapest: null, ...tail }
   }
   // Some funds' fees are missing: say whose cost this is rather than undercount "your funds".
   const who = fees.unknown.length ? 'The funds we could check' : 'Your funds'
-  if (fees.perYear === 0) return { cost: `${who} charge no yearly fee.`, tenYear: null, cheapest: null, ...tail }
+  if (fees.perYear === 0) return { cost: `${who} charge no yearly fee.`, perTenThousand: null, tenYear: null, cheapest: null, ...tail }
 
   const blended = percentFromFraction(fees.blendedRatio, { digits: 2 })
   const cheapestLabel = expenseRatioLabel(fees.cheapestRatio)
   const saves = fees.ifAllCheapest != null && fees.perYear - fees.ifAllCheapest >= 1
   const whatIf = `If every fund cost what your cheapest one does (${cheapestLabel})`
+  const perTenThousand = perTenThousandLine(fees.blendedRatio)
 
   if (hidden) {
     return {
       cost: `${who} cost about ${blended} of the money in them each year.`,
+      perTenThousand,
       tenYear: null,
       cheapest: saves && cheapestLabel ? `${whatIf}, you would pay less each year.` : null,
       ...tail,
@@ -120,6 +132,7 @@ export function feeCopy(fees: FundFees, hidden: boolean, { notChecked = [] }: { 
   const cost = aboutDollars(fees.perYear)
   return {
     cost: `${who} cost ${cost} a year (${blended} of the money in them).`,
+    perTenThousand,
     tenYear: `At the same balance that's ${aboutDollars(fees.tenYear)} over 10 years.`,
     cheapest: saves && cheapestLabel ? `${whatIf}, it would be ${aboutDollars(fees.ifAllCheapest ?? 0)} a year.` : null,
     ...tail,
@@ -128,20 +141,20 @@ export function feeCopy(fees: FundFees, hidden: boolean, { notChecked = [] }: { 
 
 const YOUR_MIX = 'Your mix is '
 const NOTHING_IN = 'Nothing in '
+const CLASS_LEAD = new RegExp(`^(${Object.values(MIX_LABEL).join('|')}): `)
 
 /**
- * targetMix.drift() sentences either stand alone ("Your mix is close…", "Nothing in bonds, where…")
- * or lack a subject ("34 points more in stocks…"); give the latter one.
+ * Prefilled, never auto-sent (DESIGN.md §6.2): the drift() sentence in the first person.
+ * "Stocks: 94% today vs 60% in the … plan" → "My mix has stocks at 94% today vs 60% in the … plan";
+ * "Nothing in bonds, where …" → "My mix has nothing in bonds, where …"; "Your mix is close …" → "My mix is close …".
  */
-export function mixLead(sentence: string): string {
-  return sentence.startsWith(YOUR_MIX) || sentence.startsWith(NOTHING_IN) ? sentence : `${YOUR_MIX}${sentence}`
-}
-
-/** Prefilled, never auto-sent (DESIGN.md §6.2). */
 export function advisorMixHref(sentence: string): string {
+  const lead = CLASS_LEAD.exec(sentence)
   const mine = sentence.startsWith(NOTHING_IN)
     ? `My mix has nothing in ${sentence.slice(NOTHING_IN.length)}`
-    : `My mix is ${sentence.startsWith(YOUR_MIX) ? sentence.slice(YOUR_MIX.length) : sentence}`
+    : lead
+      ? `My mix has ${(lead[1] ?? '').toLowerCase()} at ${sentence.slice(lead[0].length)}`
+      : `My mix is ${sentence.startsWith(YOUR_MIX) ? sentence.slice(YOUR_MIX.length) : sentence}`
   return `/advisor?q=${encodeURIComponent(`${mine} What should a beginner understand about that?`)}`
 }
 

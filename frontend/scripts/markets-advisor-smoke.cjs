@@ -112,7 +112,7 @@ const SEARCH_RESULTS = { results: [{ symbol: 'AAPL', name: 'Apple Inc.', exchang
     if (width === 375) await page.screenshot({ path: path.join(output, 'markets-activity-375.png'), fullPage: false });
 
     // AAPL company financials: the "Next earnings report" line and the "Does it pay you to wait?" step.
-    await page.getByText('Next earnings report:', { exact: false }).waitFor();
+    await page.getByText('Next earnings report (when it shares its results):', { exact: false }).waitFor();
     await page.getByRole('button', { name: /Payouts/ }).click();
     await page.getByRole('heading', { name: 'Does it pay you to wait?' }).waitFor();
     await record('company financials payouts step', width);

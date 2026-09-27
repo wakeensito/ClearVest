@@ -295,7 +295,7 @@ describe('drift', () => {
     // so "nothing in bonds" leads and the largest over-gap follows.
     expect(result.gaps).toEqual({ stocks: 34, bonds: -40, cash: 6, other: 0 })
     expect(result.largest).toBe('bonds')
-    expect(result.sentence).toBe('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.')
+    expect(result.sentence).toBe('Nothing in bonds, where the Classic 60/40 plan keeps 40%. Stocks: 94% today vs 60% in the plan.')
   })
 
   it('sample account vs target-date-2065: nothing in bonds leads, then the largest over-gap (cash)', () => {
@@ -304,7 +304,7 @@ describe('drift', () => {
     const result = drift(actual, target, 'Target-date style (young investor)')
     expect(result.gaps).toEqual({ stocks: 4, bonds: -10, cash: 6, other: 0 })
     expect(result.largest).toBe('bonds')
-    expect(result.sentence).toBe('Nothing in bonds, where the Target-date style (young investor) plan keeps 10%; 6 points more in cash.')
+    expect(result.sentence).toBe('Nothing in bonds, where the Target-date style (young investor) plan keeps 10%. Cash: 6% today vs 0% in the plan.')
   })
 
   it('an empty-class lead ends after the plan clause when nothing is overweight by 3+ points', () => {
@@ -317,7 +317,7 @@ describe('drift', () => {
     expect(flat.gaps).toEqual({ stocks: 2, bonds: -10, cash: 2, other: 2 })
     expect(flat.largest).toBe('bonds')
     expect(flat.sentence).toBe('Nothing in bonds, where the Model Z plan keeps 10%.')
-    expect(result.sentence).toBe('Nothing in bonds, where the Model Z plan keeps 10%; 6 points more in other.')
+    expect(result.sentence).toBe('Nothing in bonds, where the Model Z plan keeps 10%. Other: 19% today vs 13% in the plan.')
   })
 
   it('a close mix (all gaps under 3 points) reads as close, with no largest', () => {
@@ -335,7 +335,7 @@ describe('drift', () => {
     const result = drift(actual, target, 'Bogleheads three-fund')
     expect(result.gaps).toEqual({ stocks: 30, bonds: -20, cash: -10, other: 0 })
     expect(result.largest).toBe('stocks')
-    expect(result.sentence).toBe('30 points more in stocks than the Bogleheads three-fund plan.')
+    expect(result.sentence).toBe('Stocks: 80% today vs 50% in the Bogleheads three-fund plan.')
   })
 
   it('prefers a smaller over-gap over a larger under-gap, ties broken by MIX_ORDER', () => {
@@ -346,7 +346,7 @@ describe('drift', () => {
     // and cash are both over-gaps ≥ 3, so one of them leads (bonds, first in MIX_ORDER).
     expect(result.gaps).toEqual({ stocks: -20, bonds: 10, cash: 10, other: 0 })
     expect(result.largest).toBe('bonds')
-    expect(result.sentence).toBe('10 points more in bonds than the Bogleheads three-fund plan.')
+    expect(result.sentence).toBe('Bonds: 30% today vs 20% in the Bogleheads three-fund plan.')
   })
 
   it('falls back to the largest under-gap only when no class is overweight by 3+ points', () => {
@@ -358,7 +358,7 @@ describe('drift', () => {
     const result = drift(actual, target, 'Model Y')
     expect(result.gaps).toEqual({ stocks: -6, bonds: 2, cash: 2, other: 2 })
     expect(result.largest).toBe('stocks')
-    expect(result.sentence).toBe('6 points less in stocks than the Model Y plan.')
+    expect(result.sentence).toBe('Stocks: 54% today vs 60% in the Model Y plan.')
     expect(result.sentence).not.toContain('nothing in')
   })
 
@@ -367,7 +367,7 @@ describe('drift', () => {
     const target: Mix = { stocks: 0.7, bonds: 0.15, cash: 0.15, other: 0 }
     const result = drift(actual, target, 'Model X')
     expect(result.largest).toBe('stocks')
-    expect(result.sentence).toBe('15 points more in stocks than the Model X plan; nothing in cash.')
+    expect(result.sentence).toBe('Stocks: 85% today vs 70% in the Model X plan; nothing in cash.')
   })
 
   it('does not append nothing-in-bonds/cash when the target itself wants under 10% there', () => {

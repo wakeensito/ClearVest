@@ -7,7 +7,7 @@ import { typeColor } from '../../lib/assetTypes'
 import { percentFromFraction } from '../../lib/format'
 import { actualMix, drift, MIX_LABEL, MIX_ORDER, suggestTemplate, templateMix, type Mix, type MixClass, type Template } from '../../lib/targetMix'
 import { useFundMap } from '../../lib/useFundMap'
-import { advisorMixHref, fundsCheckedCaption, mixLead } from '../../lib/xrayCopy'
+import { advisorMixHref, fundsCheckedCaption } from '../../lib/xrayCopy'
 import { Badge } from '../ui/Badge'
 import { Skeleton, SkeletonBlock } from '../ui/Skeleton'
 import styles from './PlanVsActual.module.css'
@@ -18,6 +18,7 @@ const classColor = (c: MixClass) => typeColor(CLASS_TYPE[c])
 
 export const SUGGESTED = 'Suggested for you'
 export const PICK_A_PLAN = 'Pick a plan'
+export const SUGGESTED_WHY = 'Picked from your answers (age, time horizon, risk comfort). A starting point, not advice.'
 
 /**
  * "Your plan vs. today" (DESIGN.md §4.14): the account's stocks/bonds/cash mix beside a model
@@ -58,6 +59,15 @@ export function PlanVsActual({ holdings }: { holdings: Holding[] }) {
             </select>
             <ChevronDown size={16} aria-hidden className={styles.chevron} />
           </div>
+          {hasProfile ? (
+            template.id === suggested && <p className="t-body-sm c-secondary">{SUGGESTED_WHY}</p>
+          ) : (
+            <p className="t-body-sm c-secondary">
+              Answer three questions in your{' '}
+              <Link to="/welcome?edit=1" state={{ returnTo: '/portfolio' }}>investment profile</Link>
+              {' '}to get a suggested plan.
+            </p>
+          )}
         </div>
       )}
 
@@ -70,7 +80,7 @@ export function PlanVsActual({ holdings }: { holdings: Holding[] }) {
 
       {result && template && (
         <div className={styles.read}>
-          <p className={styles.lead}>{mixLead(result.sentence)}</p>
+          <p className={styles.lead}>{result.sentence}</p>
           <p className="t-body-sm c-tertiary">{template.description}</p>
           <Link className={styles.ask} to={advisorMixHref(result.sentence)}>
             Ask the advisor why this matters <ArrowRight size={14} aria-hidden />

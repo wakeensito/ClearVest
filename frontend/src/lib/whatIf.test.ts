@@ -156,7 +156,12 @@ describe('whatIf', () => {
     expect(result.largestAfter).toEqual({ symbol: 'NVDA', name: 'NVIDIA', share: expect.any(Number) })
 
     expect(whatIfSentence(result, 'NVDA', 1000)).toBe(
-      "Adding $1,000 of NVDA: your NVDA exposure goes from 17% to 20% (counting your funds' top 10 holdings), and your risk score from 34 to 35 (Moderate)."
+      "Adding $1,000 of NVDA: NVDA would be about 20% of your money instead of 17% (counting your funds' top 10 holdings), and your risk score would go from 34 to 35 out of 100 (Moderate)."
+    )
+    // The band label is repeated on both sides only when it changes.
+    const crossing = { ...result, riskAfter: { ...result.riskAfter, score: 68, label: 'Aggressive' as typeof result.riskAfter.label } }
+    expect(whatIfSentence(crossing, 'NVDA', 1000)).toBe(
+      "Adding $1,000 of NVDA: NVDA would be about 20% of your money instead of 17% (counting your funds' top 10 holdings), and your risk score would go from 34 (Moderate) to 68 (Aggressive) out of 100."
     )
   })
 
@@ -180,19 +185,19 @@ describe('whatIf', () => {
     expect(result.exposureBefore).toBe(0)
     expect(result.exposureAfter).toBeCloseTo(5000 / newTotal, 12)
 
-    expect(whatIfSentence(result, 'ORCL', 5000)).toContain("you'd go from no ORCL we can see to")
+    expect(whatIfSentence(result, 'ORCL', 5000)).toMatch(/^Adding \$5,000 of ORCL: ORCL would be about \d+% of your money instead of none we can see today \(counting your funds' top 10 holdings\), and your risk score would go from \d+ to \d+ out of 100 \(\w+\)\.$/)
   })
 
   it('a tiny first purchase reads "under 1%", never "0%"', () => {
     const result = whatIf({ holdings, funds, symbol: 'ORCL', fund: ORCL_FUND, dollars: 10, profile })
-    expect(whatIfSentence(result, 'ORCL', 10)).toContain("you'd go from no ORCL we can see to under 1%")
+    expect(whatIfSentence(result, 'ORCL', 10)).toContain('ORCL would be under 1% of your money instead of none we can see today')
   })
 
   it('a stock-only account has nothing unseen, so a 0% start reads "owning no"', () => {
     const stocksOnly = holdings.filter(h => h.type !== 'etf')
     const result = whatIf({ holdings: stocksOnly, funds: {}, symbol: 'ORCL', fund: ORCL_FUND, dollars: 1000, profile })
     expect(result.holdsFunds).toBe(false)
-    expect(whatIfSentence(result, 'ORCL', 1000)).toContain("you'd go from owning no ORCL to")
+    expect(whatIfSentence(result, 'ORCL', 1000)).toMatch(/ORCL would be about \d+% of your money instead of none today \(/)
     expect(whatIfSentence(result, 'ORCL', 1000)).not.toContain('we can see')
   })
 

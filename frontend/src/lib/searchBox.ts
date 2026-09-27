@@ -8,9 +8,22 @@ export const EMPTY_SEARCH_ERROR = 'Enter one ticker symbol, such as VOO or BRK-B
 export const MIN_SEARCH_LENGTH = 2
 export const MAX_SUGGESTIONS = 8
 
-/** What to look up for a draft: the trimmed text, or '' (no request) below two characters. */
+const TRAILING_WORD = /\s+(?:stocks?|shares?|ticker|etf|fund)$/i
+
+/**
+ * What people type, reduced to what they mean: trimmed, one leading `$` dropped ("$AAPL"), and one
+ * trailing "stock", "stocks", "share", "shares", "ticker", "etf" or "fund" dropped ("apple stock").
+ * A lone keyword ("stock") is left alone.
+ */
+export function normalizeQuery(raw: string): string {
+  const trimmed = raw.trim()
+  const bare = (trimmed.startsWith('$') ? trimmed.slice(1) : trimmed).trim()
+  return bare.replace(TRAILING_WORD, '').trim()
+}
+
+/** What to look up for a draft: the normalized text, or '' (no request) below two characters. */
 export const searchTerm = (input: string) => {
-  const term = input.trim()
+  const term = normalizeQuery(input)
   return term.length >= MIN_SEARCH_LENGTH ? term : ''
 }
 
@@ -24,7 +37,7 @@ export const searchTerm = (input: string) => {
  * with `[]`, "apple" resolves to the ticker APPLE.
  */
 export function resolveSubmit(input: string, suggestions: readonly Suggestion[], highlighted: number): { symbol: string } | { error: string } {
-  const draft = input.trim().toUpperCase()
+  const draft = normalizeQuery(input).toUpperCase()
   if (!draft) return { error: EMPTY_SEARCH_ERROR }
   const picked = suggestions[highlighted]
   if (highlighted >= 0 && picked) return { symbol: picked.symbol }
@@ -41,7 +54,7 @@ export function resolveSubmit(input: string, suggestions: readonly Suggestion[],
  */
 export function shouldAwaitSearch(draft: string, settled: boolean, loading: boolean, suggestions: readonly Suggestion[]) {
   if (!searchTerm(draft)) return false
-  const upper = draft.trim().toUpperCase()
+  const upper = normalizeQuery(draft).toUpperCase()
   if (suggestions.some((item) => item.symbol.toUpperCase() === upper)) return false
   return !settled || loading
 }

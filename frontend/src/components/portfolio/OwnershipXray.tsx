@@ -12,6 +12,10 @@ import styles from './OwnershipXray.module.css'
 const ROWS = 5
 export const NO_XRAY_DATA = 'This account has no stocks or funds to look inside.'
 export const FUNDS_UNAVAILABLE = "We couldn't look inside your funds right now."
+export const XRAY_WHY = 'Funds are baskets of companies, so the same company can sit in several of your funds.'
+
+/** Directly under the eyebrow in every state with something to show (not the empty one). */
+const Why = () => <p className="t-body-sm c-secondary">{XRAY_WHY}</p>
 
 /**
  * "What you really own" (DESIGN.md §4.14): the companies behind the account once each fund is
@@ -29,7 +33,10 @@ export function OwnershipXray({ data, hideValues = false }: { data: Holdings; hi
         {checking && !waitingForFirstFund && <Dots label="Checking more of your funds" />}
       </header>
       {waitingForFirstFund ? (
-        <SkeletonBlock lines={4} label="Looking inside your funds" />
+        <>
+          <Why />
+          <SkeletonBlock lines={4} label="Looking inside your funds" />
+        </>
       ) : (
         <XrayBody data={data} fundMap={fundMap} hideValues={hideValues} />
       )}
@@ -55,10 +62,13 @@ function XrayBody({ data, fundMap, hideValues }: { data: Holdings; fundMap: Fund
   // Every fund lookup failed or came back empty: saying who the money is in would be a guess.
   if (lt.fundsTotal > 0 && lt.fundsLookedThrough === 0 && !checking) {
     return (
-      <div className={styles.unavailable}>
-        <p className="t-body c-secondary">{FUNDS_UNAVAILABLE}</p>
-        {fundMap.failed.length > 0 && <Button variant="secondary" size="compact" onClick={fundMap.retry}>Retry</Button>}
-      </div>
+      <>
+        <Why />
+        <div className={styles.unavailable}>
+          <p className="t-body c-secondary">{FUNDS_UNAVAILABLE}</p>
+          {fundMap.failed.length > 0 && <Button variant="secondary" size="compact" onClick={fundMap.retry}>Retry</Button>}
+        </div>
+      </>
     )
   }
   if (!lt.hasData || !top) return <p className="t-body c-secondary">{NO_XRAY_DATA}</p>
@@ -70,6 +80,7 @@ function XrayBody({ data, fundMap, hideValues }: { data: Holdings; fundMap: Fund
 
   return (
     <>
+      <Why />
       <p className={styles.headline}>{headline}</p>
       <ol role="list" className={styles.rows}>
         {lt.companies.slice(0, ROWS).map((c) => <CompanyRow key={c.symbol ?? c.name} company={c} scale={scale} />)}
@@ -120,6 +131,7 @@ function FeePanel({ data, fundMap, hideValues }: { data: Holdings; fundMap: Fund
       <h3 id="xray-fees-heading" className="t-h3">What it costs</h3>
       <div className={styles.sentences}>
         <p className={styles.feeLead}>{copy.cost}</p>
+        {copy.perTenThousand && <p className="t-body-sm c-secondary">{copy.perTenThousand}</p>}
         {copy.tenYear && <p className="t-body-sm c-secondary">{copy.tenYear}</p>}
         {copy.cheapest && <p className="t-body-sm c-secondary">{copy.cheapest}</p>}
       </div>

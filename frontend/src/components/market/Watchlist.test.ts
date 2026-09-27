@@ -41,7 +41,7 @@ describe('chunk', () => {
 describe('Watchlist', () => {
   it('shows one sentence and a VOO link when nothing is watched', () => {
     const html = render()
-    expect(text(html)).toContain('Star a security on its page to keep an eye on it here.')
+    expect(text(html)).toContain('Star a stock or fund on its page to keep an eye on it here.')
     expect(html).toContain('href="/markets?symbol=VOO"')
     expect(html).not.toContain('<ul')
   })

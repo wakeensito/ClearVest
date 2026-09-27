@@ -60,7 +60,7 @@ describe('company research advisor lines', () => {
 
   it('shows the next earnings date as one quiet line, only when known and not for funds', () => {
     const html = renderHtml(research({ profile: { nextEarningsDate: '2026-10-29' } }))
-    expect(html).toMatch(/<p class="[^"]*earnings[^"]*" data-next-earnings="true">Next earnings report: Oct 29, 2026<\/p>/)
+    expect(html).toMatch(/<p class="[^"]*earnings[^"]*" data-next-earnings="true">Next earnings report \(when it shares its results\): Oct 29, 2026<\/p>/)
     expect(render(research())).not.toContain('Next earnings report')
     expect(render(research({ profile: { nextEarningsDate: '2026-10-29', isFund: true } }))).not.toContain('Next earnings report')
   })

@@ -34,7 +34,7 @@ describe('WhatIfCard', () => {
     const t = text(html)
     expect(html).toContain('data-what-if="NVDA"')
     expect(t).toContain('What would this do to my portfolio?')
-    expect(t).toMatch(/Adding \$1,000 of NVDA: your NVDA exposure goes from \d+% to \d+% \(counting your funds' top 10 holdings\), and your risk score from \d+ to \d+/)
+    expect(t).toMatch(/Adding \$1,000 of NVDA: NVDA would be about \d+% of your money instead of \d+% \(counting your funds' top 10 holdings\), and your risk score would go from \d+ to \d+ out of 100/)
     expect(t).toMatch(/Risk score \d+ → \d+/)
     expect(t).toMatch(/NVDA exposure \d+% → \d+%/)
     expect(t).toContain("Counting each fund's top 10 holdings (3 of 3 funds checked). Educational, not a recommendation.")
@@ -56,15 +56,24 @@ describe('WhatIfCard', () => {
     const vti = { ...VOO, symbol: 'VTI', name: 'Vanguard Total Stock Market ETF' }
     const t = text(render('VTI', ok(vti), linked))
     expect(t).toContain('(4 of 4 funds checked)')
-    expect(t).toContain("you'd go from no VTI we can see to")
+    expect(t).toMatch(/VTI would be about \d+% of your money instead of none we can see today/)
   })
 
-  it('renders nothing when the account is not linked', () => {
+  it('invites an unlinked account to link one (or try the sample) with one line to the portfolio', () => {
     const html = render('NVDA', ok(NVDA), (c) => {
       seedApiError(c, ['holdings'], new ApiError(409, 'NOT_LINKED', 'No linked account'))
       c.setQueryData(['profile'], profile)
     })
-    expect(html).toBe('')
+    expect(html).toMatch(/<a [^>]*href="\/portfolio"[^>]*>/)
+    expect(text(html)).toContain('Link an account, or try the sample one, to see what adding NVDA would do to your mix →')
+    expect(html).not.toContain('data-what-if="NVDA"')
+  })
+
+  it('never invites linking for an index, an unloaded fund, or a holdings error other than NOT_LINKED', () => {
+    const unlinked: Parameters<typeof renderSeeded>[1] = (c) => seedApiError(c, ['holdings'], new ApiError(409, 'NOT_LINKED', 'No linked account'))
+    expect(render('^GSPC', ok(SPX), unlinked)).toBe('')
+    expect(render('NVDA', { status: 'pending' }, unlinked)).toBe('')
+    expect(render('NVDA', ok(NVDA), (c) => seedApiError(c, ['holdings'], new ApiError(502, 'UPSTREAM_UNAVAILABLE', 'Upstream unavailable')))).toBe('')
   })
 
   it('scores without a profile when none is saved (404)', () => {
@@ -126,9 +135,10 @@ describe('on the ticker page', () => {
     expect(open.indexOf('data-fund-explainer="NVDA"')).toBeLessThan(open.indexOf('data-what-if="NVDA"'))
   })
 
-  it('an unlinked account sees the research card exactly as before', () => {
+  it('an unlinked account sees the research card with only the one-line invite', () => {
     const html = page('/markets?symbol=NVDA', (c) => seedApiError(c, ['holdings'], new ApiError(409, 'NOT_LINKED', 'No linked account')))
-    expect(html).not.toContain('data-what-if')
+    expect(html).not.toContain('data-what-if="NVDA"')
+    expect(html).toContain('data-what-if-invite')
     expect(html).toContain('NVDA interactive price chart')
   })
 })
