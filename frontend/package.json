@@ -15,7 +15,8 @@
     "test:browser": "node scripts/browser-smoke.cjs",
     "test:history-refresh": "node scripts/history-refresh-smoke.cjs",
     "test:fund-explainer": "node scripts/fund-explainer-smoke.cjs",
-    "test:markets-advisor": "node scripts/markets-advisor-smoke.cjs"
+    "test:markets-advisor": "node scripts/markets-advisor-smoke.cjs",
+    "test:portfolio-xray": "node scripts/portfolio-xray-smoke.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.0",
