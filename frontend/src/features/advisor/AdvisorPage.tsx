@@ -72,7 +72,7 @@ function AdvisorWorkspace() {
     <div className={styles.inputRow}><textarea id="advisor-input" ref={inputRef} value={draft} onChange={e=>setDraft(e.target.value.slice(0,MAX))} onKeyDown={keyDown} rows={1} maxLength={MAX} placeholder="Try: Explain a stock as if this is my first day learning" className={styles.input}/><VoiceButton voice={{...voice,toggle:()=>{setShowChat(true);voice.toggle()}}} disabled={chat.pending}/><button type="submit" className={styles.send} disabled={!draft.trim()||busy} aria-label="Send"><ArrowUp size={20} aria-hidden/></button></div>
     <VoiceStatus voice={voice}/>{draft.length>1800 && <p className={styles.counter}>{draft.length}/{MAX}</p>}
   </form>
-  return <div className={styles.page}>
+  return <div className={styles.page} data-fill={showChat || undefined}>
     <header className={styles.heading}>
       <div className={styles.headingTitle}><button className={styles.scoutButton} aria-label="Ask Scout a question" onClick={openChat}><Scout state={state} engaged/></button><h1>Ask about your money</h1></div>
       <button className={styles.clearHistory} disabled={busy || !chat.messages.length} onClick={()=>setConfirming(true)}><Trash2 size={17} aria-hidden/><span>Clear history</span></button>

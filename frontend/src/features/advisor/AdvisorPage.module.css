@@ -70,6 +70,12 @@
 .send:disabled { background: #FFFFFF0C; color: var(--cv-text-tertiary); }
 .counter { text-align: right; font-size: 12px; margin-top: 6px; color: var(--cv-text-secondary); }
 .disclaimer { margin-top: 12px; font-size: 12px; color: var(--cv-text-secondary); line-height: 20px; }
+/* Conversation open: fill the screen the shell gives us so only the thread scrolls and the composer sits at the bottom. */
+.page[data-fill] { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; }
+.page[data-fill] .layout { flex: 1; min-height: 0; grid-template-rows: minmax(0,1fr); align-items: stretch; }
+.page[data-fill] .layout > aside { align-self: start; max-height: 100%; overflow-y: auto; }
+.page[data-fill] .mainColumn { display: flex; flex-direction: column; min-height: 0; }
+.page[data-fill] .chat { flex: 1; height: auto; min-height: 0; }
 @media (max-width: 1100px) {
   .layout { grid-template-columns: minmax(0,1fr) 310px; gap: 28px; }
   .workbench { padding: 24px 20px; }
@@ -78,6 +84,24 @@
   .layout { grid-template-columns: minmax(0,1fr); gap: 24px; }
   .chat { height: clamp(460px,calc(100dvh - 365px),760px); }
   .navigation { margin-bottom: 20px; }
+  .page[data-fill] .layout { grid-template-rows: auto minmax(0,1fr); }
+  .page[data-fill] .layout > aside { max-height: 40dvh; }
+}
+@media (max-width: 767px) {
+  /* Phones: the context rail would eat the thread's space while chatting; it's still on the tool tabs. */
+  .page[data-fill] .layout { grid-template-rows: minmax(0,1fr); }
+  .page[data-fill] .layout > aside { display: none; }
+  .page[data-fill] .navigation { margin-bottom: 8px; }
+  .page[data-fill] .disclaimer { margin-top: 8px; }
+}
+@media (max-height: 500px) {
+  /* Landscape phones: give the thread every pixel we can. */
+  .page[data-fill] .layout { grid-template-rows: minmax(0,1fr); }
+  .page[data-fill] .layout > aside { display: none; }
+  /* Clear history is still in the profile menu. */
+  .page[data-fill] .heading { display: none; }
+  .page[data-fill] .navigation { margin-bottom: 4px; }
+  .page[data-fill] .disclaimer { margin-top: 4px; }
 }
 @media (max-width: 480px) {
   .heading { gap: 8px; padding-bottom: 18px; align-items: start; }
