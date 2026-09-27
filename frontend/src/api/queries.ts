@@ -98,6 +98,15 @@ export const useCompanySearch = (query: string) => useQuery({
   staleTime: 15 * 60_000,
 })
 
+/** Bundled model portfolios (not user-specific); change essentially never, so cache a full day. */
+export const useTemplates = () =>
+  useQuery({
+    queryKey: ['templates'],
+    queryFn: api.getTemplates,
+    staleTime: 24 * 60 * 60_000,
+    gcTime: 24 * 60 * 60_000,
+  })
+
 /** What a security is (kind, index, fees, top holdings). Fund facts change slowly, so keep them a day. */
 export const useFund = (symbol: string) => useQuery({
   queryKey: ['fund', symbol],
