@@ -83,7 +83,7 @@ holdings; it does not recompute the account balance or allocation.
 
 A stacked bar and a vertical legend show asset-type composition in the context column. Long-position
 values are aggregated by type. If shorts exist, explain that the bar excludes them. Do not show a
-percentage-based asset mix for an empty account. The rail card is titled “Your plan vs. today” (§4.14);
+percentage-based asset mix for an empty account. The rail card is titled “Your plan vs. today” (§4.15);
 this by-type bar sits under it as “By investment type”, the detail behind the plan comparison.
 
 ### 4.6 Risk and context
@@ -335,7 +335,21 @@ All targets are 44px. The explainer is a labelled `section`; the chips are a lab
 `aria-expanded`/`aria-controls`; answers are in a polite live region. No new colors, badges or
 illustrations beyond the strip.
 
-### 4.14 What you really own and your plan vs. today
+### 4.14 Tap-to-explain jargon and related lessons
+
+Investing terms in running text get a dotted blue underline and become buttons. Tapping one opens a
+small overlay (the only shadowed element) with the term’s plain-language meaning and a link to the
+lesson that teaches it, or to guided research for company terms (P/E, revenue, net income, EPS).
+Meanings come from the glossary in `lib/learning.ts`; the term list and lesson mapping live in
+`lib/explainTerms.ts`. Each term is marked once per reply. Acronyms (ETF, TSP, EPS) only match in
+capitals. The overlay sits below the word, or above it in the lower part of the screen, and stays
+inside the viewport at 320px. Escape, the close button or an outside tap closes it and returns focus.
+
+Where it appears: advisor replies (`<Markdown explain />`; plain `<Markdown />` renders exactly as
+before) and the Portfolio risk explanation and factors. Advisor replies that mention a lesson term,
+and the risk card, show one “Related lesson: …” link.
+
+### 4.15 What you really own and your plan vs. today
 
 The two portfolio moments: who the money is really in once funds are opened up, and how the mix
 compares with a model plan. Math lives in `lib/portfolioXray.ts` and `lib/targetMix.ts`; every sentence in
@@ -419,13 +433,13 @@ figure (sentences drop the dollar clause, table cells read “Hidden”) and kee
 the fee table is fixed-layout within the card, the plan name on its bar truncates with an ellipsis
 (the select and legend still carry it in full).
 
-### 4.15 What-if ("What would this do to my portfolio?")
+### 4.16 What-if ("What would this do to my portfolio?")
 
 The ticker-page moment: before anyone adds money to a security, show what it would do to the account
 they already have. Math lives in `lib/whatIf.ts` (a hypothetical "holdings after" fed to `lookThrough()`
 and the `riskScore()` port of `risk.py`; nothing is sold, every weight renormalizes); copy and the
 amount rules in `lib/whatIfCopy.ts`; the view is `components/market/WhatIfCard.tsx`
-(`[data-what-if="NVDA"]`). Fund facts come from `useFundMap` (§4.14), so the portfolio cards and this
+(`[data-what-if="NVDA"]`). Fund facts come from `useFundMap` (§4.15), so the portfolio cards and this
 one share one request per fund.
 
 **Where.** Inside the research card, under the identity row (§4.13); an open explainer keeps its
@@ -450,9 +464,9 @@ only when it changes (“from 34 (Moderate) to 68 (Aggressive) out of 100”). W
 reads “under 1%” (“would be under 1% of your money”), never “0%”. For a stock or crypto the exposure is its look-through company share; for
 an ETF or mutual fund it is the fund's own share of the account. “(counting your funds' top 10
 holdings)” appears only when the account holds funds and a company (a stock) is being added; a fund's
-own share, or a stock-only account, is exact. Share classes count as one company (GOOG is GOOGL, §4.14).
+own share, or a stock-only account, is exact. Share classes count as one company (GOOG is GOOGL, §4.15).
 
-**A lower bound.** Funds are looked through their top 10 holdings only (§4.14), so the exposure figure
+**A lower bound.** Funds are looked through their top 10 holdings only (§4.15), so the exposure figure
 never counts a company sitting deeper in a fund, and the copy never claims it does. A company outside
 the look-through's top 10 companies counts its direct weight. The figure can jump when a company enters
 a fund's top 10 on the “after” side (adding a fund brings its top holdings in with it).

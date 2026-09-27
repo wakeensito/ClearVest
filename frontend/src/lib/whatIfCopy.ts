@@ -1,5 +1,5 @@
 // Copy and input rules for the ticker-page "What would this do to my portfolio?" card
-// (DESIGN.md §4.15). The math lives in whatIf.ts; this file only turns its results into words and
+// (DESIGN.md §4.16). The math lives in whatIf.ts; this file only turns its results into words and
 // reads the amount box. No numbers are invented here.
 
 import type { CompanyShare } from './whatIf'

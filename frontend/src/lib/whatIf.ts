@@ -184,7 +184,7 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
   }
 }
 
-// Whole percents; a positive sliver reads "under 1%", never "0%" (same rule as §4.14).
+// Whole percents; a positive sliver reads "under 1%", never "0%" (same rule as §4.15).
 const pct = wholePercent
 const about = (f: number) => (f > 0 && f < 0.005 ? 'under 1%' : `about ${pct(f)}`)
 

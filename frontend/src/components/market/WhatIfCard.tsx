@@ -27,7 +27,7 @@ const FUND_KINDS = new Set<Fund['kind']>(['etf', 'mutual_fund'])
 const BANDS = [{ from: 0, to: 33 }, { from: 34, to: 66 }, { from: 67, to: 100 }]
 
 /**
- * "What would this do to my portfolio?" (DESIGN.md §4.15), under the ticker page's identity row.
+ * "What would this do to my portfolio?" (DESIGN.md §4.16), under the ticker page's identity row.
  * Renders nothing until everything it needs has arrived, and nothing at all for an empty account,
  * an index, or any failed query: the research card never waits on it. An unlinked account (409)
  * gets one line inviting it to the portfolio page instead, unless `invite` is false (on the

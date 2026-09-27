@@ -18,7 +18,7 @@ export const XRAY_WHY = 'Funds are baskets of companies, so the same company can
 const Why = () => <p className="t-body-sm c-secondary">{XRAY_WHY}</p>
 
 /**
- * "What you really own" (DESIGN.md §4.14): the companies behind the account once each fund is
+ * "What you really own" (DESIGN.md §4.15): the companies behind the account once each fund is
  * opened up, and what the funds cost. The sentences carry the meaning; bars are decoration.
  */
 export function OwnershipXray({ data, hideValues = false }: { data: Holdings; hideValues?: boolean }) {

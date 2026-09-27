@@ -1,5 +1,5 @@
-/* "What would this do to my portfolio?" (DESIGN.md §4.15). Tokens only. Same inner surface as the
-   fund explainer (§4.13); the eyebrow, lead and data line echo "What you really own" (§4.14). */
+/* "What would this do to my portfolio?" (DESIGN.md §4.16). Tokens only. Same inner surface as the
+   fund explainer (§4.13); the eyebrow, lead and data line echo "What you really own" (§4.15). */
 .card {
   display: grid;
   gap: 14px;

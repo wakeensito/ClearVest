@@ -22,7 +22,7 @@ export const PICK_A_PLAN = 'Pick a plan'
 export const SUGGESTED_WHY = 'Picked from your answers (age, time horizon, risk comfort). A starting point, not advice.'
 
 /**
- * "Your plan vs. today" (DESIGN.md §4.14): the account's stocks/bonds/cash mix beside a model
+ * "Your plan vs. today" (DESIGN.md §4.15): the account's stocks/bonds/cash mix beside a model
  * portfolio. The drift sentence carries the meaning; the bars are `aria-hidden`.
  */
 export function PlanVsActual({ holdings }: { holdings: Holding[] }) {

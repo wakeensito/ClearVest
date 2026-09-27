@@ -1,4 +1,4 @@
-// Sentences for the "What you really own" and "Your plan vs. today" cards (DESIGN.md §4.14).
+// Sentences for the "What you really own" and "Your plan vs. today" cards (DESIGN.md §4.15).
 // Copy only: the math lives in portfolioXray.ts and targetMix.ts. Fractions in, words out; every
 // number goes through format.ts.
 

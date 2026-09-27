@@ -1,4 +1,4 @@
-/* DESIGN.md §4.14. Lives inside the rail Card, so no surface of its own. */
+/* DESIGN.md §4.15. Lives inside the rail Card, so no surface of its own. */
 .plan { display: grid; gap: 16px; min-width: 0; }
 
 .picker { display: grid; gap: 6px; }

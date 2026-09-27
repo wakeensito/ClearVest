@@ -1,0 +1,40 @@
+/* Tap-to-explain jargon (DESIGN.md §4.14). The popover is the only shadowed element: it's an overlay. */
+.term {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  cursor: help;
+  text-decoration: underline dotted var(--cv-accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  border-radius: 2px;
+}
+.term:hover, .term[aria-expanded='true'] { color: var(--cv-accent); background: var(--cv-accent-subtle); }
+
+.panel {
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--cv-surface);
+  border: 1px solid var(--cv-border);
+  border-radius: var(--cv-radius-panel);
+  box-shadow: var(--cv-shadow-overlay);
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--cv-text);
+  text-align: left;
+}
+.head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.head strong { font-size: 15px; font-weight: 600; }
+.close { display: grid; place-items: center; width: 32px; height: 32px; margin: -6px -8px -6px 0; border: 0; border-radius: var(--cv-radius); background: none; color: var(--cv-text-secondary); }
+.close:hover { background: var(--cv-surface-sunken); color: var(--cv-text); }
+.panel p { color: var(--cv-text-secondary); }
+.learn { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: 14px; font-weight: 600; }

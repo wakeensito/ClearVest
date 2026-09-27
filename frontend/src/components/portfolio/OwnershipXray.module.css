@@ -1,4 +1,4 @@
-/* DESIGN.md §4.14. Work surface per §4.2; every company is the same category, so rows use the
+/* DESIGN.md §4.15. Work surface per §4.2; every company is the same category, so rows use the
    accent ramp from §4.13, never the viz scale. */
 .card {
   display: grid;

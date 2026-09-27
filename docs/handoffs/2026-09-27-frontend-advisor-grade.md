@@ -15,7 +15,7 @@ final review's fixes (no per-task handoff was written along the way). Someone pi
 demo the whole thing without reading the commit history.
 
 - **What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, DESIGN.md
-  §4.14): opens the Portfolio main column, above Security research. Opens each ETF/mutual fund's
+  §4.15): opens the Portfolio main column, above Security research. Opens each ETF/mutual fund's
   top 10 holdings (`lib/useFundMap.ts`, capped at 8 funds/account) and folds them into the
   account's direct stock positions (`lib/portfolioXray.ts`) to say who the money is really in —
   "Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT." Share classes are
@@ -28,7 +28,7 @@ demo the whole thing without reading the commit history.
   through, a fund still loading, an empty account) has its own honest sentence instead of a wrong
   number.
 - **Your plan vs. today** (`components/portfolio/PlanVsActual.tsx`, `[data-plan-vs-actual]`, in the
-  "Your plan vs. today" rail card, DESIGN.md §4.14): compares the account's stocks/bonds/cash/other
+  "Your plan vs. today" rail card, DESIGN.md §4.15): compares the account's stocks/bonds/cash/other
   mix (`lib/targetMix.ts`) against one of five bundled model portfolios (`GET /market/templates`,
   mirrored from `src/market/market/data/templates.json`) picked automatically from the user's
   profile (`suggestTemplate`), with a "Suggested for you" badge, a one-sentence gap description
@@ -36,7 +36,7 @@ demo the whole thing without reading the commit history.
   prefilled (never auto-sent) link into the advisor that follows the sentence. With no profile
   (404) it asks the three profile questions; any other profile error just shows the default plan.
 - **What would this do to my portfolio?** (`components/market/WhatIfCard.tsx`,
-  `[data-what-if="SYMBOL"]`, under the ticker page's identity row, DESIGN.md §4.15): before adding
+  `[data-what-if="SYMBOL"]`, under the ticker page's identity row, DESIGN.md §4.16): before adding
   money to a security, shows how the account's exposure to it and its risk score
   (`lib/risk.ts`, a TS port of the backend `risk.py`) would move, for $500 / $1,000 / $5,000 or a
   typed amount. Nothing is sold; every weight renormalizes. The sentence: "Adding $1,000 of NVDA:
@@ -85,7 +85,7 @@ npx vite --port 5174 --strictPort --host 127.0.0.1 &
 npm run test:browser            # full-app desktop + phone regression (theme, onboarding, holdings, ...)
 npm run test:fund-explainer     # "What is this?" security research explainer (DESIGN.md §4.13)
 npm run test:markets-advisor    # markets discovery: watchlist, search, company financials
-npm run test:portfolio-xray     # what you really own, plan vs. today, ticker what-if, unlinked invite (§4.14–§4.15)
+npm run test:portfolio-xray     # what you really own, plan vs. today, ticker what-if, unlinked invite (§4.15–§4.16)
 npm run test:history-refresh    # background market-history refresh polling
 kill %1                         # stop the dev server
 ```
@@ -152,7 +152,7 @@ At the time of writing: `npm test` 399/399 (34 files), `pytest -q` 338 passed, a
   `SecurityResearch` panel defaults to `VOO`).
 - The sample account numbers in `frontend/scripts/portfolio-xray-smoke.cjs` (VOO 15×$710.79, QQQ
   6×$744.50, VGT 8×$126.17, NVDA 12×$225.07, AAPL 10×$341.07, $1,500 cash) reproduce DESIGN.md
-  §4.14's own worked fee example ($13/year, 0.08% blended) almost to the dollar — that's
+  §4.15's own worked fee example ($13/year, 0.08% blended) almost to the dollar — that's
   intentional, not a coincidence, and makes the smoke output easy to sanity-check by eye.
 - `research:v2:*` cache keys mean the very first company-research request per symbol after a deploy
   is a cold cache (a few seconds), not a bug.

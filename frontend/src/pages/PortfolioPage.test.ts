@@ -10,7 +10,7 @@ import { PortfolioPage } from './PortfolioPage'
 vi.mock('../components/market/ResearchPanel', async () => ({ SecurityResearch: (await import('../components/market/SecurityResearch')).SecurityResearch }))
 
 describe('PortfolioPage', () => {
-  it('opens the main column on "What you really own", above research and holdings (DESIGN.md §4.14)', () => {
+  it('opens the main column on "What you really own", above research and holdings (DESIGN.md §4.15)', () => {
     const html = renderSeeded(h(PortfolioPage), (c) => {
       c.setQueryData(['holdings'], sampleHoldings())
       c.setQueryData(['profile'], null)

@@ -1,4 +1,4 @@
-// Copy and input rules for the ticker-page "What would this do to my portfolio?" card (DESIGN.md §4.15).
+// Copy and input rules for the ticker-page "What would this do to my portfolio?" card (DESIGN.md §4.16).
 import { describe, expect, it } from 'vitest'
 import { AMOUNT_MAX, biggestCompanyLine, parseAmount, whatIfCaption } from './whatIfCopy'
 

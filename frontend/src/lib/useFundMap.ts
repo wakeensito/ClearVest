@@ -1,5 +1,5 @@
 // Fund facts for every ETF / mutual fund in the account, for the look-through and plan cards
-// (DESIGN.md §4.14). Same query key, fetcher, symbol gate and day-long cache as `useFund`, so the
+// (DESIGN.md §4.15). Same query key, fetcher, symbol gate and day-long cache as `useFund`, so the
 // research explainer and these cards share one request per fund.
 
 import { useQueries } from '@tanstack/react-query'
