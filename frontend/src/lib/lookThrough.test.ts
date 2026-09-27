@@ -125,6 +125,14 @@ describe('lookThrough', () => {
     expect(result.fundsTotal).toBe(3)
   })
 
+  it('counts funds by distinct symbol, so a fund held in two rows is one fund (matches useFundMap.total)', () => {
+    const vooRow = holdings.find(x => x.symbol === 'VOO')!
+    const split = [...holdings, { ...vooRow, symbol: 'voo ', value: 10, weight: 0.0001 }]
+    const result = lookThrough(split, funds)
+    expect(result.fundsTotal).toBe(3)
+    expect(result.fundsLookedThrough).toBe(3)
+  })
+
   it('a symbol-less fund row merges into the direct holding via the name key', () => {
     const nvidiaNoSymbol: Fund = {
       ...VGT_FUND,

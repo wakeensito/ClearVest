@@ -197,6 +197,11 @@ describe('actualMix', () => {
   it('an empty account is all zeros', () => {
     expect(actualMix([], {})).toEqual({ stocks: 0, bonds: 0, cash: 0, other: 0 })
   })
+
+  it('looks funds up by trimmed uppercase symbol, like lookThrough', () => {
+    const holdings: Holding[] = [holding({ symbol: ' bnd', type: 'etf', value: 100 })]
+    expect(actualMix(holdings, { BND: fund({ symbol: 'BND', category: 'Intermediate-Term Bond' }) }).bonds).toBe(1)
+  })
 })
 
 describe('templateMix', () => {

@@ -1,8 +1,9 @@
 import { createElement as h } from 'react'
 import { describe, expect, it } from 'vitest'
 import type { Holdings } from '../../api/client'
-import { NO_XRAY_DATA, OwnershipXray, OwnershipXraySkeleton } from './OwnershipXray'
-import { renderSeeded, sampleHoldings, seedError, seedFunds, text } from './xray.fixtures'
+import { FEES_PENDING } from '../../lib/xrayCopy'
+import { FUNDS_UNAVAILABLE, NO_XRAY_DATA, OwnershipXray, OwnershipXraySkeleton } from './OwnershipXray'
+import { QQQ_FUND, renderSeeded, sampleHoldings, seedError, seedFunds, text } from './xray.fixtures'
 
 const render = (data: Holdings, seed: Parameters<typeof renderSeeded>[1], hideValues = false) =>
   renderSeeded(h(OwnershipXray, { data, hideValues }), seed)
@@ -39,18 +40,62 @@ describe('OwnershipXray', () => {
     expect(t).not.toMatch(/switch to|you should|recommend/i)
   })
 
-  it('renders partial data with dots and an "N of M" caption while a fund is still loading', () => {
+  it('renders partial data with dots and "N of M" while a fund loads, and holds the fee sentences until it settles', () => {
     const html = render(sampleHoldings(), (c) => seedFunds(c, ['VOO', 'QQQ']))
+    const t = text(html)
     expect(html).toContain('aria-label="Checking more of your funds"')
-    expect(text(html)).toContain('(2 of 3 funds checked)')
-    expect(text(html)).toContain('Fee not available: VGT')
+    expect(t).toContain('(2 of 3 funds checked)')
+    expect(t).toContain(FEES_PENDING)
+    expect(html).toContain('data-xray-fees="pending"')
+    expect(t).not.toContain('Fee not available')
+    expect(t).not.toMatch(/cost about \$/)
   })
 
-  it('shows a skeleton until the first fund arrives, then counts a failed fund as unchecked', () => {
+  it('shows a skeleton until the first fund arrives', () => {
     expect(render(sampleHoldings(), () => {})).toContain('aria-label="Looking inside your funds"')
+  })
+
+  it('a failed fund is "Fee not available" and the cost sentence says whose cost it is', () => {
     const html = render(sampleHoldings(), (c) => { seedFunds(c, ['VOO', 'QQQ']); seedError(c, ['fund', 'VGT']) })
+    const t = text(html)
     expect(html).not.toContain('Checking more of your funds')
-    expect(text(html)).toContain('(2 of 3 funds checked)')
+    expect(t).toContain('(2 of 3 funds checked)')
+    expect(t).toContain('Fee not available: VGT')
+    expect(t).toMatch(/The funds we could check cost about \$\d+ a year/)
+  })
+
+  it('a fund that is never requested reads "Not checked", not "Fee not available"', () => {
+    const data = sampleHoldings()
+    data.holdings.push({ symbol: 'BAD FUND', name: 'Odd Fund', type: 'etf', quantity: 1, price: 50, value: 50, weight: 0.002 })
+    const t = text(render(data, (c) => seedFunds(c)))
+    expect(t).toContain('(3 of 4 funds checked)')
+    expect(t).toContain('Not checked: BAD FUND')
+    expect(t).not.toContain('Fee not available')
+  })
+
+  it('when every fund lookup fails, says so with a Retry instead of guessing who the money is in', () => {
+    const html = render(sampleHoldings(), (c) => { for (const s of ['VOO', 'QQQ', 'VGT']) seedError(c, ['fund', s]) })
+    const t = text(html)
+    expect(t).toContain(FUNDS_UNAVAILABLE)
+    expect(t).toContain('Retry')
+    expect(t).not.toMatch(/held directly|of your money|Link an account/)
+    expect(html).not.toContain('<li')
+  })
+
+  it('a funds-only account whose lookups fail never tells a linked user to link an account', () => {
+    const data = sampleHoldings()
+    data.holdings = data.holdings.filter((x) => x.type === 'etf')
+    const t = text(render(data, (c) => { for (const s of ['VOO', 'QQQ', 'VGT']) seedError(c, ['fund', s]) }))
+    expect(t).toContain(FUNDS_UNAVAILABLE)
+    expect(t).not.toContain('Link an account')
+  })
+
+  it('qualifies "held directly" when some funds could not be opened', () => {
+    const data = sampleHoldings()
+    data.holdings = data.holdings.filter((x) => x.symbol === 'AAPL' || x.symbol === 'VGT' || x.symbol === 'QQQ')
+    const bondish = { ...QQQ_FUND, topHoldings: [{ symbol: null, name: 'United States Treasury Notes', weight: 0.05 }] }
+    const t = text(render(data, (c) => { c.setQueryData(['fund', 'QQQ'], bondish); seedError(c, ['fund', 'VGT']) }))
+    expect(t).toMatch(/^ ?What you really own Apple is about \d+% of your money, held directly \(we couldn't look inside 1 of your funds\)\./)
   })
 
   it('hides every dollar figure in hidden-values mode but keeps the percents', () => {

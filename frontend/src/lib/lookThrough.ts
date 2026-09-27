@@ -116,8 +116,9 @@ export function lookThrough(holdings: readonly Holding[], funds: FundMap): LookT
   }
 
   // Pass 2: look through etf / mutual fund holdings.
-  let fundsTotal = 0
-  let fundsLookedThrough = 0
+  // Distinct symbols, so these counts match useFundMap's `total` (a fund held in two rows is one fund).
+  const fundsSeen = new Set<string>()
+  const fundsOpened = new Set<string>()
   let coverageNumerator = 0
   let coverageDenominator = 0
 
@@ -125,12 +126,13 @@ export function lookThrough(holdings: readonly Holding[], funds: FundMap): LookT
     if (!isLong(h)) continue
     const type = normalizeType(h.type)
     if (type !== 'etf' && type !== 'mutual fund') continue
-    fundsTotal += 1
+    const fundSymbol = h.symbol.trim().toUpperCase()
+    fundsSeen.add(fundSymbol)
     coverageDenominator += h.weight
 
-    const fund = funds[h.symbol.trim().toUpperCase()]
+    const fund = funds[fundSymbol]
     if (!fund || fund.topHoldings.length === 0) continue
-    fundsLookedThrough += 1
+    fundsOpened.add(fundSymbol)
 
     let fundWeightSum = 0
     for (const row of fund.topHoldings) {
@@ -164,6 +166,8 @@ export function lookThrough(holdings: readonly Holding[], funds: FundMap): LookT
 
   const coverage = coverageDenominator > 0 ? coverageNumerator / coverageDenominator : 0
   const hasDirectEquity = holdings.some(h => isLong(h) && normalizeType(h.type) === 'equity')
+  const fundsTotal = fundsSeen.size
+  const fundsLookedThrough = fundsOpened.size
   const hasData = hasDirectEquity || fundsLookedThrough > 0
 
   return {

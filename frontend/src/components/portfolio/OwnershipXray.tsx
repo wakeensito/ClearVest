@@ -2,33 +2,36 @@ import type { Holdings } from '../../api/client'
 import { currency, percentFromFraction, timestamp } from '../../lib/format'
 import { expenseRatioLabel } from '../../lib/fundExplainer'
 import { fundFees, lookThrough, type Exposure } from '../../lib/lookThrough'
-import { useFundMap } from '../../lib/useFundMap'
-import { coverageCaption, feeCopy, ownershipHeadline, topCompaniesLine, viaLine } from '../../lib/xrayCopy'
+import { useFundMap, type FundMapState } from '../../lib/useFundMap'
+import { coverageCaption, feeCopy, FEES_PENDING, ownershipHeadline, topCompaniesLine, viaLine } from '../../lib/xrayCopy'
+import { Button } from '../ui/Button'
 import { Dots } from '../ui/Dots'
 import { SkeletonBlock } from '../ui/Skeleton'
 import styles from './OwnershipXray.module.css'
 
 const ROWS = 5
-export const NO_XRAY_DATA = 'Link an account with stocks or funds to see who you really own.'
+export const NO_XRAY_DATA = 'This account has no stocks or funds to look inside.'
+export const FUNDS_UNAVAILABLE = "We couldn't look inside your funds right now."
 
 /**
  * "What you really own" (DESIGN.md §4.14): the companies behind the account once each fund is
  * opened up, and what the funds cost. The sentences carry the meaning; bars are decoration.
  */
 export function OwnershipXray({ data, hideValues = false }: { data: Holdings; hideValues?: boolean }) {
-  const { funds, loaded, total, pending } = useFundMap(data.holdings)
-  const waitingForFirstFund = pending && loaded === 0 && total > 0
+  const fundMap = useFundMap(data.holdings)
+  const checking = fundMap.pending.length > 0
+  const waitingForFirstFund = checking && fundMap.loaded === 0
 
   return (
     <section id="xray" className={styles.card} aria-labelledby="xray-heading">
       <header className={styles.head}>
         <h2 id="xray-heading" className={styles.eyebrow}>What you really own</h2>
-        {pending && !waitingForFirstFund && <Dots label="Checking more of your funds" />}
+        {checking && !waitingForFirstFund && <Dots label="Checking more of your funds" />}
       </header>
       {waitingForFirstFund ? (
         <SkeletonBlock lines={4} label="Looking inside your funds" />
       ) : (
-        <XrayBody data={data} funds={funds} hideValues={hideValues} />
+        <XrayBody data={data} fundMap={fundMap} hideValues={hideValues} />
       )}
     </section>
   )
@@ -44,24 +47,36 @@ export function OwnershipXraySkeleton() {
   )
 }
 
-function XrayBody({ data, funds, hideValues }: { data: Holdings; funds: Parameters<typeof lookThrough>[1]; hideValues: boolean }) {
-  const lt = lookThrough(data.holdings, funds)
+function XrayBody({ data, fundMap, hideValues }: { data: Holdings; fundMap: FundMapState; hideValues: boolean }) {
+  const checking = fundMap.pending.length > 0
+  const lt = lookThrough(data.holdings, fundMap.funds)
   const top = lt.companies[0]
+
+  // Every fund lookup failed or came back empty: saying who the money is in would be a guess.
+  if (lt.fundsTotal > 0 && lt.fundsLookedThrough === 0 && !checking) {
+    return (
+      <div className={styles.unavailable}>
+        <p className="t-body c-secondary">{FUNDS_UNAVAILABLE}</p>
+        {fundMap.failed.length > 0 && <Button variant="secondary" size="compact" onClick={fundMap.retry}>Retry</Button>}
+      </div>
+    )
+  }
   if (!lt.hasData || !top) return <p className="t-body c-secondary">{NO_XRAY_DATA}</p>
 
   const scale = top.share
   const summary = topCompaniesLine(lt)
   const caption = coverageCaption({ checked: lt.fundsLookedThrough, total: lt.fundsTotal, coverage: lt.coverage, asOf: timestamp(data.asOf) })
+  const headline = ownershipHeadline(top, { unopened: lt.fundsTotal - lt.fundsLookedThrough, checking })
 
   return (
     <>
-      <p className={styles.headline}>{ownershipHeadline(top)}</p>
+      <p className={styles.headline}>{headline}</p>
       <ol role="list" className={styles.rows}>
         {lt.companies.slice(0, ROWS).map((c) => <CompanyRow key={c.symbol ?? c.name} company={c} scale={scale} />)}
       </ol>
       {summary && <p className={styles.summary}>{summary}</p>}
       <p className={styles.dataLine}>{caption}</p>
-      <FeePanel data={data} funds={funds} hideValues={hideValues} />
+      <FeePanel data={data} fundMap={fundMap} hideValues={hideValues} />
     </>
   )
 }
@@ -87,9 +102,18 @@ function CompanyRow({ company: c, scale }: { company: Exposure; scale: number })
   )
 }
 
-function FeePanel({ data, funds, hideValues }: { data: Holdings; funds: Parameters<typeof fundFees>[1]; hideValues: boolean }) {
-  const fees = fundFees(data.holdings, funds)
-  const copy = feeCopy(fees, hideValues)
+function FeePanel({ data, fundMap, hideValues }: { data: Holdings; fundMap: FundMapState; hideValues: boolean }) {
+  const fees = fundFees(data.holdings, fundMap.funds)
+  if (fundMap.pending.length > 0) {
+    // A fund still loading would read as "fee not available" and undercount the total: wait.
+    return (
+      <div className={styles.fees} role="group" aria-labelledby="xray-fees-heading" data-xray-fees="pending">
+        <h3 id="xray-fees-heading" className="t-h3">What it costs</h3>
+        <p className={`t-body-sm c-secondary ${styles.pending}`}>{FEES_PENDING} <Dots /></p>
+      </div>
+    )
+  }
+  const copy = feeCopy(fees, hideValues, { notChecked: fundMap.unchecked })
   if (!copy) return null
   return (
     <div className={styles.fees} role="group" aria-labelledby="xray-fees-heading" data-xray-fees>
@@ -117,6 +141,7 @@ function FeePanel({ data, funds, hideValues }: { data: Holdings; funds: Paramete
         </table>
       )}
       {copy.unknown && <p className={styles.dataLine}>{copy.unknown}</p>}
+      {copy.notChecked && <p className={styles.dataLine}>{copy.notChecked}</p>}
     </div>
   )
 }
