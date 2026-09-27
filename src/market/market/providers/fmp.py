@@ -54,8 +54,10 @@ def stock_news(symbols: list[str]) -> list:
 def research_section(symbol: str, section: str) -> list:
     """Small, explicitly allowlisted datasets for guided company research."""
     endpoint = {"profile": "profile", "income": "income-statement",
-                "valuation": "ratios-ttm", "history": "ratios"}[section]
+                "valuation": "ratios-ttm", "history": "ratios", "earnings": "earnings"}[section]
     params = {"period": "annual", "limit": 5} if section in {"income", "history"} else {}
+    if section == "earnings":
+        params = {"limit": 4}  # newest first; the free tier includes the next scheduled report
     return _get(endpoint, symbol=symbol, **params)
 
 
