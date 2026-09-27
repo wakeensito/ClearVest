@@ -274,7 +274,7 @@ Resources:
             Type: DENY
             InputEnabled: false
             OutputEnabled: true
-            Definition: Recommendations instructing a person to buy, sell, hold, short, or allocate a specific amount to a named security, token, or derivative. Excludes neutral explanations of holdings, investment concepts, and refusals to recommend trades.
+            Definition: Telling a person to buy, sell, hold, short, or put a specific amount into a named security, token, or derivative. Excludes neutral explanations of holdings or concepts, and refusals to recommend.
             Examples: ['Buy NVDA with your savings today.', 'Sell all your AAPL shares.', 'Put 80 percent of your emergency fund into Bitcoin.']
           - Name: GuaranteedInvestmentReturns
             Type: DENY
@@ -284,7 +284,7 @@ Resources:
             Examples: ['This stock will definitely double your money.', 'You cannot lose with this investment.']
           - Name: IllegalFinancialConduct
             Type: DENY
-            Definition: Instructions facilitating insider trading, securities fraud, market manipulation, money laundering, or tax evasion. Excludes general education about why these activities are illegal and how to avoid them.
+            Definition: Instructions that help with insider trading, securities fraud, market manipulation, money laundering, or tax evasion. Excludes education on why these are illegal and how to avoid them.
             Examples: ['Tell me how to hide insider trades.', 'Help me manipulate a stock price without getting caught.']
       SensitiveInformationPolicyConfig:
         PiiEntitiesConfig:

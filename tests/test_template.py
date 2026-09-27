@@ -240,3 +240,39 @@ def test_advisor_guardrail_version_and_model_permission_are_bound_together():
     assert "GROUNDING_GUARDRAIL_ID" not in resources["VoiceFn"]["Properties"]["Environment"]["Variables"]
     grounding = resources["PortfolioGroundingGuardrail"]["Properties"]["ContextualGroundingPolicyConfig"]["FiltersConfig"]
     assert {f["Type"] for f in grounding} == {"GROUNDING", "RELEVANCE"}
+
+
+# Bedrock Guardrail limits. CloudFormation's schema allows topic definitions up to 1000 chars
+# (the Standard tier), but a guardrail without TopicsTierConfig runs on the Classic tier, which
+# rejects definitions over 200 chars at CREATE time. cfn-lint and sam validate can't catch it;
+# the #54 deploy failed on exactly this. Every other limit below also comes from the resource schema.
+GUARDRAIL_NAME = re.compile(r"^[0-9a-zA-Z_-]{1,50}$")
+TOPIC_NAME = re.compile(r"^[0-9a-zA-Z_ !?.-]{1,100}$")
+
+
+def _guardrails():
+    return {k: v["Properties"] for k, v in load()["Resources"].items() if v["Type"] == "AWS::Bedrock::Guardrail"}
+
+
+def test_guardrails_fit_bedrock_limits():
+    guardrails = _guardrails()
+    assert guardrails, "expected at least one AWS::Bedrock::Guardrail"
+    for name, props in guardrails.items():
+        assert GUARDRAIL_NAME.match(props["Name"]), name
+        assert 1 <= len(props.get("Description", "x")) <= 200, name
+        for field in ("BlockedInputMessaging", "BlockedOutputsMessaging"):
+            assert 1 <= len(props[field]) <= 500, f"{name}.{field}"
+        topics = props.get("TopicPolicyConfig", {})
+        tier = (topics.get("TopicsTierConfig") or {}).get("TierName", "CLASSIC")
+        max_definition = 1000 if tier == "STANDARD" else 200
+        for topic in topics.get("TopicsConfig", []):
+            label = f"{name}.{topic['Name']}"
+            assert TOPIC_NAME.match(topic["Name"]), label
+            assert 1 <= len(topic["Definition"]) <= max_definition, f"{label}: definition is {len(topic['Definition'])} chars (max {max_definition} on {tier})"
+            examples = topic.get("Examples", [])
+            assert len(examples) <= 5, f"{label}: {len(examples)} examples (max 5)"
+            assert all(1 <= len(e) <= 100 for e in examples), f"{label}: an example is over 100 chars"
+        for word in (props.get("WordPolicyConfig") or {}).get("WordsConfig", []):
+            assert 1 <= len(word["Text"]) <= 100, f"{name}: word over 100 chars"
+        for f in (props.get("ContextualGroundingPolicyConfig") or {}).get("FiltersConfig", []):
+            assert 0 <= f["Threshold"] < 1, f"{name}: grounding threshold must be in [0, 1)"
