@@ -52,6 +52,9 @@ const axePath = path.resolve(__dirname, '../node_modules/.cache/clearvest-a11y/n
         await next.click();
       }
       await target.getByRole('heading', { name: 'Lesson complete', exact: true }).waitFor();
+      // The fixture holds VTI plus Apple directly and the fund fixture puts Apple inside it, so the
+      // score screen's look-through line adds the two: "At least 27% of your money is two companies".
+      if (id === 'be-the-fund') await target.getByText(/^At least \d+% of your money is two companies: Apple and NVIDIA\./).waitFor();
       if (inspect) await noOverflow(`${id} complete`);
     };
     await page.goto(base + '/learn');
