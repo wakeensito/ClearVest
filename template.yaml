@@ -183,7 +183,9 @@ Resources:
       Handler: market.refresh_worker.handler
       MemorySize: 1024
       Timeout: 60
-      ReservedConcurrentExecutions: 2
+      # No ReservedConcurrentExecutions: this account's Lambda limit is 10 and Lambda keeps 10
+      # unreserved, so reserving any amount fails the deploy. The SQS event's ScalingConfig caps
+      # the worker at 2 concurrent runs instead.
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: market-refresh
