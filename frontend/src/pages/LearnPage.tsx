@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, Check, Clock, MessageCircle, Search } from 'lucide-react'
+import { ArrowUpRight, BookOpen, Check, Clock, MessageCircle, Play, Search } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
@@ -10,7 +10,7 @@ import { FAQ } from '../lib/faq'
 import { filterTerms, GLOSSARY_SOURCE, LEARNING_SOURCE } from '../lib/learning'
 import { resetProgress } from '../lib/learnProgress'
 import { useLearnProgress } from '../lib/useLearnProgress'
-import { ALL_LESSONS, nextLesson, UNITS } from '../lib/lessons'
+import { ALL_LESSONS, nextLesson, PLAY_LESSON, UNITS } from '../lib/lessons'
 import styles from './LearnPage.module.css'
 
 const ask = (prompt: string) => `/advisor?q=${encodeURIComponent(prompt)}`
@@ -24,6 +24,7 @@ export function LearnPage() {
   const terms = filterTerms(search)
   const done = progress.completed.filter((id) => ALL_LESSONS.some((l) => l.id === id)).length
   const upNext = nextLesson(progress.completed)
+  const played = PLAY_LESSON ? progress.completed.includes(PLAY_LESSON.id) : false
   const visibleTerms = search.trim() || showAllTerms ? terms : terms.slice(0, 6)
 
   return <div className={styles.page}>
@@ -47,6 +48,16 @@ export function LearnPage() {
       </div>
       <img src="/images/valley-path.webp" width="2172" height="724" alt="" className={styles.landscape} />
     </header>
+
+    {PLAY_LESSON && <section className={styles.play} aria-labelledby="play-title">
+      <span className={styles.playIcon} aria-hidden><Play size={22} /></span>
+      <div className={styles.playText}>
+        <h2 id="play-title">{PLAY_LESSON.title}</h2>
+        <p>Run a real index fund. Make the three calls a fund manager makes, and see whether the index agrees.</p>
+        <span className={styles.playMeta}><Clock size={12} aria-hidden />{PLAY_LESSON.minutes} min{played && <span className={styles.playDone}> · Played</span>}</span>
+      </div>
+      <ButtonLink to={`/learn/${PLAY_LESSON.id}`} arrow>{played ? 'Play it again' : 'Play'}</ButtonLink>
+    </section>}
 
     <section aria-labelledby="path-title">
       <div className={styles.sectionHead}>

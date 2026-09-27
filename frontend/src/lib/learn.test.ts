@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { currencyWhole } from './format'
 import { FAQ } from './faq'
 import { TERMS } from './learning'
+import { heldFund } from './fundPlay'
 import { completeLesson, currentStreak, EMPTY_PROGRESS, growth, localDay, parseProgress } from './learnProgress'
-import { ALL_LESSONS, findLesson, nextLesson, UNITS } from './lessons'
+import { ALL_LESSONS, findLesson, nextLesson, PLAY_LESSON, UNITS } from './lessons'
 
 const at = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12)
 
@@ -13,8 +14,9 @@ describe('starter path content', () => {
     expect(new Set(ids).size).toBe(ids.length)
     for (const lesson of ALL_LESSONS) {
       expect(lesson.cards.length).toBeGreaterThan(0)
-      expect(lesson.quiz.length).toBeGreaterThan(0)
-      for (const q of lesson.quiz) {
+      const questions = lesson.play?.decisions ?? lesson.quiz
+      expect(questions.length).toBeGreaterThan(0)
+      for (const q of questions) {
         expect(q.answer).toBeGreaterThanOrEqual(0)
         expect(q.answer).toBeLessThan(q.options.length)
         expect(new Set(q.options).size).toBe(q.options.length)
@@ -32,6 +34,36 @@ describe('starter path content', () => {
   it('keeps the glossary and FAQ free of duplicates', () => {
     expect(new Set(TERMS.map((t) => t.term)).size).toBe(TERMS.length)
     expect(new Set(FAQ.map((f) => f.question)).size).toBe(FAQ.length)
+  })
+})
+
+describe('be the fund', () => {
+  const play = PLAY_LESSON?.play
+  it('plays a real fund whose decisions point at holdings in the strip', () => {
+    expect(PLAY_LESSON?.id).toBe('be-the-fund')
+    expect(findLesson('be-the-fund')?.unit.id).toBe('what-to-buy')
+    if (!play) throw new Error('no play block')
+    expect(PLAY_LESSON?.quiz).toHaveLength(0)
+    const symbols = play.holdings.map((h) => h.symbol)
+    expect(new Set(symbols).size).toBe(symbols.length)
+    for (const d of play.decisions) expect(symbols).toContain(d.focus)
+    expect(symbols).toContain(play.spotlight)
+    const weights = play.holdings.map((h) => h.weight)
+    expect(weights).toEqual([...weights].sort((a, b) => b - a))
+    const sum = weights.reduce((s, w) => s + w, 0)
+    expect(sum).toBeCloseTo(play.topShare, 2)
+    expect(sum).toBeLessThan(1)
+    expect(play.asOf).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+  it('ties the fund back to what the user holds, or nothing', () => {
+    if (!play) throw new Error('no play block')
+    expect(heldFund(play, undefined)).toBeNull()
+    expect(heldFund(play, [])).toBeNull()
+    expect(heldFund(play, [{ symbol: 'QQQ', value: 100 }, { symbol: 'VOO', value: 0 }])).toBeNull()
+    const held = heldFund(play, [{ symbol: 'VOO', value: 10000 }, { symbol: 'AAPL', value: 500 }, { symbol: 'VOO', value: 662 }])
+    expect(held?.held).toBe(10662)
+    expect(held?.weight).toBe(0.07)
+    expect(held?.inside).toBeCloseTo(746.34, 2)
   })
 })
 

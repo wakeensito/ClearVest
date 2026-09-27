@@ -1,5 +1,6 @@
 """Plaid (sandbox by default). Access tokens never leave PortfolioFn."""
 
+import json
 import os
 
 from clearvest import api, config, http
@@ -45,10 +46,40 @@ def exchange(public_token: str) -> tuple[str, str]:
     return resp["item_id"], resp["access_token"]
 
 
+# "Use a sample account" gets this portfolio instead of Plaid's default junk names. It overlaps
+# on purpose (VOO, QQQ and VGT all hold Nvidia and Apple, which are also held directly) so
+# look-through and the "Be the fund" lesson have something real to show. Prices are from
+# 2026-09-26 and only need to be roughly right; Plaid keeps them as given.
+SANDBOX_USER = "user_custom"
+SANDBOX_HOLDINGS = [
+    ("VOO", "Vanguard S&P 500 ETF", "etf", 15, 710.79),
+    ("QQQ", "Invesco QQQ Trust", "etf", 6, 744.50),
+    ("VGT", "Vanguard Information Technology ETF", "etf", 8, 126.17),
+    ("NVDA", "NVIDIA Corp", "equity", 12, 225.07),
+    ("AAPL", "Apple Inc", "equity", 10, 341.07),
+]
+SANDBOX_CASH = 1500
+
+
+def sandbox_user_config() -> dict:
+    """Plaid custom sandbox user (plaid.com/docs/sandbox/user-custom), sent as the password."""
+    holdings = [{
+        "quantity": quantity,
+        "institution_price": price,
+        "cost_basis": round(price * 0.85, 2),
+        "currency": "USD",
+        "security": {"ticker_symbol": symbol, "currency": "USD", "name": name, "type": kind},
+    } for symbol, name, kind, quantity, price in SANDBOX_HOLDINGS]
+    return {"override_accounts": [{
+        "type": "investment", "subtype": "brokerage", "starting_balance": SANDBOX_CASH, "holdings": holdings,
+    }]}
+
+
 def sandbox_public_token() -> str:
     resp = _post("/sandbox/public_token/create", {
         "institution_id": SANDBOX_INSTITUTION,
         "initial_products": ["investments"],
+        "options": {"override_username": SANDBOX_USER, "override_password": json.dumps(sandbox_user_config())},
     })
     return resp["public_token"]
 
