@@ -175,8 +175,11 @@ show its calendar date and distinguish that from our retrieval time. News is cac
 The default route is a small interactive explanation of a share, using a clearly fictional business
 with 100 equal shares. It offers an optional knowledge check and paths into Learn, research and
 portfolio context. A primary action under the headline starts (or resumes) the starter lessons, so
-there is a clear first step above the fold on phones. A correct answer to the share check reveals a
-“Next: <lesson>” link into the first unfinished lesson. The three path links end with a visible
+there is a clear first step above the fold on phones. A correct answer to the share check reveals
+“So how do investors spot sturdier companies?”: four clues from the financial statements (revenue,
+net income, debt, P/E), a caution that clues never guarantee a price won’t drop, a primary link to
+guided research on Apple, an “Ask the professor to explain” advisor prefill, and a “Next: <lesson>”
+link into the first unfinished lesson. The three path links end with a visible
 action label and arrow so they read as links. One “Your progress” panel shows both starter-lesson
 progress (count and meter) and the three research milestones (“Understand a share”, “Tell sales
 from profit”, “Understand how a stock is priced”), stored separately on this browser and scoped to

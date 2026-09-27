@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpen, Search, Wallet, Check } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { CompanyClues } from '../components/education/CompanyClues'
 import { QuickCheck } from '../components/education/QuickCheck'
 import { ButtonLink } from '../components/ui/Button'
 import { useResearchProgress } from '../lib/researchProgress'
@@ -34,10 +35,7 @@ export function HomePage() {
       <div className={styles.ownership}><div className={styles.shares} aria-hidden>{Array.from({ length: 100 }, (_, index) => <span key={index} data-owned={index < shares} />)}</div><p><strong>{shares}%</strong> of this example business belongs to you.</p></div>
       <div className={styles.check}>
         <QuickCheck milestone="share" question="Does owning a share guarantee a profit?" answers={[{ text: 'No, its value can fall', correct: true, explanation: 'You own part of a business, but its future is uncertain. You could lose money.' }, { text: 'Yes, because I own it', correct: false, explanation: 'Ownership does not guarantee success. A business can struggle and its shares can lose value. Try again.' }]} />
-        {progress.includes('share') && resume && <Link to={`/learn/${resume.id}`} className={styles.followUp}>
-          <span className={styles.followUpLabel}>{started ? 'Keep going' : 'Next idea · 3 minutes'}</span>
-          <span className={styles.followUpTitle}>Next: {resume.title}<ArrowRight size={18} aria-hidden /></span>
-        </Link>}
+        {progress.includes('share') && <CompanyClues lesson={resume ? { id: resume.id, title: resume.title, started } : undefined} />}
       </div>
     </section>
     <section className={styles.next} aria-labelledby="next-step"><div><h2 id="next-step">Take your next small step</h2><p>You can learn without buying anything.</p></div><div className={styles.paths}>
