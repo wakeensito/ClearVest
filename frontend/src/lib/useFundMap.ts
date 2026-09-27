@@ -5,7 +5,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { api, type Holding } from '../api/client'
 import { normalizeType } from './assetTypes'
-import type { FundMap } from './lookThrough'
+import type { FundMap } from './portfolioXray'
 
 /** A demo account has a handful of funds; cap the fan-out so a big account can't burst the API. */
 export const FUND_CAP = 8

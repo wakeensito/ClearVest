@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Fund, Holding } from '../api/client'
 import { VOO } from './fundExplainer.fixtures'
-import type { FundMap } from './lookThrough'
+import type { FundMap } from './portfolioXray'
 import type { RiskProfile } from './risk'
 import { whatIf, whatIfSentence } from './whatIf'
 

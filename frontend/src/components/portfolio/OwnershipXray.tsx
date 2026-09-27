@@ -1,7 +1,7 @@
 import type { Holdings } from '../../api/client'
 import { currency, percentFromFraction, timestamp } from '../../lib/format'
 import { expenseRatioLabel } from '../../lib/fundExplainer'
-import { fundFees, lookThrough, type Exposure } from '../../lib/lookThrough'
+import { fundFees, lookThrough, type Exposure } from '../../lib/portfolioXray'
 import { useFundMap, type FundMapState } from '../../lib/useFundMap'
 import { coverageCaption, feeCopy, FEES_PENDING, ownershipHeadline, topCompaniesLine, viaLine } from '../../lib/xrayCopy'
 import { Button } from '../ui/Button'

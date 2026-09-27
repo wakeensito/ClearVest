@@ -4,7 +4,7 @@
 
 import { expenseRatioLabel, feePerTenThousand, NO_FEE } from './fundExplainer'
 import { currencyWhole, percentFromFraction } from './format'
-import type { Exposure, FundFees, LookThrough } from './lookThrough'
+import type { Exposure, FundFees, LookThrough } from './portfolioXray'
 import { MIX_LABEL } from './targetMix'
 
 const HALF_PERCENT = 0.005

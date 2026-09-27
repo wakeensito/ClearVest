@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Fund, Holding } from '../api/client'
 import { VOO } from './fundExplainer.fixtures'
-import { companyKey, fundFees, lookThrough, type FundMap } from './lookThrough'
+import { companyKey, fundFees, lookThrough, type FundMap } from './portfolioXray'
 
 // Sample sandbox account (src/layer/clearvest/providers/plaid.py:49-84), prices as of 2026-09-26.
 const QTY = {

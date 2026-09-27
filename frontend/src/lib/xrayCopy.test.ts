@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Exposure, FundFees } from './lookThrough'
+import type { Exposure, FundFees } from './portfolioXray'
 import {
   advisorMixHref,
   coverageCaption,

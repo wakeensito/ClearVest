@@ -1,11 +1,11 @@
 // Ticker-page "what would adding $X of this do to my portfolio?" math (DESIGN.md — the card itself
 // is a separate task). Pure math only: no React, no fetching, no new numbers invented. Builds
-// directly on lookThrough() (frontend/src/lib/lookThrough.ts) and riskScore() (frontend/src/lib/
+// directly on lookThrough() (frontend/src/lib/portfolioXray.ts) and riskScore() (frontend/src/lib/
 // risk.ts) — this module never re-implements either's math, only feeds them a hypothetical
 // "holdings after" account.
 
 import type { Fund, FundKind, Holding } from '../api/client'
-import { type FundMap, lookThrough } from './lookThrough'
+import { type FundMap, lookThrough } from './portfolioXray'
 import { currencyWhole } from './format'
 import { type RiskProfile, type RiskResult, riskScore } from './risk'
 import { wholePercent } from './xrayCopy'

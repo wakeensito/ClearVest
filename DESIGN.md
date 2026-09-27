@@ -338,7 +338,7 @@ illustrations beyond the strip.
 ### 4.14 What you really own and your plan vs. today
 
 The two portfolio moments: who the money is really in once funds are opened up, and how the mix
-compares with a model plan. Math lives in `lib/lookThrough.ts` and `lib/targetMix.ts`; every sentence in
+compares with a model plan. Math lives in `lib/portfolioXray.ts` and `lib/targetMix.ts`; every sentence in
 `lib/xrayCopy.ts`; fund facts come from `lib/useFundMap.ts` (the same `['fund', SYMBOL]` query and
 one-day cache as `useFund`, `retry: 1`, at most the 8 largest funds; a failed fund is simply
 missing). Only shown when an account is linked.

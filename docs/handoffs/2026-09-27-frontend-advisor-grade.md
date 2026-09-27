@@ -17,7 +17,7 @@ demo the whole thing without reading the commit history.
 - **What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, DESIGN.md
   §4.14): opens the Portfolio main column, above Security research. Opens each ETF/mutual fund's
   top 10 holdings (`lib/useFundMap.ts`, capped at 8 funds/account) and folds them into the
-  account's direct stock positions (`lib/lookThrough.ts`) to say who the money is really in —
+  account's direct stock positions (`lib/portfolioXray.ts`) to say who the money is really in —
   "Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT." — plus a "What it
   costs" fee panel (blended expense ratio, dollars/year, 10-year projection, a cheapest-fund
   comparison, and a Fund/Expense ratio/Per year table). Every degraded state (no funds looked
