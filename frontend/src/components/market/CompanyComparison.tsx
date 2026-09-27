@@ -8,7 +8,7 @@ import { MISSING, timestamp } from '../../lib/format'
 import { QueryView } from '../QueryView'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { CompanyNameSearch } from './CompanyNameSearch'
+import { SymbolSearch } from './SymbolSearch'
 import { ContextHelp } from '../education/ContextHelp'
 import { CompanyLogo } from './CompanyLogo'
 import styles from './CompanyComparison.module.css'
@@ -69,7 +69,7 @@ export function CompanyComparison({ selected, onSelectedChange }: { selected: st
       </div>
       <p id={`${id}-help`} className={styles.help}>Add tickers one at a time or separate them with commas.</p>
       {error && <p id={`${id}-error`} role="alert" className="t-body-sm c-loss">{error}</p>}
-      <CompanyNameSearch onSelect={symbol => { try { onSelectedChange(addCompanySymbols(selected, symbol)); setError('') } catch (error) { setError((error as Error).message) } }} />
+      <SymbolSearch clearOnSelect label="Find a company by name or ticker" placeholder="Find a company (Apple, Microsoft, …)" className={styles.finder} onSelect={symbol => { try { onSelectedChange(addCompanySymbols(selected, symbol)); setError('') } catch (error) { setError((error as Error).message) } }} />
       <div className={styles.presets}><span>Try a pair</span>{pairs.map((pair) => <button key={pair.label} disabled={query.isFetching} onClick={() => run(pair.symbols)}><span>{pair.label}</span><strong>{pair.symbols.join(' + ')}</strong></button>)}</div>
     </div>
     <ContextHelp title="How do I compare companies fairly?"><p>Start with businesses that sell similar things. A ratio puts a number in context: P/E compares share price with earnings per share, and a margin shows how much of each unit of sales remains after certain costs.</p><p>There is no universal good P/E. A lower number can reflect lower growth or higher risk. Negative or missing P/E values are not useful for this comparison. Per-share values below have no confirmed currency, so do not compare them across currencies.</p></ContextHelp>

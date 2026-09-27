@@ -113,19 +113,22 @@ fs.mkdirSync(output, { recursive: true });
       if (width === 390) await page.screenshot({ path: path.join(output, 'beginner-financials-mobile.png'), fullPage: true });
     }
 
-    // Name lookup, empty results, provider retry, and selection update all research sections.
+    // One search box: names suggest as you type, no match says so, a search error never blocks, a pick updates every section.
     const finder = page.getByRole('region', { name: 'Security research workspace', exact: true });
-    await finder.getByText('Don’t know the ticker? Find a company by name', { exact: true }).click();
-    await finder.getByRole('button', { name: 'Find company', exact: true }).click();
-    await finder.getByText('Enter a company name or ticker.', { exact: true }).waitFor();
-    searchMode = 'empty'; await finder.getByLabel('Company name or ticker').fill('nonexistent');
-    await finder.getByRole('button', { name: 'Find company', exact: true }).click();
-    await finder.getByText(/No companies found/).waitFor();
-    searchMode = 'error'; await finder.getByLabel('Company name or ticker').fill('apple');
-    await finder.getByRole('button', { name: 'Find company', exact: true }).click();
-    await page.getByRole('button', { name: 'Retry', exact: true }).waitFor();
-    searchMode = 'ok'; await page.getByRole('button', { name: 'Retry', exact: true }).click();
-    await finder.getByRole('button', { name: /Apple Inc./ }).click();
+    const box = finder.getByRole('combobox', { name: 'Search a ticker or company' });
+    await box.fill(''); await box.press('Enter');
+    await finder.getByText('Enter one ticker symbol, such as VOO or BRK-B.', { exact: true }).waitFor();
+    searchMode = 'empty'; await box.fill('nonexistent');
+    await finder.getByText(/No matches/).waitFor();
+    searchMode = 'error'; await box.fill('apple inc');
+    await finder.getByText('Searching…', { exact: true }).waitFor();
+    await finder.getByText('Searching…', { exact: true }).waitFor({ state: 'hidden' });
+    assert.equal(await finder.getByRole('listbox').count(), 0, 'A failed search hides the list');
+    searchMode = 'ok'; await box.fill('apple');
+    await box.press('ArrowDown');
+    assert(await box.getAttribute('aria-activedescendant'), 'ArrowDown highlights the first suggestion');
+    await finder.getByRole('option', { name: /Apple Inc\./ }).click();
+    assert.equal(await box.inputValue(), 'AAPL');
     await financials().getByRole('heading', { name: /Understand AAPL/ }).waitFor();
 
     for (const mode of ['partial', 'stale', 'loss', 'currency', 'empty', 'error', 'slow']) {
@@ -150,7 +153,7 @@ fs.mkdirSync(output, { recursive: true });
     await page.getByRole('button', { name: 'Compare securities', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Compare securities' });
     const right = dialog.getByRole('region', { name: 'Second security', exact: true });
-    await right.getByLabel('Research a ticker symbol').fill('MSFT');
+    await right.getByLabel('Search a ticker or company').fill('MSFT');
     await right.getByRole('button', { name: 'Research symbol' }).click();
     await dialog.getByRole('region', { name: 'MSFT company financials' }).getByRole('heading', { name: 'Understand MSFT example company' }).waitFor();
     await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -206,8 +206,10 @@ when the original comparison contract omits currency.
 
 `/market/company-research` caches profile, income, current ratios and historical ratios independently
 for one day. A section failure preserves other sections and exposes a retry. Each source keeps its
-original retrieval timestamp through a stale fallback. `/market/search` supports names and tickers;
-lookup is submitted explicitly. Browser demonstrations use contract fixtures, not live entitlement.
+original retrieval timestamp through a stale fallback. `/market/search` supports names and tickers.
+One search box (`SymbolSearch`) takes both: from two characters it suggests up to eight matches after a
+300 ms pause (in-flow listbox, name truncated, never blocks Enter); a ticker-shaped entry goes straight to
+the chart unless the suggestions say otherwise (`lib/searchBox.ts`). Browser demonstrations use contract fixtures, not live entitlement.
 
 Explanations use everyday language, disclose details only when needed, and include local feedback on
 sales versus profit and on interpreting P/E. Contextual disclosures also explain charts, portfolios,

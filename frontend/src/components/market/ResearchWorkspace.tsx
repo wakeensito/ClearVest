@@ -2,11 +2,11 @@ import { ArrowLeftRight, Minimize2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { toFundState, useFund } from '../../api/queries'
 import { Button } from '../ui/Button'
-import { CompanyNameSearch } from './CompanyNameSearch'
 import { CompanyFinancials } from './CompanyFinancials'
 import { CompactFundExplainer, RealDifference } from './FundExplainer'
 import { MarketNews } from './MarketNews'
 import { SecurityResearch } from './ResearchPanel'
+import { SymbolSearch } from './SymbolSearch'
 import styles from './ResearchWorkspace.module.css'
 
 export function ResearchWorkspace({ symbol, onSymbolChange, onCompareCompanies, guided = false }: { symbol: string; onSymbolChange: (symbol: string) => void; onCompareCompanies?: (a: string, b: string) => void; guided?: boolean }) {
@@ -35,7 +35,7 @@ export function ResearchWorkspace({ symbol, onSymbolChange, onCompareCompanies, 
   return <>
     <section className={styles.workspace} aria-label="Security research workspace">
       <header className={styles.heading}><div><h2 data-research-heading tabIndex={-1}>Security research</h2><p>A security is an investment, such as a stock or a fund. Explore one, or compare two.</p></div><button ref={compareButton} className={styles.compareButton} onClick={open}><ArrowLeftRight size={17} aria-hidden />Compare securities</button></header>
-      {guided ? <div className={styles.guided}><p>Start with the business. Choose another company whenever you’re ready.</p><CompanyNameSearch onSelect={onSymbolChange} /><CompanyFinancials key={symbol} symbol={symbol} /><details onToggle={event => setShowChart(event.currentTarget.open)}><summary>Explore the share price chart</summary>{showChart && <SecurityResearch key={symbol} initialSymbol={symbol} title="Price history" onSymbolChange={onSymbolChange} />}</details></div> : <div className={styles.single}><SecurityResearch key={symbol} initialSymbol={symbol} title="Price history" onSymbolChange={onSymbolChange} /></div>}
+      {guided ? <div className={styles.guided}><p>Start with the business. Choose another company whenever you’re ready.</p><SymbolSearch value={symbol} onSelect={onSymbolChange} /><CompanyFinancials key={symbol} symbol={symbol} /><details onToggle={event => setShowChart(event.currentTarget.open)}><summary>Explore the share price chart</summary>{showChart && <SecurityResearch key={symbol} initialSymbol={symbol} title="Price history" onSymbolChange={onSymbolChange} />}</details></div> : <div className={styles.single}><SecurityResearch key={symbol} initialSymbol={symbol} title="Price history" onSymbolChange={onSymbolChange} /></div>}
     </section>
     {!guided && <CompanyFinancials key={symbol} symbol={symbol} />}
     <MarketNews symbols={[symbol]} enabled={!comparing} />
