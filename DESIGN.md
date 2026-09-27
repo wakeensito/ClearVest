@@ -249,18 +249,24 @@ Deeper learning: see #44.
 **Identity line.** Directly under the ticker search: “VOO · Index fund (ETF)” and, only when `tracks`
 is set, “Tracks the Standard & Poor's 500 Index”, plus an outlined “What is this?” button (44px,
 `aria-expanded`). Kind labels: index ETF “Index fund (ETF)”, ETF “ETF”, index mutual fund “Index fund
-(mutual fund)”, mutual fund “Mutual fund”, stock “Company stock”, anything else “Investment”. Loading
+(mutual fund)”, mutual fund “Mutual fund”, stock “Company stock”, index “Stock market index”, crypto
+“Cryptocurrency”, anything else “Investment”. `leveraged` wins over all of these: “Leveraged ETF · high
+risk”, with “high risk” in semibold `loss` (the words carry the meaning; color only reinforces it). A
+leveraged fund never gets index-fund copy, even when the provider says it tracks an index. Loading
 shows a quiet, `aria-hidden` two-line skeleton; an error removes the line. Fund data never blocks or
 replaces the chart. Closed, nothing else is added to the research card.
 
 **Open explainer.** Opens directly below the identity line and pushes the chart down. A sticky bar
 (“VOO explained” + Done) sits under the app top bar. Three items stay visible, each at most two lines at
 375px: (1) What is it? — the first sentence of the API `summary`; (2) What's inside? — the dollar strip
-and “Of every $1: 8¢ NVIDIA · 7¢ Apple · 6¢ Microsoft + 501 more”; (3) What does it cost? — “About $3 a
+and “Of every $1: 8¢ NVIDIA · 7¢ Apple · 6¢ Microsoft + hundreds more” (“+ hundreds more” for a plain
+index fund, “+ more” otherwise; the API has no holdings count); (3) What does it cost? — “About $3 a
 year on every $10,000 invested · expense ratio 0.03%” (ratio × 10,000, whole dollars; “Under $1” below
-$0.50; “Fee information isn't available.” when null). Stocks show step 1 only, unnumbered, with “See what
-this company earns →”, which scrolls to and focuses `[data-company-financials]` (or opens Markets, where
-that section exists). A 12px data line gives the as-of date, “saved copy” when stale, and “Summary written
+$0.50; “No yearly fee” at 0; “Fee information isn't available.” when null). Stocks show step 1 only,
+unnumbered, with “See what this company earns →”, which scrolls to and focuses `[data-company-financials]`
+(or opens Markets, where that section exists). An index shows step 1 and “You can't buy an index
+directly; index funds like VOO copy it.” with “Research VOO →”, which switches the panel's ticker.
+Crypto and “other” show step 1 only. A 12px data line gives the as-of date, “saved copy” when stale, and “Summary written
 by AI” when `summarySource` is `model`. Measured at 375px: 528px tall, 672px with a chip answer open.
 
 **Dollar strip (signature).** One 32px bar is $1. Up to ten holdings are slices proportional to weight,
@@ -274,9 +280,13 @@ information isn't available for this fund right now.” Names drop corporate suf
 “Apple”) but keep share classes.
 
 **Keep learning chips.** One row of outlined question chips (44px, no icons), scrolling inside itself
-rather than wrapping: Who runs it? (needs `fundFamily`), Where is the money? (a static plain-word map of
+rather than wrapping; while chips are offscreen the row's right edge fades out (`mask-image`, toggled
+by a scroll listener and a ResizeObserver), so phone users can tell it scrolls. Who runs it? (needs `fundFamily`), Where is the money? (a static plain-word map of
 `category`, or of `sector` for stocks; an unknown value skips the chip, never shows raw jargon), Why own
-it?, How do I buy it?, and last, ETF or mutual fund?. One answer at a time, at most two sentences, on a
+it? (index fund: a slice of hundreds of companies, low fees; leveraged: “It borrows to multiply daily
+moves, so losses can grow fast; it's built for short-term traders, not long-term saving.”; crypto: “No
+company or earnings are behind it, so prices can swing a lot.”; bond funds say “investments”, not
+“companies”), How do I buy it?, and last, ETF or mutual fund?. Indexes and “other” get no chips. One answer at a time, at most two sentences, on a
 sunken band with an accent rule; tapping another chip swaps it. Each answer ends with “Next: <question>
 →”; the last ends with “Ask the advisor about VOO →” (`/advisor?q=`, prefilled, never submitted).
 
@@ -287,7 +297,9 @@ full-width `th scope="rowgroup"`, so the three answer columns keep the full widt
 320px (hyphenating words of seven or more letters). Styling follows §4.12: fixed layout, 13/20 text,
 rule borders, a focusable region labelled “Comparison table”. On phones the table spans the answer band.
 
-**Sync and back.** Open state is `explain=1` in the URL beside `symbol`. Opening pushes a history entry, so
+**Sync and back.** Open state is `explain=1` in the URL beside `symbol`. Writers (the explainer and
+`MarketsPage.selectSymbol`/`switchView`) build from `window.location.search`, not the render's params,
+so a param set in the same frame is never dropped. Opening pushes a history entry, so
 the phone Back button closes it. Done pops that entry, or replaces the URL when a symbol change happened
 in between, and returns focus to the search input. Escape inside the explainer does the same. Changing
 the ticker keeps the explainer open and loads the new security: the learner is already in “explain” mode
@@ -297,9 +309,14 @@ heading.
 **Compare securities.** The full-screen comparison has no URL-synced explainer. Under each chart a
 compact explainer shows the identity, the three items and the chips (collapsed); it renders nothing on
 error. Above the two columns, once both sides load, “What's the real difference?” gives at most three
-sentences from data: two funds (top-holding overlap by symbol or name, same index, how you buy them, fees
-in dollars), a fund and a stock (“VOO is a basket of hundreds of companies; AAPL is one of them (about 7¢
-of every $1 in VOO)”, or “a single company”), or two stocks (one sentence and a link to Compare companies).
+sentences from data. Two funds: top-holding overlap (a holding matches on its symbol, with “.” read as
+“-”, or on its normalized name; “the same”, “almost the same”, “share N of their top M” or “different”),
+same index, how you buy them, and fees in dollars; a missing fee reads “Fee information isn't available
+for X.” A fund and a stock: “VOO is a basket of hundreds of companies; AAPL is one of them (about 7¢ of
+every $1 in VOO)”, or “a single company”. A leveraged side is never a basket: “TQQQ is a leveraged ETF, a
+very different kind of product than VOO.” plus the leveraged why. Two stocks: one sentence and an “Open
+Compare companies” button that closes the dialog through its own close, selects both tickers in Compare
+companies, switches the view and focuses that tab. Indexes, crypto and “other” get no strip.
 
 **Phone and a11y.** No page overflow at 320, 375 or 393px (`npm run test:fund-explainer -w frontend`).
 All targets are 44px. The explainer is a labelled `section`; the chips are a labelled group with

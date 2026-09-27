@@ -7,6 +7,7 @@
 .identity[data-fund-identity='loading'] { display: grid; align-content: center; gap: 8px; }
 .kind { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--cv-text); overflow-wrap: anywhere; }
 .ticker { font-weight: 600; }
+.risk { color: var(--cv-loss); font-weight: 600; }
 .tracks { font-size: 13px; line-height: 20px; color: var(--cv-text-secondary); overflow-wrap: anywhere; }
 .what {
   flex-shrink: 0; min-height: 44px; padding: 0 14px;
@@ -76,6 +77,7 @@
 /* One line on every width: `contain` keeps the row's width out of the page; it scrolls in place. */
 .chips { display: flex; gap: 8px; min-width: 0; contain: inline-size; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
+.fade { mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
 .chip {
   flex-shrink: 0; min-height: 44px; padding: 0 14px; border: 1px solid var(--cv-border-strong); border-radius: var(--cv-radius);
   background: var(--cv-surface); color: var(--cv-text); font-size: 14px; line-height: 20px; font-weight: 500; white-space: nowrap;

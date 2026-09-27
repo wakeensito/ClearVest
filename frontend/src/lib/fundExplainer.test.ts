@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Fund } from '../api/client'
-import { AAPL, TOP_TEN, VFIAX, VOO } from './fundExplainer.fixtures'
+import { AAPL, BND, BTC, SPX, TOP_TEN, TQQQ, VFIAX, VOO } from './fundExplainer.fixtures'
 import {
-  FEE_UNAVAILABLE, advisorHref, basketSize, centsLabel, dollarStrip, everyDollar, expenseRatioLabel, feePerTenThousand,
+  CRYPTO_WHY, FEE_UNAVAILABLE, LEVERAGED_WHY, NO_FEE, advisorHref, centsLabel, companyPair, dollarStrip, everyDollar, expenseRatioLabel, feePerTenThousand,
   feeSentence, firstSentence, holdingsOverlap, isExplainOpen, isFund, kindLabel, learnTopics, plainCategory, plainSector,
   realDifference, shortName, withExplain,
 } from './fundExplainer'
@@ -15,17 +15,24 @@ describe('kindLabel', () => {
     ['mutual_fund', false, 'Mutual fund'],
     ['stock', false, 'Company stock'],
     ['other', false, 'Investment'],
-  ])('%s with isIndexFund=%s reads "%s"', (kind, index, label) => {
-    expect(kindLabel(kind, index)).toBe(label)
+    ['index', false, 'Stock market index'],
+    ['crypto', false, 'Cryptocurrency'],
+  ] as const)('%s with isIndexFund=%s reads "%s"', (kind, isIndexFund, label) => {
+    expect(kindLabel({ kind, isIndexFund, leveraged: false })).toBe(label)
   })
 
   it('ignores isIndexFund for a stock and reads an unknown kind as an investment', () => {
-    expect(kindLabel('stock', true)).toBe('Company stock')
-    expect(kindLabel('crypto', true)).toBe('Investment')
+    expect(kindLabel({ kind: 'stock', isIndexFund: true, leveraged: false })).toBe('Company stock')
+    expect(kindLabel({ kind: 'warrant' as Fund['kind'], isIndexFund: true, leveraged: false })).toBe('Investment')
+  })
+
+  it('a leveraged ETF is never an index fund, even when it tracks one', () => {
+    expect(kindLabel(TQQQ)).toBe('Leveraged ETF · high risk')
+    expect(kindLabel({ ...TQQQ, kind: 'mutual_fund' })).toBe('Leveraged fund · high risk')
   })
 
   it('treats only ETFs and mutual funds as funds', () => {
-    expect(['etf', 'mutual_fund', 'stock', 'other'].map(isFund)).toEqual([true, true, false, false])
+    expect(['etf', 'mutual_fund', 'stock', 'index', 'crypto', 'other'].map(isFund)).toEqual([true, true, false, false, false, false])
   })
 })
 
@@ -42,21 +49,21 @@ describe('cents of every $1', () => {
     expect(centsLabel(Number.NaN)).toBe('<1¢')
   })
 
-  it('names the top three, shortened, and counts the rest from holdingsCount', () => {
-    expect(everyDollar(TOP_TEN, 504)).toEqual({
+  it('names the top three, shortened, then "+ hundreds more" for an index fund', () => {
+    expect(everyDollar(TOP_TEN, true)).toEqual({
       top: [{ name: 'NVIDIA', cents: '8¢' }, { name: 'Apple', cents: '7¢' }, { name: 'Microsoft', cents: '6¢' }],
-      more: '+ 501 more',
+      more: '+ hundreds more',
     })
   })
 
-  it('says "many more" when the count is unknown but money is left over, and nothing when it is all named', () => {
-    expect(everyDollar(TOP_TEN, null).more).toBe('+ many more')
-    expect(everyDollar([{ symbol: 'A', name: 'A', weight: 0.6 }, { symbol: 'B', name: 'B', weight: 0.4 }], null).more).toBeNull()
-    expect(everyDollar(TOP_TEN, 3).more).toBeNull()
+  it('says "+ more" for other funds, and nothing when the named holdings are the whole $1', () => {
+    expect(everyDollar(TOP_TEN, false).more).toBe('+ more')
+    expect(everyDollar([{ symbol: 'A', name: 'A', weight: 0.6 }, { symbol: 'B', name: 'B', weight: 0.4 }], true).more).toBeNull()
+    expect(everyDollar([], true).more).toBeNull()
   })
 
   it('sorts by weight even if the provider does not', () => {
-    expect(everyDollar([...TOP_TEN].reverse(), 504).top[0]).toEqual({ name: 'NVIDIA', cents: '8¢' })
+    expect(everyDollar([...TOP_TEN].reverse(), true).top[0]).toEqual({ name: 'NVIDIA', cents: '8¢' })
   })
 })
 
@@ -104,6 +111,8 @@ describe('fee translation', () => {
     expect(feePerTenThousand(0.0004)).toBe('$4')
     expect(feePerTenThousand(0.00003)).toBe('under $1')
     expect(feePerTenThousand(0.0125)).toBe('$125')
+    expect(feePerTenThousand(0)).toBe(NO_FEE)
+    expect(NO_FEE).toBe('No yearly fee')
     expect(feePerTenThousand(null)).toBeNull()
     expect(feePerTenThousand(-0.001)).toBeNull()
   })
@@ -112,6 +121,7 @@ describe('fee translation', () => {
     expect(feeSentence(0.0003)).toBe('About $3 a year on every $10,000 invested')
     expect(feeSentence(0.00003)).toBe('Under $1 a year on every $10,000 invested')
     expect(feeSentence(null)).toBe(FEE_UNAVAILABLE)
+    expect(feeSentence(0)).toBe('No yearly fee')
     expect(FEE_UNAVAILABLE).toBe("Fee information isn't available.")
   })
 
@@ -187,8 +197,27 @@ describe('learnTopics', () => {
     expect(topics[1]?.answer).toBe('You’re betting on one business; it can grow a lot or fall a lot.')
   })
 
-  it('gives "other" nothing to guess about', () => {
+  it('gives "other" and an index nothing to guess about', () => {
     expect(learnTopics({ ...AAPL, kind: 'other', sector: 'Technology' })).toEqual([])
+    expect(learnTopics(SPX)).toEqual([])
+  })
+
+  it('crypto gets only the why', () => {
+    expect(learnTopics(BTC)).toEqual([{ id: 'why', label: 'Why own it?', answer: CRYPTO_WHY }])
+    expect(CRYPTO_WHY).toBe('No company or earnings are behind it, so prices can swing a lot.')
+  })
+
+  it('a leveraged ETF never gets the index-fund story', () => {
+    const topics = learnTopics(TQQQ)
+    expect(topics.find(t => t.id === 'why')?.answer).toBe(LEVERAGED_WHY)
+    expect(LEVERAGED_WHY).toBe('It borrows to multiply daily moves, so losses can grow fast; it’s built for short-term traders, not long-term saving.')
+    const text = topics.map(t => t.answer).join(' ')
+    expect(text).not.toMatch(/can’t sink you|fees stay low|copy a list/)
+    expect(topics.find(t => t.id === 'compare')?.answer).toBe('TQQQ is a leveraged ETF: it trades like an ETF, but it is not a plain index fund.')
+  })
+
+  it('a bond index fund talks about investments, not companies', () => {
+    expect(learnTopics(BND).find(t => t.id === 'why')?.answer).toBe('You own a small slice of hundreds of investments at once, so one bad investment can’t sink you, and fees stay low.')
   })
 })
 
@@ -230,17 +259,34 @@ describe('realDifference', () => {
     ])
   })
 
+  it('"almost the same" when most, but not all, top holdings match', () => {
+    const almost: Fund = { ...VFIAX, topHoldings: [...TOP_TEN.slice(0, 9), { symbol: 'KO', name: 'Coca-Cola Co', weight: 0.01 }] }
+    expect(realDifference(VOO, almost)?.sentences[0]).toBe('VOO and VFIAX hold almost the same top companies: they follow the same index.')
+  })
+
   it('two funds with partial or no overlap say so', () => {
     const partial: Fund = { ...VOO, symbol: 'QQQ', tracks: 'NASDAQ-100 Index', topHoldings: [...TOP_TEN.slice(0, 5), ...TOP_TEN.slice(0, 5).map((_, i) => ({ symbol: `X${i}`, name: `Other ${i}`, weight: 0.01 }))] }
     expect(realDifference(VOO, partial)?.sentences[0]).toBe('VOO and QQQ share 5 of their top 10 companies.')
-    const bonds: Fund = { ...VOO, symbol: 'BND', expenseRatio: 0.0003, topHoldings: [{ symbol: null, name: 'US Treasury Note', weight: 0.01 }] }
-    expect(realDifference(VOO, bonds)?.sentences).toEqual(['VOO and BND own different top companies.', 'They cost the same: about $3 a year on $10,000.'])
   })
 
-  it('matches holdings by name when a symbol is missing', () => {
+  it('a bond fund compares investments, and a missing fee is named', () => {
+    expect(realDifference(VOO, { ...BND, expenseRatio: null })?.sentences).toEqual([
+      'VOO and BND own different top investments.',
+      'Fee information isn’t available for BND.',
+    ])
+  })
+
+  it('a free fund reads $0', () => {
+    expect(realDifference(VOO, { ...VFIAX, kind: 'etf', expenseRatio: 0 })?.sentences[1]).toBe('The main difference is the fee: about $3 vs $0 a year on $10,000.')
+  })
+
+  it('matches holdings by symbol OR name, with BRK.B equal to BRK-B', () => {
     const noSymbols = TOP_TEN.map(h => ({ ...h, symbol: null }))
-    expect(holdingsOverlap(TOP_TEN, noSymbols).shared).toBe(0)
-    expect(holdingsOverlap(noSymbols, noSymbols)).toEqual({ shared: 10, of: 10 })
+    expect(holdingsOverlap(TOP_TEN, noSymbols)).toEqual({ shared: 10, of: 10 })
+    const dotted = TOP_TEN.map(h => ({ ...h, name: `Renamed ${h.name}`, symbol: h.symbol?.replace('-', '.') ?? null }))
+    expect(holdingsOverlap(TOP_TEN, dotted)).toEqual({ shared: 10, of: 10 })
+    const unrelated = TOP_TEN.map((h, i) => ({ ...h, symbol: `Z${i}`, name: `Unrelated ${i}` }))
+    expect(holdingsOverlap(TOP_TEN, unrelated).shared).toBe(0)
   })
 
   it('fund vs a stock it holds: a basket, and how much of $1 the stock is', () => {
@@ -251,20 +297,29 @@ describe('realDifference', () => {
   it('fund vs a stock outside its top holdings: a single company', () => {
     const ko: Fund = { ...AAPL, symbol: 'KO', name: 'Coca-Cola Co' }
     expect(realDifference(VOO, ko)?.sentences).toEqual(['VOO is a basket of hundreds of companies; KO is a single company.'])
+    expect(realDifference({ ...VOO, isIndexFund: false }, ko)?.sentences[0]).toMatch(/^VOO is a basket of many companies/)
   })
 
-  it('two stocks: one sentence pointing to Compare companies', () => {
+  it('a leveraged ETF is never called a basket of companies', () => {
+    expect(realDifference(TQQQ, VOO)?.sentences[0]).toBe('TQQQ is a leveraged ETF, a very different kind of product than VOO.')
+    expect(realDifference(AAPL, TQQQ)?.sentences[0]).toBe('TQQQ is a leveraged ETF, a very different kind of product than AAPL.')
+    for (const other of [VOO, AAPL, VFIAX]) expect(realDifference(TQQQ, other)!.sentences.join(' ')).not.toMatch(/basket/)
+  })
+
+  it('two stocks: one sentence and the Compare companies action with both tickers', () => {
     const msft: Fund = { ...AAPL, symbol: 'MSFT', name: 'Microsoft Corp' }
     expect(realDifference(AAPL, msft)).toEqual({ compareCompanies: true, sentences: ['AAPL and MSFT are both single companies; compare their sales, profit and prices side by side.'] })
+    expect(companyPair('aapl', 'MSFT')).toEqual(['AAPL', 'MSFT'])
+    expect(companyPair('AAPL', 'aapl')).toEqual(['AAPL'])
   })
 
-  it('stays at three sentences or fewer and is silent for the same symbol or an "other"', () => {
-    for (const [a, b] of [[VOO, VFIAX], [VOO, AAPL], [VFIAX, AAPL]] as const) expect(realDifference(a, b)!.sentences.length).toBeLessThanOrEqual(3)
+  it('stays at three sentences or fewer and is silent for the same symbol, an index, crypto or "other"', () => {
+    for (const [a, b] of [[VOO, VFIAX], [VOO, AAPL], [VFIAX, AAPL], [TQQQ, VOO], [VOO, { ...BND, expenseRatio: null }], [{ ...VOO, expenseRatio: null }, { ...VFIAX, expenseRatio: null }]] as const) {
+      expect(realDifference(a, b)!.sentences.length).toBeLessThanOrEqual(3)
+    }
     expect(realDifference(VOO, VOO)).toBeNull()
     expect(realDifference(VOO, { ...AAPL, kind: 'other' })).toBeNull()
-  })
-
-  it('describes basket size from the holdings count', () => {
-    expect([basketSize(504), basketSize(3600), basketSize(40), basketSize(null)]).toEqual(['hundreds of', 'thousands of', 'many', 'many'])
+    expect(realDifference(VOO, SPX)).toBeNull()
+    expect(realDifference(BTC, AAPL)).toBeNull()
   })
 })

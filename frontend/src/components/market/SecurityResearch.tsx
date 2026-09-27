@@ -63,7 +63,7 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
       </div>
       {error && <p id={`${inputId}-error`} role="alert" className="t-body-sm c-loss">{error}</p>}
       {symbol && explainable && <FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} />}
-      {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} headingRef={headingRef} />}
+      {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} onResearch={select} headingRef={headingRef} />}
       {!symbol ? <div className={styles.empty}>Enter a ticker above to load its chart and key figures.</div> : <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
         {(data) => {
           const series = data.series.find((item) => item.symbol.toUpperCase() === symbol)
@@ -96,6 +96,8 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
  * pushes a history entry; Done pops it when we pushed it, otherwise it replaces the URL, so a
  * symbol change made in between (a replace) is never undone.
  */
+const liveParams = () => new URLSearchParams(window.location.search)
+
 function useExplainer(symbol: string, enabled: boolean) {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
@@ -120,11 +122,12 @@ function useExplainer(symbol: string, enabled: boolean) {
   const pushed = (location.state as { explainOpened?: boolean } | null)?.explainOpened === true
   return {
     id, open, state, inputRef, headingRef,
-    show: () => { focusHeading.current = true; setParams(current => withExplain(current, true), { state: { explainOpened: true } }) },
+    // Read the live URL, not the render's params: a ticker change in the same frame must not drop explain=1.
+    show: () => { focusHeading.current = true; setParams(withExplain(liveParams(), true), { state: { explainOpened: true } }) },
     close: () => {
       focusSearch.current = true
       if (pushed) void navigate(-1)
-      else setParams(current => withExplain(current, false), { replace: true })
+      else setParams(withExplain(liveParams(), false), { replace: true })
     },
     retry: () => void fund.refetch(),
     /** Company financials sit elsewhere on Markets; Portfolio has none, so go to Markets for them. */

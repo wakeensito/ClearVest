@@ -22,38 +22,9 @@ export type Companies = Schemas['Companies']
 export type UploadUrl = Schemas['UploadUrl']
 export type VoiceTurn = Schemas['VoiceTurn']
 export type Speech = Schemas['Speech']
-
-// TODO(contract): switch to generated types once openapi.yaml has /market/fund.
-// Hand-written from the agreed contract; `kind` values and fraction units must match the backend.
-export type FundKind = 'etf' | 'mutual_fund' | 'stock' | 'other'
-export interface FundHolding {
-  symbol: string | null
-  name: string
-  /** Fraction of the fund (0.07 = 7%). */
-  weight: number
-}
-export interface Fund {
-  symbol: string
-  name: string
-  kind: FundKind
-  isIndexFund: boolean
-  tracks: string | null
-  /** Fraction per year (0.0003 = 0.03%). */
-  expenseRatio: number | null
-  holdingsCount: number | null
-  /** Up to 10, largest first; empty for stocks. */
-  topHoldings: FundHolding[]
-  summary: string
-  summarySource: 'model' | 'template'
-  /** Who runs the fund ("Vanguard"); null for stocks or when unknown. */
-  fundFamily?: string | null
-  /** Provider category ("Large Blend"); translated through a static map, never shown alone. */
-  category?: string | null
-  /** Stocks only ("Technology"). */
-  sector?: string | null
-  asOf: string
-  stale?: boolean
-}
+export type Fund = Schemas['Fund']
+export type FundHolding = Schemas['FundHolding']
+export type FundKind = Fund['kind']
 
 /** The Prism mock by default; set VITE_API_BASE_URL to the stack's ApiUrl for the real backend. */
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '')
@@ -83,23 +54,6 @@ async function unwrap<T>(call: Promise<Result<T>>): Promise<T> {
   return result.data as T
 }
 
-/**
- * GET for a route the generated schema does not know yet. Same user header, timeout and error
- * mapping as the typed client, via `unwrap`.
- */
-function getUntyped<T>(path: string, query: Record<string, string>): Promise<T> {
-  const url = new URL(`${API_BASE_URL}${path}`)
-  for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value)
-  return unwrap<T>((async () => {
-    const response = await globalThis.fetch(url, {
-      headers: { 'X-User-Id': getUserId() },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    })
-    const body: unknown = await response.json().catch(() => undefined)
-    return response.ok ? { data: body as T, response } : { error: body, response }
-  })())
-}
-
 export const api = {
   getProfile: () => unwrap(client.GET('/profile', { params: user() })),
   putProfile: (body: Profile) => unwrap(client.PUT('/profile', { params: user(), body })),
@@ -124,8 +78,8 @@ export const api = {
   getMarketMovers: (category: MarketCategory) =>
     unwrap(client.GET('/market/movers', { params: { ...user(), query: { category } } })),
 
-  // TODO(contract): switch to generated types once openapi.yaml has /market/fund.
-  getFund: (symbol: string) => getUntyped<Fund>('/market/fund', { symbol }),
+  getFund: (symbol: string) =>
+    unwrap(client.GET('/market/fund', { params: { ...user(), query: { symbol } } })),
 
   getMacro: () => unwrap(client.GET('/market/macro', { params: user() })),
   getHistory: (symbol: string, range: HistoryRange) =>

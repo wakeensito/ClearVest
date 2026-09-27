@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createElement as h, type ReactNode } from 'react'
+import { createElement as h, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import type { Fund } from '../../api/client'
 import { ApiError } from '../../api/errors'
-import { AAPL, TOP_TEN, VFIAX, VOO } from '../../lib/fundExplainer.fixtures'
+import { AAPL, BTC, SPX, TOP_TEN, TQQQ, VFIAX, VOO } from '../../lib/fundExplainer.fixtures'
 import type { FundState } from '../../lib/fundExplainer'
 import { CompactFundExplainer, FundExplainer, FundIdentity, FundLesson, KeepLearning, RealDifference } from './FundExplainer'
 import { SecurityResearch } from './SecurityResearch'
@@ -14,7 +14,7 @@ const ok = (fund: Fund): FundState => ({ status: 'success', fund })
 const routed = (node: ReactNode, url = '/markets?symbol=VOO') => renderToStaticMarkup(h(MemoryRouter, { initialEntries: [url] }, node))
 const noop = () => {}
 const identity = (state: FundState, symbol = 'VOO') => renderToStaticMarkup(h(FundIdentity, { symbol, state, open: false, onToggle: noop, controls: 'x' }))
-const lesson = (fund: Fund, extra: Partial<{ onSeeFinancials: () => void; compact: boolean }> = {}) =>
+const lesson = (fund: Fund, extra: Partial<{ onSeeFinancials: () => void; onResearch: (symbol: string) => void; compact: boolean }> = {}) =>
   routed(h(FundLesson, { fund, symbol: fund.symbol, ...extra }))
 const text = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&#x27;/g, "'").replace(/&amp;/g, '&')
 
@@ -45,6 +45,45 @@ describe('identity line', () => {
   })
 })
 
+describe('other kinds', () => {
+  it('a leveraged ETF is labelled high risk in the loss color, never "Index fund"', () => {
+    const html = identity(ok(TQQQ), 'TQQQ')
+    expect(text(html)).toContain('TQQQ · Leveraged ETF · high risk')
+    expect(html).toMatch(/<strong class="[^"]*risk[^"]*">high risk<\/strong>/)
+    expect(text(html)).not.toContain('Index fund')
+    const words = text(lesson(TQQQ))
+    expect(words).not.toMatch(/hundreds more|can’t sink you|fees stay low/)
+  })
+
+  it('an index: summary and a pointer to index funds, with no strip, fee or buying steps', () => {
+    const picked: string[] = []
+    const html = lesson(SPX, { onResearch: symbol => { picked.push(symbol) } })
+    expect(text(identity(ok(SPX), '^GSPC'))).toContain('^GSPC · Stock market index')
+    expect(html).not.toContain('data-dollar-strip')
+    expect(text(html)).not.toMatch(/What does it cost\?|How do I buy it\?/)
+    expect(text(html)).toContain('You can’t buy an index directly; index funds like VOO copy it.')
+    expect(text(html)).toContain('Research VOO')
+  })
+
+  it('crypto: summary and only the why chip', () => {
+    const html = lesson(BTC)
+    expect(text(identity(ok(BTC), 'BTC-USD'))).toContain('BTC-USD · Cryptocurrency')
+    expect(html).not.toContain('data-dollar-strip')
+    expect(html.match(/aria-expanded=/g)).toHaveLength(1)
+    expect(text(html)).toContain('Why own it?')
+  })
+
+  it('other: summary only, no chips', () => {
+    const html = lesson({ ...AAPL, kind: 'other', sector: null })
+    expect(text(identity(ok({ ...AAPL, kind: 'other' }), 'X'))).toContain('X · Investment')
+    expect(html).not.toContain('aria-expanded')
+  })
+
+  it('a free fund reads "No yearly fee"', () => {
+    expect(text(lesson({ ...VOO, expenseRatio: 0 }))).toContain('No yearly fee')
+  })
+})
+
 describe('explainer steps', () => {
   it('a fund shows what it is, the dollar strip and the fee, with the rest behind chips', () => {
     const html = lesson(VOO)
@@ -53,7 +92,7 @@ describe('explainer steps', () => {
     expect(words).toContain('VOO is a fund that owns shares of about 500 of the biggest U.S. companies.')
     expect(words).not.toContain('When they do well') // first sentence only
     expect(html).toMatch(/<div[^>]*aria-hidden="true"[^>]*data-dollar-strip/)
-    expect(words).toContain('Of every $1: 8¢ NVIDIA · 7¢ Apple · 6¢ Microsoft + 501 more')
+    expect(words).toContain('Of every $1: 8¢ NVIDIA · 7¢ Apple · 6¢ Microsoft + hundreds more')
     expect(words).toContain('About $3 a year on every $10,000 invested · expense ratio 0.03%')
     expect(words).toContain('Everything else')
     for (const chip of ['Who runs it?', 'Where is the money?', 'Why own it?', 'How do I buy it?', 'ETF or mutual fund?']) expect(words).toContain(chip)
@@ -117,7 +156,7 @@ describe('keep learning chips', () => {
 })
 
 describe('explainer region', () => {
-  const region = (state: FundState) => routed(h(FundExplainer, { id: 'e', symbol: 'VOO', state, onDone: noop, onRetry: noop, onSeeFinancials: noop }))
+  const region = (state: FundState) => routed(h(FundExplainer, { id: 'e', symbol: 'VOO', state, onDone: noop, onRetry: noop, onSeeFinancials: noop, onResearch: noop }))
 
   it('has a labelled region, a heading and a Done button', () => {
     const html = region(ok(VOO))
@@ -139,14 +178,33 @@ describe('compare securities', () => {
   })
 
   it('the difference strip waits for both sides', () => {
-    expect(routed(h(RealDifference, { left: ok(VOO), right: { status: 'pending' } }))).toBe('')
-    const words = text(routed(h(RealDifference, { left: ok(VOO), right: ok(VFIAX) })))
+    expect(routed(h(RealDifference, { left: ok(VOO), right: { status: 'pending' }, onCompareCompanies: noop }))).toBe('')
+    const words = text(routed(h(RealDifference, { left: ok(VOO), right: ok(VFIAX), onCompareCompanies: noop })))
     expect(words).toContain('What’s the real difference?')
     expect(words).toContain('about $3 vs about $4 a year on $10,000')
   })
 
-  it('two stocks link to Compare companies', () => {
-    expect(routed(h(RealDifference, { left: ok(AAPL), right: ok({ ...AAPL, symbol: 'MSFT' }) }))).toContain('href="/markets?view=companies"')
+  it('two stocks: the Compare companies button hands both tickers to the page, not a dead link', () => {
+    const calls: string[][] = []
+    const props = { left: ok(AAPL), right: ok({ ...AAPL, symbol: 'MSFT' }), onCompareCompanies: (a: string, b: string) => { calls.push([a, b]) } }
+    const html = routed(h(RealDifference, props))
+    expect(html).not.toContain('href="/markets?view=companies"')
+    expect(text(html)).toContain('Open Compare companies')
+    // RealDifference has no hooks, so call it and press the button in its element tree.
+    const find = (node: ReactNode): ReactElement<{ onClick?: () => void }> | null => {
+      if (Array.isArray(node)) { for (const child of node) { const hit = find(child); if (hit) return hit } return null }
+      if (!isValidElement<{ onClick?: () => void; children?: ReactNode }>(node)) return null
+      if (node.type === 'button' && node.props.onClick) return node
+      return find(node.props.children)
+    }
+    find(RealDifference(props))?.props.onClick?.()
+    expect(calls).toEqual([['AAPL', 'MSFT']])
+  })
+
+  it('a leveraged side gets the warning, never "basket"', () => {
+    const words = text(routed(h(RealDifference, { left: ok(TQQQ), right: ok(VOO), onCompareCompanies: noop })))
+    expect(words).toContain('TQQQ is a leveraged ETF, a very different kind of product than VOO.')
+    expect(words).not.toContain('basket')
   })
 })
 

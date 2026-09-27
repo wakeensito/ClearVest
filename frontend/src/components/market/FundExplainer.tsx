@@ -1,8 +1,8 @@
-import { useId, useState, type KeyboardEvent, type Ref } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type Ref } from 'react'
 import { Link } from 'react-router'
 import type { Fund } from '../../api/client'
 import { date } from '../../lib/format'
-import { advisorHref, dollarStrip, everyDollar, expenseRatioLabel, feeSentence, firstSentence, isFund, kindLabel, learnTopics, normalizeKind, realDifference, type FundState, type Topic, type TopicId } from '../../lib/fundExplainer'
+import { HIGH_RISK, advisorHref, dollarStrip, everyDollar, expenseRatioLabel, feeSentence, firstSentence, isFund, isPlainIndexFund, kindLabel, learnTopics, normalizeKind, realDifference, type FundState, type Topic, type TopicId } from '../../lib/fundExplainer'
 import { Button } from '../ui/Button'
 import { Skeleton } from '../ui/Skeleton'
 import styles from './FundExplainer.module.css'
@@ -30,21 +30,31 @@ export function FundIdentity({ symbol, state, open, onToggle, controls, canExpla
   </div>
 }
 
+/** "high risk" on a leveraged fund reads in the loss color; the words carry the meaning too. */
+function KindLabel({ fund }: { fund: Fund }) {
+  const label = kindLabel(fund)
+  const suffix = ` · ${HIGH_RISK}`
+  if (!label.endsWith(suffix)) return <>{label}</>
+  return <>{label.slice(0, -suffix.length)} · <strong className={styles.risk}>{HIGH_RISK}</strong></>
+}
+
 function IdentityText({ symbol, fund }: { symbol: string; fund: Fund }) {
   return <div className={styles.identityText}>
-    <p className={styles.kind}><span className={styles.ticker}>{symbol}</span> · {kindLabel(fund.kind, fund.isIndexFund)}</p>
+    <p className={styles.kind}><span className={styles.ticker}>{symbol}</span> · <KindLabel fund={fund} /></p>
     {fund.tracks && <p className={styles.tracks}>Tracks the {fund.tracks}</p>}
   </div>
 }
 
 /** The inline explainer region. It pushes the chart down; it is never an overlay. */
-export function FundExplainer({ id, symbol, state, onDone, onRetry, onSeeFinancials, headingRef }: {
+export function FundExplainer({ id, symbol, state, onDone, onRetry, onSeeFinancials, onResearch, headingRef }: {
   id: string
   symbol: string
   state: FundState
   onDone: () => void
   onRetry: () => void
   onSeeFinancials: () => void
+  /** Switches the research panel to another ticker (an index points to a fund that copies it). */
+  onResearch: (symbol: string) => void
   headingRef?: Ref<HTMLHeadingElement>
 }) {
   const headingId = `${id}-heading`
@@ -60,7 +70,7 @@ export function FundExplainer({ id, symbol, state, onDone, onRetry, onSeeFinanci
     </header>
     {state.status === 'pending' && <div className={`${styles.body} ${styles.padded}`} role="status" aria-label={`Loading what ${symbol} is`}><Skeleton height={14} /><Skeleton width="80%" height={14} /><Skeleton height={32} /></div>}
     {state.status === 'error' && <div className={`${styles.body} ${styles.padded}`}><p className={styles.sentence}>We couldn’t load an explanation for {symbol} right now. The chart below still works.</p><button type="button" className={styles.link} onClick={onRetry}>Try again</button></div>}
-    {state.status === 'success' && <FundLesson key={symbol} fund={state.fund} symbol={symbol} onSeeFinancials={onSeeFinancials} />}
+    {state.status === 'success' && <FundLesson key={symbol} fund={state.fund} symbol={symbol} onSeeFinancials={onSeeFinancials} onResearch={onResearch} />}
   </section>
 }
 
@@ -69,15 +79,20 @@ export function FundExplainer({ id, symbol, state, onDone, onRetry, onSeeFinanci
  * most two lines on a phone; everything else waits behind one question chip at a time. `compact`
  * (Compare securities) drops the company-financials jump and the data line.
  */
-export function FundLesson({ fund, symbol, onSeeFinancials, compact = false }: { fund: Fund; symbol: string; onSeeFinancials?: () => void; compact?: boolean }) {
+export function FundLesson({ fund, symbol, onSeeFinancials, onResearch, compact = false }: { fund: Fund; symbol: string; onSeeFinancials?: () => void; onResearch?: (symbol: string) => void; compact?: boolean }) {
   const fundLike = isFund(fund.kind)
-  const stock = normalizeKind(fund.kind) === 'stock'
+  const kind = normalizeKind(fund.kind)
+  const stock = kind === 'stock'
   const topics = learnTopics({ ...fund, symbol })
   return <div className={styles.body}>
     <ol className={`${styles.steps} ${fundLike ? '' : styles.single}`}>
       <li>
         <h4><span aria-hidden>1</span>What is it?</h4>
         <p className={styles.sentence}>{firstSentence(fund.summary)}</p>
+        {kind === 'index' && <>
+          <p className={styles.sentence}>You can’t buy an index directly; index funds like VOO copy it.</p>
+          {onResearch && <button type="button" className={styles.link} onClick={() => onResearch('VOO')}>Research VOO <span aria-hidden>→</span></button>}
+        </>}
         {stock && onSeeFinancials && !compact && <button type="button" className={styles.link} onClick={onSeeFinancials}>See what this company earns <span aria-hidden>→</span></button>}
       </li>
       {fundLike && <li>
@@ -102,13 +117,26 @@ export function FundLesson({ fund, symbol, onSeeFinancials, compact = false }: {
  */
 export function KeepLearning({ topics, symbol, initial = null }: { topics: Topic[]; symbol: string; initial?: TopicId | null }) {
   const [openId, setOpenId] = useState<TopicId | null>(initial)
+  const row = useRef<HTMLDivElement>(null)
+  const [moreRight, setMoreRight] = useState(false)
+  // Fade the right edge while chips are offscreen, so phone users can tell the row scrolls.
+  useEffect(() => {
+    const el = row.current
+    if (!el) return
+    const update = () => setMoreRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    observer?.observe(el)
+    return () => { el.removeEventListener('scroll', update); observer?.disconnect() }
+  }, [])
   const answerId = useId()
   const index = topics.findIndex(topic => topic.id === openId)
   const topic = topics[index]
   const next = topics[index + 1]
   return <div className={styles.learn}>
     {/* One line: the row scrolls inside itself on phones instead of wrapping into a block. */}
-    <div className={styles.chips} role="group" aria-label={`Keep learning about ${symbol}`}>
+    <div ref={row} className={`${styles.chips} ${moreRight ? styles.fade : ''}`} data-more={moreRight || undefined} role="group" aria-label={`Keep learning about ${symbol}`}>
       {topics.map(item => <button key={item.id} type="button" className={styles.chip} aria-expanded={item.id === openId} aria-controls={answerId} onClick={() => setOpenId(current => current === item.id ? null : item.id)}>{item.label}</button>)}
     </div>
     <div id={answerId} className={styles.answerSlot} aria-live="polite">
@@ -126,7 +154,7 @@ export function KeepLearning({ topics, symbol, initial = null }: { topics: Topic
 function Inside({ fund }: { fund: Fund }) {
   const { slices, remainder } = dollarStrip(fund.topHoldings)
   if (!slices.length) return <p className={styles.sentence}>Holdings information isn’t available for this fund right now.</p>
-  const { top, more } = everyDollar(fund.topHoldings, fund.holdingsCount)
+  const { top, more } = everyDollar(fund.topHoldings, isPlainIndexFund(fund))
   return <>
     {/* Decorative: the sentence below carries the same information. */}
     <div className={styles.strip} aria-hidden data-dollar-strip>
@@ -159,14 +187,14 @@ export function CompactFundExplainer({ symbol, state }: { symbol: string; state:
 }
 
 /** "What's the real difference?" above the two comparison columns, once both sides have loaded. */
-export function RealDifference({ left, right }: { left: FundState; right: FundState }) {
+export function RealDifference({ left, right, onCompareCompanies }: { left: FundState; right: FundState; onCompareCompanies: (a: string, b: string) => void }) {
   if (left.status !== 'success' || right.status !== 'success') return null
   const difference = realDifference(left.fund, right.fund)
   if (!difference) return null
   return <section className={styles.difference} aria-label="What’s the real difference?">
     <h3>What’s the real difference?</h3>
     {difference.sentences.map(sentence => <p key={sentence}>{sentence}</p>)}
-    {difference.compareCompanies && <Link className={styles.link} to="/markets?view=companies">Open Compare companies <span aria-hidden>→</span></Link>}
+    {difference.compareCompanies && <button type="button" className={styles.link} onClick={() => onCompareCompanies(left.fund.symbol, right.fund.symbol)}>Open Compare companies <span aria-hidden>→</span></button>}
   </section>
 }
 

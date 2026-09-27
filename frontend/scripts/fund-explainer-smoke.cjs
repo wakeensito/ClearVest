@@ -21,17 +21,19 @@ const TOP_TEN = [
   ['BRK-B', 'Berkshire Hathaway Inc Class B', 0.016],
 ].map(([symbol, name, weight]) => ({ symbol, name, weight }));
 const VOO = {
-  symbol: 'VOO', name: 'Vanguard S&P 500 ETF', kind: 'etf', isIndexFund: true, tracks: "Standard & Poor's 500 Index",
-  expenseRatio: 0.0003, holdingsCount: 504, topHoldings: TOP_TEN,
+  symbol: 'VOO', name: 'Vanguard S&P 500 ETF', kind: 'etf', isIndexFund: true, leveraged: false, tracks: "Standard & Poor's 500 Index",
+  expenseRatio: 0.0003, topHoldings: TOP_TEN,
   summary: 'VOO is a fund that owns shares of about 500 of the biggest U.S. companies. When they do well, it does well.',
-  summarySource: 'template', asOf: '2026-09-26', fundFamily: 'Vanguard', category: 'Large Blend', sector: null,
+  summarySource: 'template', asOf: '2026-09-26', stale: false, fundFamily: 'Vanguard', category: 'Large Blend', sector: null,
 };
 const FUNDS = {
   VOO,
   VFIAX: { ...VOO, symbol: 'VFIAX', name: 'Vanguard 500 Index Admiral', kind: 'mutual_fund', expenseRatio: 0.0004, summary: 'VFIAX is a mutual fund that owns shares of about 500 of the biggest U.S. companies.' },
-  AAPL: { symbol: 'AAPL', name: 'Apple Inc.', kind: 'stock', isIndexFund: false, tracks: null, expenseRatio: null, holdingsCount: null, topHoldings: [], summary: 'Apple makes the iPhone, Mac and other devices, and sells services like iCloud.', summarySource: 'model', asOf: '2026-09-26', fundFamily: null, category: null, sector: 'Technology' },
+  AAPL: { symbol: 'AAPL', name: 'Apple Inc.', kind: 'stock', isIndexFund: false, leveraged: false, tracks: null, expenseRatio: null, topHoldings: [], summary: 'Apple makes the iPhone, Mac and other devices, and sells services like iCloud.', summarySource: 'model', asOf: '2026-09-26', stale: false, fundFamily: null, category: null, sector: 'Technology' },
   // The longest provider wording we have seen, to prove the identity line wraps at 320px.
-  VTI: { ...VOO, symbol: 'VTI', name: 'Vanguard Total Stock Market Index Fund ETF Shares', tracks: 'CRSP US Total Market Index Including Micro-Capitalization Companies', holdingsCount: 3600 },
+  VTI: { ...VOO, symbol: 'VTI', name: 'Vanguard Total Stock Market Index Fund ETF Shares', tracks: 'CRSP US Total Market Index Including Micro-Capitalization Companies' },
+  // Leveraged: the provider says it tracks an index; the UI must never call it an index fund.
+  TQQQ: { ...VOO, symbol: 'TQQQ', name: 'ProShares UltraPro QQQ', leveraged: true, tracks: 'NASDAQ-100 Index', expenseRatio: 0.0084, fundFamily: 'ProShares', category: 'Trading--Leveraged Equity', summary: 'TQQQ tries to move three times as much as the Nasdaq-100 each day.' },
 };
 
 (async () => {
@@ -84,6 +86,16 @@ const FUNDS = {
     assert.equal(new URL(page.url()).searchParams.get('explain'), '1');
     assert.equal(await page.evaluate(() => document.activeElement?.textContent), 'VOO explained');
     await record('open', width);
+    // The chip row scrolls on phones; its right edge fades while more chips are offscreen.
+    const chipRow = page.getByRole('group', { name: 'Keep learning about VOO' });
+    const fades = await chipRow.evaluate(el => el.dataset.more === 'true');
+    const overflows = await chipRow.evaluate(el => el.scrollWidth > el.clientWidth);
+    assert.equal(fades, overflows, 'fade shows exactly when chips are offscreen');
+    if (overflows) {
+      await chipRow.evaluate(el => { el.scrollLeft = el.scrollWidth })
+      await page.waitForFunction(() => !document.querySelector('[aria-label="Keep learning about VOO"]')?.hasAttribute('data-more'));
+    }
+    results.push({ label: 'chip row scrolls / fade shown', width, closedHeight: `${overflows}/${fades}` });
     const closedHeight = await explainer.evaluate(el => el.getBoundingClientRect().height);
     await page.getByRole('button', { name: 'Who runs it?' }).click();
     await page.getByText('Vanguard runs it.', { exact: false }).waitFor();
@@ -138,6 +150,15 @@ const FUNDS = {
     await record('stock open', width);
     await page.getByRole('button', { name: /See what this company earns/ }).click();
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-company-financials')), 'AAPL');
+
+    // Leveraged: high-risk label, leveraged why, no index-fund story.
+    await page.goto(`${previewUrl}/markets?symbol=TQQQ&explain=1`);
+    await page.locator('[data-fund-explainer="TQQQ"]').waitFor();
+    await page.getByText('TQQQ · Leveraged ETF · high risk').waitFor();
+    assert.equal(await page.getByText('Index fund (ETF)').count(), 0);
+    await page.getByRole('button', { name: 'Why own it?' }).click();
+    await page.getByText('It borrows to multiply daily moves', { exact: false }).waitFor();
+    await record('leveraged open + why', width);
 
     // Long provider wording wraps.
     await page.goto(`${previewUrl}/markets?symbol=VTI&explain=1`);

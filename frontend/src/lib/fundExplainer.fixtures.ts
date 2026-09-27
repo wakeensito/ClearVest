@@ -20,13 +20,14 @@ export const VOO: Fund = {
   name: 'Vanguard S&P 500 ETF',
   kind: 'etf',
   isIndexFund: true,
+  leveraged: false,
   tracks: "Standard & Poor's 500 Index",
   expenseRatio: 0.0003,
-  holdingsCount: 504,
   topHoldings: TOP_TEN,
   summary: 'VOO is a fund that owns shares of about 500 of the biggest U.S. companies. When they do well, it does well.',
   summarySource: 'template',
   asOf: '2026-09-26',
+  stale: false,
   fundFamily: 'Vanguard',
   category: 'Large Blend',
   sector: null,
@@ -46,14 +47,42 @@ export const AAPL: Fund = {
   name: 'Apple Inc.',
   kind: 'stock',
   isIndexFund: false,
+  leveraged: false,
   tracks: null,
   expenseRatio: null,
-  holdingsCount: null,
   topHoldings: [],
   summary: 'Apple makes the iPhone, Mac and other devices, and sells services like iCloud.',
   summarySource: 'model',
   asOf: '2026-09-26',
+  stale: false,
   fundFamily: null,
   category: null,
   sector: 'Technology',
+}
+
+/** A 3x leveraged Nasdaq-100 ETF: the provider still says it tracks an index. */
+export const TQQQ: Fund = {
+  ...VOO,
+  symbol: 'TQQQ',
+  name: 'ProShares UltraPro QQQ',
+  leveraged: true,
+  tracks: 'NASDAQ-100 Index',
+  expenseRatio: 0.0084,
+  fundFamily: 'ProShares',
+  category: 'Trading--Leveraged Equity',
+  topHoldings: [{ symbol: null, name: 'Nasdaq 100 Index Swap Goldman Sachs International', weight: 0.21 }, ...TOP_TEN.slice(0, 4)],
+  summary: 'TQQQ tries to move three times as much as the Nasdaq-100 each day.',
+}
+
+export const SPX: Fund = { ...AAPL, symbol: '^GSPC', name: 'S&P 500', kind: 'index', sector: null, summarySource: 'template', summary: 'The S&P 500 is a list of about 500 of the biggest U.S. companies.' }
+export const BTC: Fund = { ...AAPL, symbol: 'BTC-USD', name: 'Bitcoin USD', kind: 'crypto', sector: null, summarySource: 'template', summary: 'Bitcoin is a digital currency that is not issued by a government.' }
+
+export const BND: Fund = {
+  ...VOO,
+  symbol: 'BND',
+  name: 'Vanguard Total Bond Market ETF',
+  tracks: 'Bloomberg U.S. Aggregate Float Adjusted Index',
+  category: 'Intermediate Core Bond',
+  topHoldings: [{ symbol: null, name: 'United States Treasury Notes', weight: 0.004 }],
+  summary: 'BND is a fund that lends money to the U.S. government and many companies.',
 }

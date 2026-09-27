@@ -11,7 +11,7 @@
 ## What changed
 
 - An **identity line** sits under the ticker search in `SecurityResearch` (Portfolio and Markets): "VOO · Index fund (ETF)", "Tracks the Standard & Poor's 500 Index" when known, and a "What is this?" button. It shows a quiet skeleton while loading and disappears on error; the chart is never blocked.
-- **"What is this?"** opens an inline explainer below the line (it pushes the chart down; no page, tab or modal). A sticky "VOO explained" bar has Done. Three items stay visible: what it is (first sentence of the API summary), what's inside (the **dollar strip**: one bar is $1, sliced by the top holdings, plus "Of every $1: 8¢ NVIDIA · 7¢ Apple · 6¢ Microsoft + 501 more") and what it costs ("About $3 a year on every $10,000 invested · expense ratio 0.03%"). Stocks show only what it is, with a jump to company financials.
+- **"What is this?"** opens an inline explainer below the line (it pushes the chart down; no page, tab or modal). A sticky "VOO explained" bar has Done. Three items stay visible: what it is (first sentence of the API summary), what's inside (the **dollar strip**: one bar is $1, sliced by the top holdings, plus "Of every $1: 8¢ NVIDIA · 7¢ Apple · 6¢ Microsoft + hundreds more") and what it costs ("About $3 a year on every $10,000 invested · expense ratio 0.03%"). Stocks show only what it is, with a jump to company financials.
 - A single row of **"Keep learning" chips** (Who runs it? / Where is the money? / Why own it? / How do I buy it? / ETF or mutual fund?) opens one two-sentence answer at a time, each ending with the next question. The last one is the static Index fund | ETF | Mutual fund table, ending with "Ask the advisor about VOO →".
 - Open state is `explain=1` in the URL: Back closes it, Done clears it and refocuses the search, Escape closes it, and changing the ticker keeps it open for the new security.
 - **Compare securities** gets a compact explainer under each chart and a "What's the real difference?" strip (at most three sentences built from data: fund vs fund, fund vs stock, stock vs stock).
@@ -45,20 +45,37 @@ To see it by hand: `/markets?symbol=VOO&explain=1`, `/markets?symbol=AAPL&explai
 
 ## Gotchas
 
-- `/market/fund` is not in `docs/api/openapi.yaml` yet, so `Fund` is hand-written in `api/client.ts` (`// TODO(contract)`), and the Prism mock returns 404. `fundFamily`, `category` and `sector` are optional in the type because they were added to the contract late.
+- `Fund` comes from `schema.d.ts`, so `npm run typecheck` (which regenerates from `openapi.yaml`) fails if the contract and this code drift, for example on `leveraged` or the `index`/`crypto` kinds.
 - The render tests seed an errored query with `retryOnMount: false`; without it, React Query refetches on mount and the state reads as pending.
 - The 5xx retry in `queries.ts` means a 502 shows the skeleton for about a second before the line disappears.
-- In Playwright, typing a ticker in the same frame as opening the explainer can drop `explain=1`, because `MarketsPage.selectSymbol` copies params from its last render. Wait for the explainer first. A person can't click that fast; a functional update there would still be a small hardening.
+- Port 5174 may already be taken by another checkout's preview. Run the smoke with `CLEARVEST_PREVIEW_URL` pointing at your own server (the review round used 5175).
 - Category and sector maps are keyed loosely ("Mid-Cap Blend" = "Mid Blend"). Unknown values skip the chip; they are never shown raw.
+
+## Review round (combined branch)
+
+After the backend half merged, a review found these gaps. They were fixed on top of `feat/fund-explainer`, and each has a test:
+
+- **Leveraged funds (critical).** Live TQQQ read "Index fund (ETF)", with "one bad company can't sink you, fees stay low". `leveraged: true` now labels it "Leveraged ETF · high risk", with "high risk" in the loss color. Its why chip warns about borrowing and daily moves, and the compare strip calls it "a very different kind of product", never a basket.
+- **New kinds.** `index` reads "Stock market index" and points to "Research VOO". `crypto` reads "Cryptocurrency" and gets only a why chip. `other` reads "Investment" and shows the summary only.
+- **`holdingsCount` removed.** The copy now says "+ hundreds more" for plain index funds and "+ more" for everything else.
+- **Compare companies.** The dead link is now an `onCompareCompanies(a, b)` path: `ResearchWorkspace` closes the dialog, then `MarketsPage` selects both tickers, switches to Compare companies and focuses its tab.
+- **Generated types.** `Fund` is now `Schemas['Fund']` and `getFund` uses `client.GET('/market/fund')`. The untyped wrapper is gone.
+- **Smaller fixes.**
+  - A ratio of 0 reads "No yearly fee".
+  - Params are built from `window.location.search`.
+  - The chip row's right edge fades while chips are offscreen.
+  - Holdings match on symbol OR name, with BRK.B equal to BRK-B, and "almost the same" covers a near match.
+  - Missing fees are named.
+  - Bond funds say "investments".
 
 ## Next steps
 
-1. When the backend merges `/market/fund` into `openapi.yaml`: run `npm run gen:api`, replace the hand-written `Fund` types with `Schemas['Fund']`, point `api.getFund` at `client.GET('/market/fund', …)` and delete `getUntyped`.
+1. Done in the review round: types come from `openapi.yaml`. Re-run `npm run gen:api` whenever the fund contract changes.
 2. Run `npm run test:fund-explainer` against real backend data. Check that summaries stay at one sentence and that provider categories hit the plain-word map; add any misses to `CATEGORIES` or `SECTORS` in `lib/fundExplainer.ts`.
-3. Consider adding the functional `setParams` in `MarketsPage.selectSymbol` (see Gotchas).
+3. Done in the review round: `MarketsPage.selectSymbol`/`switchView` and the explainer build params from `window.location.search`.
 4. **Deferred to the learning-extension issue (#44)**, cut to meet the 375px caps: a "See top 10" holdings list (name, cents per $1); showing the provider's category or sector term after the plain answer ("Fund category: Large Blend"); the full API summary beyond its first sentence; a "Stock or fund?" chip for stocks; a "Keep learning" label above the chips; remembering which chip was open in the URL.
 
 ## Open questions / blockers
 
-- Backend (@wakeensito / backend agent): confirm `holdingsCount` counts companies for equity funds. A bond fund would read "+ N more", which is still true, but the "hundreds of companies" wording in the difference strip assumes stocks.
+- Backend: `holdingsCount` was removed from the contract, so the copy now says "+ hundreds more" for plain index funds and "+ more" otherwise. If a reliable count comes back, the exact number is more honest.
 - Owner: is the first-sentence cut on `summary` acceptable, or should the backend guarantee a one-sentence summary instead?
