@@ -1,0 +1,6 @@
+.evidence { color: var(--cv-text-secondary); font-size: 11px; line-height: 18px; margin-top: 10px; }
+.evidence summary { cursor: pointer; text-underline-offset: 3px; }
+.evidence summary:hover { text-decoration: underline; }
+.evidence summary:focus-visible { outline: 2px solid var(--cv-accent); outline-offset: 3px; }
+.evidence details[open] summary { margin-bottom: 8px; }
+.source { white-space: pre-line; margin-top: 6px; }

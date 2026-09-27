@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+    "/market/fund-holdings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source-backed one-level holdings; missing coverage is unknown, not zero. */
+        get: operations["getFundHoldings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/portfolio/exposure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source-backed one-level holdings; missing coverage is unknown, not zero. */
+        get: operations["getPortfolioExposure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/market/company-research": {
         parameters: {
             query?: never;
@@ -614,10 +648,97 @@ export interface components {
             }[];
             source?: string;
         };
+        FundHoldings: {
+            symbol: string;
+            /** @constant */
+            provider: "FMP";
+            providerUpdatedAt: string;
+            fetchedAt: string;
+            sourceUrl: string;
+            coveragePct: number;
+            holdings: {
+                symbol: string;
+                name: string;
+                weightPct: number;
+                isin: string | null;
+            }[];
+            stale: boolean;
+        };
+        PortfolioExposure: {
+            asOf: string;
+            totalValue: number;
+            /** @enum {string} */
+            status: "ready" | "unsupported";
+            mappedPct: number;
+            unmappedValue: number;
+            cashValue: number;
+            overlapCount: number;
+            exposures: {
+                symbol: string;
+                name: string;
+                value: number;
+                weightPct: number;
+                directValue: number;
+                fundValue: number;
+                overlap: boolean;
+                paths: {
+                    via: string | null;
+                    value: number;
+                    weightPct: number;
+                    fundWeightPct: number | null;
+                }[];
+            }[];
+            funds: {
+                symbol: string;
+                /** @enum {string} */
+                status: "available" | "partial" | "unavailable" | "outdated";
+                positionValue: number;
+                coveragePct: number;
+                providerUpdatedAt: string | null;
+                fetchedAt: string | null;
+                sourceUrl: string;
+            }[];
+        };
+        ScoutPageContext: {
+            /** @enum {string} */
+            page: "home" | "portfolio" | "markets" | "learn" | "advisor";
+            symbol?: string;
+            /** @enum {string} */
+            range?: "1y" | "5y" | "10y";
+            lessonId?: string;
+            /** @enum {string} */
+            metric?: "business" | "revenue" | "profit" | "valuation" | "risk" | "price" | "exposure" | "holding";
+            /**
+             * Format: date
+             * @description Selected closing-price observation. Requires symbol, range and metric price; resolved from the server cache.
+             */
+            priceDate?: string;
+            scenario?: {
+                symbol: string;
+                dropPct: number;
+            };
+        };
         ChatReply: {
             /** @description A short reply, at most about 120 words. May use a markdown subset: **bold** for key terms, "- " bullets, "1." numbered lists, and (only when comparing 2-3 options) a GitHub-flavored markdown table of up to 3 columns. Never contains headings ("#"). */
             reply: string;
             disclaimer: string;
+            /** @description Safety-screened question, with detected identifiers masked. Absent if the input safety check failed. */
+            userMessage?: string;
+            safety?: {
+                /** @enum {string} */
+                status: "passed" | "intervened" | "unavailable";
+                /** @enum {string} */
+                grounding: "not_requested" | "checked" | "withheld" | "unavailable";
+            };
+            sources?: {
+                label: string;
+                asOf: string;
+                text: string;
+                /** @enum {string} */
+                kind?: "portfolio" | "scenario" | "company" | "news" | "lesson" | "price" | "exposure";
+                url?: string;
+                retrievedAt?: string;
+            }[];
         };
         RetirementAccounts: {
             accounts: {
@@ -640,6 +761,8 @@ export interface components {
             /** @description A short reply meant to be read aloud, about 60 words of plain text: no markdown, no headings, no lists, no tables. */
             reply: string;
             disclaimer: string;
+            safety?: components["schemas"]["ChatReply"]["safety"];
+            sources?: components["schemas"]["ChatReply"]["sources"];
         };
         Speech: {
             audioUrl: string;
@@ -736,6 +859,126 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getFundHoldings: {
+        parameters: {
+            query: {
+                symbol: string;
+            };
+            header: {
+                /** @description The user's id. Required on every route except /health. */
+                "X-User-Id": components["parameters"]["UserId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dated source data and deterministic exposure. Examples are synthetic fixtures. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "symbol": "VTI",
+                     *       "provider": "FMP",
+                     *       "providerUpdatedAt": "2026-09-26",
+                     *       "fetchedAt": "2026-09-27T00:00:00Z",
+                     *       "sourceUrl": "https://site.financialmodelingprep.com/developer/docs/stable/holdings",
+                     *       "coveragePct": 6,
+                     *       "holdings": [
+                     *         {
+                     *           "symbol": "AAPL",
+                     *           "name": "Apple Inc. (illustrative fixture)",
+                     *           "weightPct": 6,
+                     *           "isin": "US0378331005"
+                     *         }
+                     *       ],
+                     *       "stale": false
+                     *     }
+                     */
+                    "application/json": components["schemas"]["FundHoldings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["NotLinked"];
+            502: components["responses"]["Upstream"];
+        };
+    };
+    getPortfolioExposure: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The user's id. Required on every route except /health. */
+                "X-User-Id": components["parameters"]["UserId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dated source data and deterministic exposure. Examples are synthetic fixtures. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "asOf": "2026-09-26T00:00:00Z",
+                     *       "totalValue": 10000,
+                     *       "status": "ready",
+                     *       "mappedPct": 23,
+                     *       "unmappedValue": 7700,
+                     *       "cashValue": 0,
+                     *       "overlapCount": 1,
+                     *       "exposures": [
+                     *         {
+                     *           "symbol": "AAPL",
+                     *           "name": "Apple Inc. (illustrative fixture)",
+                     *           "value": 2300,
+                     *           "weightPct": 23,
+                     *           "directValue": 2000,
+                     *           "fundValue": 300,
+                     *           "overlap": true,
+                     *           "paths": [
+                     *             {
+                     *               "via": null,
+                     *               "value": 2000,
+                     *               "weightPct": 20,
+                     *               "fundWeightPct": null
+                     *             },
+                     *             {
+                     *               "via": "VTI",
+                     *               "value": 300,
+                     *               "weightPct": 3,
+                     *               "fundWeightPct": 6
+                     *             }
+                     *           ]
+                     *         }
+                     *       ],
+                     *       "funds": [
+                     *         {
+                     *           "symbol": "VTI",
+                     *           "status": "partial",
+                     *           "positionValue": 5000,
+                     *           "coveragePct": 6,
+                     *           "providerUpdatedAt": "2026-09-26",
+                     *           "fetchedAt": "2026-09-27T00:00:00Z",
+                     *           "sourceUrl": "https://site.financialmodelingprep.com/developer/docs/stable/holdings"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["PortfolioExposure"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["NotLinked"];
+            502: components["responses"]["Upstream"];
+        };
+    };
     getCompanyResearch: {
         parameters: {
             query: {
@@ -1714,11 +1957,17 @@ export interface operations {
             content: {
                 "application/json": {
                     message: string;
+                    context?: components["schemas"]["ScoutPageContext"];
+                    /**
+                     * @description Standalone source-based QA; ignores history and checks against server-retrieved portfolio, scenario, company or lesson sources.
+                     * @default false
+                     */
+                    grounded?: boolean;
                 };
             };
         };
         responses: {
-            /** @description The advisor's reply, grounded in the user's real numbers. */
+            /** @description Educational reply with safety status; grounding checked only when explicitly requested and successful. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1873,6 +2122,7 @@ export interface operations {
             content: {
                 "application/json": {
                     key: string;
+                    context?: components["schemas"]["ScoutPageContext"];
                 };
             };
         };

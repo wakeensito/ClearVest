@@ -9,6 +9,7 @@ from aws_lambda_powertools.event_handler.api_gateway import Router
 from botocore.exceptions import ClientError
 from clearvest import advisor, api, aws
 from clearvest.errors import InvalidInput, UpstreamError
+from clearvest.scout_context import PageContext
 from pydantic import BaseModel, Field
 
 from voice import elevenlabs
@@ -20,12 +21,14 @@ NOT_FOUND_CODES = {"404", "NoSuchKey", "NotFound"}
 
 class TurnRequest(BaseModel):
     key: str = Field(min_length=1, max_length=300)
+    context: PageContext | None = None
 
 
 @router.post("/voice/turn")
 def turn():
     uid = api.user_id(router)
-    key = api.parse(TurnRequest, api.json_body(router)).key
+    request = api.parse(TurnRequest, api.json_body(router))
+    key = request.key
     prefix = f"audio/in/{uid}/"
     suffix = key[len(prefix):]
     if not key.startswith(prefix) or not suffix or ".." in key or "/" in suffix:
@@ -44,5 +47,5 @@ def turn():
     transcript = elevenlabs.transcribe(obj["Body"].read(), head.get("ContentType") or "audio/webm")
     if not transcript:
         raise InvalidInput("I didn't catch that. Try recording again.")
-    result = advisor.answer(uid, transcript, mode="voice")
-    return {"transcript": transcript, "reply": result["reply"], "disclaimer": result["disclaimer"]}
+    result = advisor.answer(uid, transcript, mode="voice", **({"context": request.context} if request.context else {}))
+    return {"transcript": result.get("userMessage", "Transcript withheld because safety checks were unavailable."), "reply": result["reply"], "disclaimer": result["disclaimer"], **{k: result[k] for k in ("safety", "sources") if k in result}}

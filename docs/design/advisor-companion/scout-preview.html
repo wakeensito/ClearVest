@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scout — four expressions</title>
+<link rel="stylesheet" href="../../../frontend/src/components/companion/Scout.module.css">
+<style>
+:root{font:16px/1.5 system-ui,sans-serif;color:#23374d;background:#eef2f7}body{max-width:1080px;margin:48px auto;padding:0 24px}h1{font-size:30px;font-weight:500;letter-spacing:-1px;margin:0}p{max-width:70ch;color:#576b83}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;margin:32px 0}figure{margin:0;padding:24px 16px;background:#ffffff80;border:1px solid white;border-radius:20px}.scout{width:180px;margin:auto;border-bottom:1px solid #cbd5e1}figcaption{margin-top:20px;text-align:center}small{display:block;color:#576b83}button{padding:10px 16px;border:1px solid #b9c9da;border-radius:20px;background:#ffffff90;color:#23374d;cursor:pointer}button:focus-visible{outline:2px solid #6988ad;outline-offset:4px}header{display:flex;align-items:center;gap:14px}header span{color:#277649;font-size:10px;font-weight:600;letter-spacing:.6px}
+</style>
+<header><h1>Scout</h1><span>BETA</span></header>
+<p>A little clarity, whenever you need it.</p>
+<p>Hover over Peek to reveal Scout’s body. The torso rises inside a fixed frame, the wings transition, and pupils continue to move independently. Device reduced-motion settings are respected.</p>
+<button id="replay">Replay expressions</button><main></main>
+<script>
+const poses=[{name:'peek',state:'idle',x:0,y:0,eyes:[214,447],eyeY:352,title:'Peek',detail:'At rest; hover to listen'},{name:'listen',state:'attentive',x:607,y:0,eyes:[216,445],eyeY:352,title:'Listen',detail:'Wings at the sides; body visible'},{name:'think',state:'thinking',x:0,y:590,eyes:[215,446],eyeY:352,title:'Think',detail:'Wing under the beak'},{name:'ready',state:'ready',x:607,y:590,eyes:[216,446],eyeY:356,title:'Ready',detail:'A small raised wing'}];
+function eye(x,y,id){return `<g clip-path="url(#${id})"><g class="eyeMotion"><g class="pupils"><ellipse cx="${x}" cy="${y}" rx="27" ry="34" fill="#12243c"/><ellipse cx="${x+8}" cy="${y-17}" rx="5" ry="6" fill="white"/></g></g><g class="lid" style="transform-origin:${x}px ${y-43}px"><rect x="${x-48}" y="${y-44}" width="96" height="88" rx="15" fill="#edf0f5"/><path d="M${x-43} ${y+16} Q${x} ${y+29} ${x+43} ${y+16}" stroke="#152743" stroke-width="4" fill="none"/></g></g>`}
+function svg(initial,i){return `<svg class="scout" data-state="${initial.state}" data-pose="${initial.name}" data-loaded="true" viewBox="0 45 627 560" aria-label="Scout ${initial.title}"><defs><clipPath id="frame${i}"><rect x="0" y="42" width="655" height="563"/></clipPath>${poses.map(p=>p.eyes.map((x,j)=>`<clipPath id="eye${i}${p.name}${j}"><ellipse cx="${x}" cy="${p.eyeY}" rx="45" ry="40"/></clipPath>`).join('')).join('')}</defs><g class="body"><g class="reaction">${poses.map(p=>`<g class="pose" data-art="${p.name}" clip-path="url(#frame${i})"><image href="../../../frontend/public/images/scout/scout-body-poses.png" x="${-p.x}" y="${-p.y}" width="1254" height="1254"/>${p.eyes.map((x,j)=>eye(x,p.eyeY,`eye${i}${p.name}${j}`)).join('')}</g>`).join('')}</g></g></svg>`}
+document.querySelector('main').innerHTML=poses.map((p,i)=>`<figure>${svg(p,i)}<figcaption>${p.title}<small>${p.detail}</small></figcaption></figure>`).join('');
+const peek=document.querySelector('.scout');peek.onpointerenter=()=>peek.dataset.pose='listen';peek.onpointerleave=()=>peek.dataset.pose='peek';
+document.querySelector('#replay').onclick=()=>document.querySelectorAll('.scout').forEach(el=>el.getAnimations({subtree:true}).forEach(a=>{a.currentTime=0;a.play()}));
+document.addEventListener('visibilitychange',()=>document.querySelectorAll('.scout').forEach(el=>el.dataset.paused=document.hidden));
+</script>
+</html>

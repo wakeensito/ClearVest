@@ -1,0 +1,23 @@
+.practice { min-width: 0; color: var(--cv-text); font-size: 14px; line-height: 23px; }
+.question { border: 0; padding: 0; margin: 0; min-width: 0; }
+.question legend { font-weight: 600; font-size: 16px; line-height: 24px; padding: 0; margin-bottom: 8px; }
+.note { color: var(--cv-text-secondary); font-size: 12px; line-height: 20px; margin: 8px 0 12px; }
+.options { display: grid; gap: 8px; margin-top: 14px; }
+.options button, .reviewActions button { min-height: 44px; padding: 10px 12px; border: 1px solid var(--cv-border-strong); border-radius: 6px; background: transparent; color: var(--cv-text); text-align: left; font-size: 14px; line-height: 22px; }
+.options button[aria-pressed='true'], .reviewActions button[aria-pressed='true'] { border-color: var(--cv-accent); background: var(--cv-accent-subtle); }
+.options button:disabled { opacity: .8; cursor: default; }
+.practice :is(button,textarea):focus-visible { outline: 2px solid var(--cv-accent); outline-offset: 3px; }
+.feedback { margin-top: 16px; padding-left: 14px; border-left: 2px solid var(--cv-accent); }
+.feedback p { margin-top: 6px; }
+.textButton { min-height: 44px; padding: 8px 0; background: none; border: 0; color: var(--cv-accent); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.reflection { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--cv-border); }
+.reflection h4 { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
+.reflection label { display: block; margin-bottom: 12px; }
+.reflection textarea { display: block; width: 100%; resize: vertical; min-height: 104px; max-height: 260px; background: var(--cv-surface); border: 1px solid var(--cv-border-input); border-radius: 6px; color: var(--cv-text); font-size: 16px; line-height: 24px; padding: 10px 12px; }
+.reflection textarea::placeholder { color: var(--cv-text-secondary); }
+.action { min-height: 44px; padding: 10px 14px; border: 1px solid var(--cv-accent); border-radius: 6px; background: transparent; color: var(--cv-accent); font-size: 14px; text-align: left; }
+.action:disabled { opacity: .5; }
+.review { margin-top: 20px; }
+.review ul { padding-left: 20px; margin: 12px 0; }
+.review li + li { margin-top: 12px; }
+.reviewActions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }

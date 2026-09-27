@@ -57,3 +57,7 @@ def research_section(symbol: str, section: str) -> list:
 
 def search_companies(query: str, by_symbol: bool) -> list:
     return _get("search-symbol" if by_symbol else "search-name", query=query, limit=8)
+
+
+def fund_holdings(symbol: str) -> list:
+    return _get("etf/holdings", symbol=symbol)

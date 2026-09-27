@@ -23,8 +23,8 @@ def put(pk: str, sk: str, data: Any, ttl: int | None = None) -> None:
     aws.table().put_item(Item=item)
 
 
-def get(pk: str, sk: str) -> Any | None:
-    item = aws.table().get_item(Key={"pk": pk, "sk": sk}).get("Item")
+def get(pk: str, sk: str, *, consistent: bool = False) -> Any | None:
+    item = aws.table().get_item(Key={"pk": pk, "sk": sk}, ConsistentRead=consistent).get("Item")
     return json.loads(item["data"]) if item else None
 
 

@@ -7,6 +7,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
 import { queryClient } from './api/queries'
+import { VoiceProvider } from './features/advisor/VoiceProvider'
 import { ChatProvider } from './features/advisor/ChatProvider'
 import { router } from './router'
 
@@ -17,7 +18,7 @@ createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ChatProvider>
-        <RouterProvider router={router} />
+        <VoiceProvider><RouterProvider router={router} /></VoiceProvider>
       </ChatProvider>
     </QueryClientProvider>
   </StrictMode>,

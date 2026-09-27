@@ -1,3 +1,5 @@
+import { ExplainThis } from '../../features/advisor/ExplainThis'
+import { useSearchParams } from 'react-router'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { Link } from 'react-router'
 import { useMemo, useState } from 'react'
@@ -20,6 +22,8 @@ const COLUMNS: { key: Key; label: string; numeric?: boolean }[] = [
 
 /** DESIGN.md §4.5. Sorted by value by default; becomes a list under 768px. */
 export function HoldingsTable({ holdings, hideValues = false }: { holdings: Holding[]; hideValues?: boolean }) {
+  const [params] = useSearchParams()
+  const focusSymbol = params.get('focus') === 'holding' ? params.get('holding') : null
   const [sort, setSort] = useState<{ key: Key; desc: boolean }>({ key: 'value', desc: true })
 
   const rows = useMemo(() => {
@@ -63,10 +67,11 @@ export function HoldingsTable({ holdings, hideValues = false }: { holdings: Hold
           </thead>
           <tbody>
             {rows.map((h) => (
-              <tr key={h.symbol}>
+              <tr key={h.symbol} data-scout-highlight={h.symbol === focusSymbol || undefined}>
                 <th scope="row">
                   <Link to={`/markets?symbol=${encodeURIComponent(h.symbol)}`} className={`t-mono ${styles.ticker}`}>{h.symbol}</Link>
                   <span className={`t-body-sm c-secondary ${styles.name}`}>{h.name}</span>
+              {!hideValues && <ExplainThis label="Explain holding" context={{ page: 'portfolio', symbol: h.symbol, metric: 'holding' }} question={`Explain my saved ${h.symbol} holding, including its value and weight in my portfolio.`} />}
                 </th>
                 <td>
                   <TypeCell holding={h} />
@@ -90,10 +95,11 @@ export function HoldingsTable({ holdings, hideValues = false }: { holdings: Hold
 
       <ul role="list" className={styles.list}>
         {rows.map((h) => (
-          <li key={h.symbol}>
+          <li key={h.symbol} data-scout-highlight={h.symbol === focusSymbol || undefined}>
             <div>
               <Link to={`/markets?symbol=${encodeURIComponent(h.symbol)}`} className={`t-mono ${styles.ticker}`}>{h.symbol}</Link>
               <span className={`t-body-sm c-secondary ${styles.name}`}>{h.name}</span>
+              {!hideValues && <ExplainThis label="Explain holding" context={{ page: 'portfolio', symbol: h.symbol, metric: 'holding' }} question={`Explain my saved ${h.symbol} holding, including its value and weight in my portfolio.`} />}
             </div>
             <div className={styles.listRight}>
               <span className="t-body-strong num">{hideValues ? 'Hidden' : currency(h.value)}</span>

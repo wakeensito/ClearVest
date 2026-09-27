@@ -1,4 +1,6 @@
 import { ArrowLeftRight, Minimize2 } from 'lucide-react'
+import { useSearchParams } from 'react-router'
+import { useScoutContext } from '../../features/advisor/scoutContext'
 import { useEffect, useRef, useState } from 'react'
 import { toFundState, useFund } from '../../api/queries'
 import { Button } from '../ui/Button'
@@ -10,10 +12,13 @@ import { SymbolSearch } from './SymbolSearch'
 import styles from './ResearchWorkspace.module.css'
 
 export function ResearchWorkspace({ symbol, onSymbolChange, onCompareCompanies, guided = false }: { symbol: string; onSymbolChange: (symbol: string) => void; onCompareCompanies?: (a: string, b: string) => void; guided?: boolean }) {
+  const [params, setParams] = useSearchParams()
+  const context = useScoutContext()
+  const changeRange = (range: string) => { const next = new URLSearchParams(params); next.set('range', range); setParams(next, { replace: true }) }
   const dialog = useRef<HTMLDialogElement>(null)
   const focusHeading = useRef<HTMLHeadingElement>(null)
   const compareButton = useRef<HTMLButtonElement>(null)
-  const [showChart, setShowChart] = useState(false)
+  const [showChart, setShowChart] = useState(params.get('focus') === 'price')
   const [comparing, setComparing] = useState(false)
   const [left, setLeft] = useState(symbol)
   const [right, setRight] = useState('')
@@ -35,9 +40,9 @@ export function ResearchWorkspace({ symbol, onSymbolChange, onCompareCompanies, 
   return <>
     <section className={styles.workspace} aria-label="Security research workspace">
       <header className={styles.heading}><div><h2 data-research-heading tabIndex={-1}>Security research</h2><p>A security is an investment, such as a stock or a fund. Explore one, or compare two.</p></div><button ref={compareButton} className={styles.compareButton} onClick={open}><ArrowLeftRight size={17} aria-hidden />Compare securities</button></header>
-      {guided ? <div className={styles.guided}><p>Start with the business. Choose another company whenever you’re ready.</p><SymbolSearch value={symbol} onSelect={onSymbolChange} /><CompanyFinancials key={symbol} symbol={symbol} /><details onToggle={event => setShowChart(event.currentTarget.open)}><summary>Explore the share price chart</summary>{showChart && <SecurityResearch key={symbol} initialSymbol={symbol} title="Price history" onSymbolChange={onSymbolChange} />}</details></div> : <div className={styles.single}><SecurityResearch key={symbol} initialSymbol={symbol} title="Price history" onSymbolChange={onSymbolChange} /></div>}
+      {guided ? <div className={styles.guided}><p>Start with the business. Choose another company whenever you’re ready.</p><SymbolSearch value={symbol} onSelect={onSymbolChange} /><CompanyFinancials key={`${symbol}:${context.metric ?? ""}`} symbol={symbol} /><details open={showChart} onToggle={event => setShowChart(event.currentTarget.open)}><summary>Explore the share price chart</summary>{showChart && <SecurityResearch key={`${symbol}:${context.range}:${context.priceDate ?? ""}`} initialSymbol={symbol} title="Price history" initialRange={context.range} onRangeChange={changeRange} onSymbolChange={onSymbolChange} />}</details></div> : <div className={styles.single}><SecurityResearch key={`${symbol}:${context.range}:${context.priceDate ?? ""}`} initialSymbol={symbol} title="Price history" initialRange={context.range} onRangeChange={changeRange} onSymbolChange={onSymbolChange} /></div>}
     </section>
-    {!guided && <CompanyFinancials key={symbol} symbol={symbol} />}
+    {!guided && <CompanyFinancials key={`${symbol}:${context.metric ?? ""}`} symbol={symbol} />}
     <MarketNews symbols={[symbol]} enabled={!comparing} />
     <dialog ref={dialog} className={styles.dialog} aria-labelledby="research-comparison-title" onClose={() => { setComparing(false); compareButton.current?.focus() }}>
       {comparing && <div className={styles.focusWorkspace}>

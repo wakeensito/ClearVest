@@ -4,9 +4,17 @@ import time
 import pytest
 from clearvest import advisor, cache, db
 from clearvest.errors import UpstreamError
-from clearvest.providers import bedrock
+from clearvest.providers import bedrock, guardrails
 
 from tests.helpers import USER
+
+
+@pytest.fixture(autouse=True)
+def screened_input():
+    # These tests cover context/format/routes; real policy handling lives in test_guardrails.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(guardrails, "mask_input", lambda text: text)
+        yield
 
 
 def seed(age=63, horizon="short"):

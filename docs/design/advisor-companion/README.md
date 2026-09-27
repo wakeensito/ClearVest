@@ -2,28 +2,44 @@
 
 - Date: 2026-09-26
 - Branch: `feat/advisor-companion`, based on main after the SQS history-refresh merge.
-- Stage: brainstorming and mascot exploration. No application behavior or model configuration changed.
-- User brief: a character peeks from the bottom-left on Home, Portfolio, Learn and Markets; clicking lifts it and opens contextual conversation. On Advisor, the character sits next to “Ask about your money.” It needs idle, attentive, thinking and finished states, stronger beginner explanations, and useful current economic/news context.
+- Stage: Scout page awareness, interactive portfolio lab, company briefs and source receipts are implemented locally, alongside navy glass and guarded inference. Deployment and live evaluation remain pending.
+- User brief: a character peeks from the bottom-right on Home, Portfolio, Learn and Markets; clicking lifts it and opens contextual conversation. On Advisor, the character sits next to “Ask about your money.” It needs idle, attentive, thinking and finished states, stronger beginner explanations, and useful current economic/news context.
+
+## Current implementation
+
+The latest [ownership and Advisor redesign](scout-ownership-and-advisor.md) adds source-backed fund overlap and simplifies the page to What I own, Risk check and Research, with chat and supporting details opened on demand. It supersedes the earlier always-visible chat/context layout. See the [ownership handoff](../../handoffs/2026-09-27-frontend-scout-ownership-advisor.md) for verification and data limits.
+
+Voice is now shared across Scout and Advisor, including spoken questions and Listen on typed answers. See [the voice flow](scout-voice.md) and [voice handoff](../../handoffs/2026-09-27-frontend-scout-shared-voice.md).
+
+Read [Scout’s investor workspace](scout-investor-workspace.md) for the current feature set, architecture, judge demo and next priorities. It implements recommendations 1–3 from [the previous safety report](scout-guardrails-and-demo.md). The latest [handoff](../../handoffs/2026-09-26-frontend-scout-investor-workspace.md) contains verification and operational details.
+
+Thinking eyes are static, opening moves down then up, and Advisor is a navy workbench. The popup keeps BETA and “A little clarity, whenever you need it.” on one line. Selection identifiers now reach the server; financial facts are loaded independently.
+
+## Original design proposal (historical)
+
+The proposal below records the initial design and possible future capabilities. Its proposed request fields, earlier motion/copy, and missing-feature assessment are historical; use the current implementation report above for shipped scope.
 
 ## Recommended direction
 
 Build one persistent learning companion with two presentations: a compact page companion and the full Advisor workspace. One conversation, draft, pending request, voice controller and source system serve both. Preserve the light SamsungOne brokerage design and let the character provide personality.
 
-**Provisional mascot recommendation: Pebble.** Its asymmetry and simple eyes remain legible at small sizes and are straightforward to animate. Cove is a warmer, more expressive alternative. These are options for discussion, not a finalized selection or finished production sprites.
+**Selected mascot: Scout, the bird.** The user selected Scout. Its compact navy silhouette, white face, golden beak and curious head tilts define the companion. Keep the crest small and expressions calm.
 
-| Concept | Strength | Refinement before production |
-|---|---|---|
-| [Pebble](pebble.png) | Quiet presence, simple expressive face, compact silhouette | Strengthen the edge contrast on white and keep one distinctive asymmetric silhouette |
-| [Cove, the otter](cove-otter.png) | Friendly, memorable, connects with ClearVest's coastal imagery | Flatten the plush rendering, simplify whiskers/fur, reduce eye highlights at small sizes |
-| [Scout, the bird](scout-bird.png) | Curious head tilts and readable dark silhouette | Differentiate the shape further from familiar bird mascots; simplify the crest |
+[Scout concept sheet](scout-bird.png) was generated with the built-in `image_gen` tool. Its exact prompt is in [prompts.json](prompts.json). The sheet is a visual reference; do not reproduce its illustrative title strip or extra quotation marks.
 
-All three concept sheets were generated with the built-in `image_gen` tool. Exact prompts and provenance are in [prompts.json](prompts.json). The original generated files remain in the image tool's storage; copies here make the exploration reviewable. Header strips on the sheets illustrate placement, not a final layout. In particular, do not reproduce extra quotation marks around the page title from the concept sheets.
+Scout now uses a [four-pose body atlas](../../../frontend/public/images/scout/scout-body-poses.png) with independently animated pupils and eyelids. At rest he peeks with paws over the edge. Hover, keyboard focus or opening reveals more torso and transitions to listening with wings at his sides. A real pending request uses the wing-under-beak thinking pose; a new reply briefly raises a wing, then settles back to listening or peek. [Preview the motion study](scout-preview.html). Built-in image generation produced the aligned artwork; exact prompts are in [prompts.json](prompts.json).
+
+`Scout.tsx` renders the rig, and `ScoutCompanion.tsx` mounts outside the keyed route outlet. Scout rests bottom right on Home, Portfolio, Markets, Learn and lesson routes, directly above mobile navigation. The outer launcher stays fixed while the body rises inside its clipped frame. Advisor retains its inline character. Both surfaces share messages, pending requests, retries and an in-memory draft.
+
+The panel uses restrained translucent blue-gray glass with backdrop blur, a fine light border, simpler message bubbles and quieter controls. A green EXPERIMENTAL label sits beside Scout's name and accompanies the resting launcher. The subtitle is “Your moral support, whenever you need it.” on one line, including at 320px. Quiet motion and Minimize were removed at the user's request. The centered information icon reveals educational disclosure on hover or keyboard focus; Escape dismisses it, and touch can focus it. It is not a disclosure button.
+
+Reduced motion remains controlled by device settings; ambient motion pauses in hidden tabs. The mobile panel uses the visual viewport to keep its composer above the keyboard. The backend still receives only the user's text, so the panel does not claim automatic screen awareness. These are registered raster body/wing poses with continuous eye movement and a rising body transform, not a full 3D rig.
 
 ## Interaction and visual plan
 
-Keep the existing six-color base: canvas `#F5F7FA`, white `#FFFFFF`, ink `#172B46`, cobalt `#2457C5`, rule `#DDE3EB`, secondary ink `#536176`. Use SamsungOne for all controls and replies. Keep content left aligned; use current border/radius tokens and overlay shadow only for the conversation panel.
+For the surrounding website, keep the existing six-color base: canvas `#F5F7FA`, white `#FFFFFF`, ink `#172B46`, cobalt `#2457C5`, rule `#DDE3EB`, secondary ink `#536176`. Use SamsungOne for all controls and replies. Keep content left aligned; use current border/radius tokens and overlay shadow only for the conversation panel.
 
-Desktop: 56–64px character footprint, about 20px from the left viewport edge. The head peeks above a small local edge rather than being clipped by the actual browser viewport. The entire visible character is a minimum 44px keyboard-accessible button. The panel opens above/right of it, around 360px wide with a bounded scroll area; screen size governs its maximum width and height.
+Desktop: 112px character footprint, about 20px from the right viewport edge (88px on mobile). Crop transparent art padding in the SVG viewBox so the visible wings meet the resting edge. The entire visible character is a minimum 44px keyboard-accessible button. The panel opens above/left of it, around 416px wide with a bounded scroll area; screen size governs its maximum width and height.
 
 ```text
 Current page remains usable
@@ -37,7 +53,7 @@ Current page remains usable
 │                                │
 │ [Ask a question…          ↑]   │
 └────────────────────────────────┘
-  (peeking companion)
+              (peeking companion)
 ```
 
 Advisor: a small inline character sits immediately beside the existing title, aligned with the heading group. Keep the supplied title as the page's visual anchor. The inline character focuses the composer; do not also show a floating character or a second chat panel on this route. The full thread supports deeper answers, citations, conversation history and context inspection.
@@ -50,24 +66,24 @@ Answers, sources, next question      Current page / portfolio / dates
 Composer + existing voice controls
 ```
 
-Mobile: place the launcher above the fixed navigation and device safe area. Opening uses a bottom sheet sized to the visual viewport so the keyboard cannot hide the composer. Modal sheets trap focus and restore it to the launcher on close; desktop nonmodal panels must not trap the user away from the page. Test at 320px and with zoom. Reserve enough layout space that the closed launcher never covers a required control.
+Mobile: place the launcher above the fixed navigation and device safe area. Opening uses a nonmodal panel sized to the visual viewport so the keyboard cannot hide the composer. Escape and close restore focus to the launcher; the page remains keyboard-accessible. A future modal presentation would need focus trapping. Test at 320px and with zoom. Reserve enough layout space that the closed launcher never covers a required control.
 
 ### Motion states
 
 | State | Character | UI behavior |
 |---|---|---|
 | Idle | Occasional tiny pupil glance and blink; long still intervals | Never initiates an AI request or pops open a reply |
-| Hover/focus | Looks toward the panel anchor, slight head tilt | Show a clear “Ask about this page” accessible label |
-| Open | Short 16–24px lift with a restrained settle | Panel opens in roughly 200–280ms; focus composer |
+| Hover/focus | Body rises to reveal the chest, wings at its sides | Show a clear “Ask about this page” accessible label |
+| Open | About 18px of additional torso is revealed within a fixed frame | Panel opens in roughly 200–280ms; focus composer |
 | Typing | Attentive eyes, largely still | Context and suggestions remain readable |
 | Thinking | Small upward glance and slow head/hand motion | Honest status: preparing answer, or a real server-reported retrieval stage |
 | Reply ready | One small nod, then settle | Show answer and sources; no repeating celebration |
 | Unavailable | Neutral expression | Retain draft and offer retry; never imply missing data was understood |
 | Voice recording/playback | Existing mic/speech state drives expression | Reuse existing explicit mic permission, stop and playback controls |
 
-Do not fabricate progress percentages, searches, checks or internal reasoning. Glances are cosmetic; no gaze tracking, cursor surveillance or screenshot capture is implied. Pause idle motion after a short sequence, when the document is hidden, and whenever reduced motion is preferred. Include a quiet/hide option. Do not animate gain/loss excitement or push activity notifications.
+Do not fabricate progress percentages, searches, checks or internal reasoning. Glances are cosmetic; no gaze tracking, cursor surveillance or screenshot capture is implied. Pause idle motion after a short sequence, when the document is hidden, and whenever reduced motion is preferred. Follow device reduced-motion preferences; do not add local Quiet motion or Minimize controls. Do not animate gain/loss excitement or push activity notifications.
 
-For implementation, use a layered vector mascot with independently addressable eyes, lids, head and arms. SVG plus CSS/Web Animations is sufficient for the initial states and can load lazily. The generated PNG sheets are reference artwork; a single bitmap cannot supply independent eye/head movement. Evaluate a rigging runtime only if the selected art needs more complex deformation.
+The live implementation registers four body/wing poses to a common head position. Poses dissolve while the body translates vertically and pupils move independently. Further continuous wing articulation would require separate wing layers.
 
 ## What “understands my screen” means
 
@@ -156,7 +172,7 @@ The existing API is API Gateway HTTP API with a 29-second advisor Lambda deadlin
 | 4. Model/research evaluation | Add a fixed evaluation set, compare baseline/configurations/candidate model, prototype public grounding and appropriate transport. | Measured quality/latency/cost improvement; no unsupported newest-news claims or unbounded tool loop |
 | 5. Production readiness | Authenticated user context, retention/deletion behavior, cost caps, observability, feature flag/rollback, real-provider tests | Verified isolation and recoverability before real personal-account rollout |
 
-After a mascot direction is selected, first implement the interaction against existing chat with a feature flag, then page context and grounded answers. This keeps the UI usable while intelligence upgrades are validated. No fine-tuning or vector database is needed just to make the companion understand its current page. Add document retrieval only if a real corpus and retrieval evaluation justify it.
+With Scout selected, next implement the interaction against existing chat with a feature flag, then page context and grounded answers. This keeps the UI usable while intelligence upgrades are validated. No fine-tuning or vector database is needed just to make the companion understand its current page. Add document retrieval only if a real corpus and retrieval evaluation justify it.
 
 ## Evaluation and critique
 
@@ -164,7 +180,7 @@ Use at least 30 scripted scenarios across Home/Portfolio/Learn/Markets/Advisor. 
 
 Measure context-selection accuracy, numerical correctness, source support and freshness disclosure, clarity for beginners, latency to useful output, completion rate and cost per answered question. Validate any proposed numeric success thresholds against the baseline; no performance numbers are established by this design exercise. Add human review by novice users and someone qualified to check the financial explanations.
 
-Motion review: all three generated sheets are more dimensional than our eventual vector UI should be. Keep their personality, flatten textures, verify 48/64/96px legibility, and prepare independent eye/head layers rather than swapping whole rendered frames. Avoid extra badges, a glossy AI orb, speech bubbles that interrupt reading, and duplicated chat surfaces. The small invitation should feel optional and dependable.
+Motion review: Scout preserves the softly shaded face and animates independent eye layers. Verify small-size legibility and preserve its compact silhouette as the floating presentation is added. Avoid extra badges, a glossy AI orb, speech bubbles that interrupt reading, and duplicated chat surfaces. The small invitation should feel optional and dependable.
 
 ## Sources verified for this proposal
 
@@ -176,7 +192,17 @@ Motion review: all three generated sheets are more dimensional than our eventual
 
 ## Decisions still open
 
-- Mascot direction and final name: Pebble is the current recommendation, with Cove and Scout alternatives.
 - How much optional idle motion feels right in the actual app; test the quiet default first.
 - Model/research budget and desired latency for “explain this” versus deeper research.
 - Whether voice appears in the compact panel at launch or follows after shared voice state is consolidated.
+
+
+## Guardrails and judge demo milestone
+
+Scout now uses popup-only BETA, navy/yellow glass and an opening scale reaction.
+The subtitle is “A little clarity, whenever you need it.” on one line.
+See [the implementation assessment and demo plan](scout-guardrails-and-demo.md)
+for finance/privacy guardrails, standalone portfolio grounding, privacy scope,
+deployment requirements and the highest-impact next improvements. This latest
+milestone supersedes the earlier experimental badges and moral-support subtitle.
+AWS deployment and live classifier evaluation remain pending.

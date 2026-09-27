@@ -90,7 +90,7 @@ const FUNDS = { VOO, QQQ, VGT, AAPL, NVDA, BND, VTI };
 const SEARCH_RESULTS = { results: [{ symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' }, { symbol: 'APLE', name: 'Apple Hospitality REIT', exchange: 'NYSE' }], stale: false };
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true });
 
   let fundMode = 'ok'; // 'ok' | 'error'

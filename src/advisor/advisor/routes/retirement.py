@@ -9,7 +9,7 @@ import json
 from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, db, facts
 from clearvest.errors import UpstreamError
-from clearvest.providers import bedrock
+from clearvest.providers import bedrock, guardrails
 
 router = Router()
 ACCOUNTS = facts.retirement_accounts()
@@ -38,6 +38,6 @@ def retirement_accounts():
     user = f"I'm {profile['age']}, horizon {profile['horizon']}, goals: {goals}."
     try:
         note = bedrock.converse(system, [{"role": "user", "content": [{"text": user}]}], max_tokens=250)
-    except UpstreamError:
+    except (UpstreamError, guardrails.Intervention):
         note = _rule_based(profile)
     return {"accounts": ACCOUNTS, "personalized": note}

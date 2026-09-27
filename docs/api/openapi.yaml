@@ -20,6 +20,102 @@ tags:
   - name: Voice
 
 paths:
+  /market/fund-holdings:
+    get:
+      operationId: getFundHoldings
+      tags:
+      - Market
+      summary: Source-backed one-level holdings; missing coverage is unknown, not zero.
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+          pattern: ^[A-Z0-9.^-]{1,12}$
+      responses:
+        '200':
+          description: Dated source data and deterministic exposure. Examples are synthetic
+            fixtures.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FundHoldings'
+              example:
+                symbol: VTI
+                provider: FMP
+                providerUpdatedAt: '2026-09-26'
+                fetchedAt: '2026-09-27T00:00:00Z'
+                sourceUrl: https://site.financialmodelingprep.com/developer/docs/stable/holdings
+                coveragePct: 6
+                holdings:
+                - symbol: AAPL
+                  name: Apple Inc. (illustrative fixture)
+                  weightPct: 6
+                  isin: US0378331005
+                stale: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/NotLinked'
+        '502':
+          $ref: '#/components/responses/Upstream'
+  /portfolio/exposure:
+    get:
+      operationId: getPortfolioExposure
+      tags:
+      - Portfolio
+      summary: Source-backed one-level holdings; missing coverage is unknown, not zero.
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Dated source data and deterministic exposure. Examples are synthetic
+            fixtures.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioExposure'
+              example:
+                asOf: '2026-09-26T00:00:00Z'
+                totalValue: 10000
+                status: ready
+                mappedPct: 23
+                unmappedValue: 7700
+                cashValue: 0
+                overlapCount: 1
+                exposures:
+                - symbol: AAPL
+                  name: Apple Inc. (illustrative fixture)
+                  value: 2300
+                  weightPct: 23
+                  directValue: 2000
+                  fundValue: 300
+                  overlap: true
+                  paths:
+                  - via: null
+                    value: 2000
+                    weightPct: 20
+                    fundWeightPct: null
+                  - via: VTI
+                    value: 300
+                    weightPct: 3
+                    fundWeightPct: 6
+                funds:
+                - symbol: VTI
+                  status: partial
+                  positionValue: 5000
+                  coveragePct: 6
+                  providerUpdatedAt: '2026-09-26'
+                  fetchedAt: '2026-09-27T00:00:00Z'
+                  sourceUrl: https://site.financialmodelingprep.com/developer/docs/stable/holdings
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/NotLinked'
+        '502':
+          $ref: '#/components/responses/Upstream'
   /market/company-research:
     get:
       operationId: getCompanyResearch
@@ -695,11 +791,17 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 2000
+                context:
+                  $ref: '#/components/schemas/ScoutPageContext'
+                grounded:
+                  type: boolean
+                  default: false
+                  description: Standalone source-based QA; ignores history and checks against server-retrieved portfolio, scenario, company or lesson sources.
               example:
                 message: "I'm 24, what retirement account should I use?"
       responses:
         "200":
-          description: The advisor's reply, grounded in the user's real numbers.
+          description: Educational reply with safety status; grounding checked only when explicitly requested and successful.
           content:
             application/json:
               schema:
@@ -819,6 +921,8 @@ paths:
               properties:
                 key:
                   type: string
+                context:
+                  $ref: '#/components/schemas/ScoutPageContext'
               example:
                 key: audio/in/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222
       responses:
@@ -1498,6 +1602,179 @@ components:
         source:
           type: string
 
+    FundHoldings:
+      type: object
+      required:
+      - symbol
+      - provider
+      - providerUpdatedAt
+      - fetchedAt
+      - sourceUrl
+      - coveragePct
+      - holdings
+      - stale
+      properties:
+        symbol: &fundString
+          type: string
+        provider:
+          type: string
+          const: FMP
+        providerUpdatedAt: *fundString
+        fetchedAt: *fundString
+        sourceUrl: *fundString
+        coveragePct: &fundNumber
+          type: number
+        holdings:
+          type: array
+          items:
+            type: object
+            required:
+            - symbol
+            - name
+            - weightPct
+            - isin
+            properties:
+              symbol: *fundString
+              name: *fundString
+              weightPct:
+                type: number
+                minimum: 0
+                maximum: 100
+              isin:
+                type:
+                - string
+                - 'null'
+            additionalProperties: false
+        stale:
+          type: boolean
+      additionalProperties: false
+    PortfolioExposure:
+      type: object
+      required:
+      - asOf
+      - totalValue
+      - status
+      - mappedPct
+      - unmappedValue
+      - cashValue
+      - overlapCount
+      - exposures
+      - funds
+      properties:
+        asOf: *fundString
+        totalValue: *fundNumber
+        status:
+          type: string
+          enum:
+          - ready
+          - unsupported
+        mappedPct: *fundNumber
+        unmappedValue: *fundNumber
+        cashValue: *fundNumber
+        overlapCount:
+          type: integer
+        exposures:
+          type: array
+          items:
+            type: object
+            required:
+            - symbol
+            - name
+            - value
+            - weightPct
+            - directValue
+            - fundValue
+            - overlap
+            - paths
+            properties:
+              symbol: *fundString
+              name: *fundString
+              value: *fundNumber
+              weightPct: *fundNumber
+              directValue: *fundNumber
+              fundValue: *fundNumber
+              overlap:
+                type: boolean
+              paths:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - via
+                  - value
+                  - weightPct
+                  - fundWeightPct
+                  properties:
+                    via:
+                      type:
+                      - string
+                      - 'null'
+                    value: *fundNumber
+                    weightPct: *fundNumber
+                    fundWeightPct:
+                      type:
+                      - number
+                      - 'null'
+                  additionalProperties: false
+            additionalProperties: false
+        funds:
+          type: array
+          items:
+            type: object
+            required:
+            - symbol
+            - status
+            - positionValue
+            - coveragePct
+            - providerUpdatedAt
+            - fetchedAt
+            - sourceUrl
+            properties:
+              symbol: *fundString
+              status:
+                type: string
+                enum:
+                - available
+                - partial
+                - unavailable
+                - outdated
+              positionValue: *fundNumber
+              coveragePct: *fundNumber
+              providerUpdatedAt:
+                type:
+                - string
+                - 'null'
+              fetchedAt:
+                type:
+                - string
+                - 'null'
+              sourceUrl: *fundString
+            additionalProperties: false
+      additionalProperties: false
+
+    ScoutPageContext:
+      type: object
+      additionalProperties: false
+      required: [page]
+      properties:
+        page: {type: string, enum: [home, portfolio, markets, learn, advisor]}
+        symbol: {type: string, pattern: '^[A-Z0-9.^-]{1,12}$'}
+        range: {type: string, enum: [1y, 5y, 10y]}
+        lessonId: {type: string, pattern: '^[a-z0-9-]{1,60}$'}
+        metric: {type: string, enum: [business, revenue, profit, valuation, risk, price, exposure, holding]}
+        priceDate:
+          type: string
+          format: date
+          description: Selected closing-price observation. Requires symbol, range and metric price; resolved from the server cache.
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        scenario:
+          type: object
+          additionalProperties: false
+          required: [symbol, dropPct]
+          properties:
+            symbol: {type: string, pattern: '^[A-Z0-9.^-]{1,12}$'}
+            dropPct: {type: integer, minimum: 0, maximum: 60}
+
     ChatReply:
       type: object
       required: [reply, disclaimer]
@@ -1510,6 +1787,32 @@ components:
             markdown table of up to 3 columns. Never contains headings ("#").
         disclaimer:
           type: string
+
+        userMessage:
+          type: string
+          description: Safety-screened question, with detected identifiers masked. Absent if the input safety check failed.
+        safety:
+          type: object
+          required: [status, grounding]
+          properties:
+            status:
+              type: string
+              enum: [passed, intervened, unavailable]
+            grounding:
+              type: string
+              enum: [not_requested, checked, withheld, unavailable]
+        sources:
+          type: array
+          items:
+            type: object
+            required: [label, asOf, text]
+            properties:
+              label: {type: string}
+              asOf: {type: string}
+              text: {type: string}
+              kind: {type: string, enum: [portfolio, scenario, company, news, lesson, price, exposure]}
+              url: {type: string}
+              retrievedAt: {type: string}
 
     RetirementAccounts:
       type: object
@@ -1560,6 +1863,11 @@ components:
             no lists, no tables.
         disclaimer:
           type: string
+
+        safety:
+          $ref: '#/components/schemas/ChatReply/properties/safety'
+        sources:
+          $ref: '#/components/schemas/ChatReply/properties/sources'
 
     Speech:
       type: object

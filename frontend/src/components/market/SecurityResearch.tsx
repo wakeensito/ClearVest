@@ -2,6 +2,9 @@ import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { AreaSeries, ColorType, CrosshairMode, createChart, type IChartApi, type ISeriesApi } from 'lightweight-charts'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
+import { ExplainThis } from '../../features/advisor/ExplainThis'
+import { ScoutTarget } from '../../features/advisor/ScoutTarget'
+import { useScoutContext } from '../../features/advisor/scoutContext'
 import type { HistoryRange, HistorySeries } from '../../api/client'
 import { toFundState, useFund, useHistory } from '../../api/queries'
 import { isExplainOpen, withExplain } from '../../lib/fundExplainer'
@@ -20,6 +23,8 @@ import { WhatIfCard } from './WhatIfCard'
 import styles from './SecurityResearch.module.css'
 
 export interface SecurityResearchProps {
+  initialRange?: HistoryRange
+  onRangeChange?: (range: HistoryRange) => void
   initialSymbol?: string
   compact?: boolean
   title?: string
@@ -33,9 +38,9 @@ export interface SecurityResearchProps {
   invite?: boolean
 }
 
-export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, explainable = true, invite = true }: SecurityResearchProps) {
+export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, initialRange = '1y', onRangeChange, explainable = true, invite = true }: SecurityResearchProps) {
   const [symbol, setSymbol] = useState(initialSymbol)
-  const [range, setRange] = useState<HistoryRange>('1y')
+  const [range, setRange] = useState<HistoryRange>(initialRange)
   const query = useHistory(symbol, range)
   const { id: explainId, open: explainOpen, state: fundState, inputRef, headingRef, show, close, retry, seeFinancials } = useExplainer(symbol, explainable)
   // The search box owns its draft and error; a new symbol (from here or the explainer) resets both.
@@ -48,7 +53,7 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
       </div>
       <div className={styles.toolbar}>
         <SymbolSearch value={symbol} onSelect={select} inputRef={inputRef} className={styles.search} />
-        <SegmentedControl label="History range" value={range} onChange={setRange} options={[{ value: '1y', label: '1Y' }, { value: '5y', label: '5Y' }, { value: '10y', label: '10Y' }]} />
+        <SegmentedControl label="History range" value={range} onChange={next => { setRange(next); onRangeChange?.(next) }} options={[{ value: '1y', label: '1Y' }, { value: '5y', label: '5Y' }, { value: '10y', label: '10Y' }]} />
       </div>
       {symbol && explainable && <div className={styles.identityRow} data-identity-row><FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} /><WatchButton symbol={symbol} /></div>}
       {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} onResearch={select} headingRef={headingRef} />}
@@ -66,14 +71,14 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
               {!polling && <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching}>Check again</button>}
             </p>}
             {refresh?.status === 'failed' && <p role="status" className={styles.empty}>Prices could not be updated. Showing the last saved chart. <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching}>Check again</button></p>}
-            {series ? <PriceHistory key={`${symbol}:${range}:${refresh?.fetchedAt ?? 'snapshot'}`} series={series} compact={compact} /> : !pending && <p className={styles.empty}>No price history was returned for {symbol}. Try another ticker.</p>}
+            {series ? <PriceHistory key={`${symbol}:${range}:${refresh?.fetchedAt ?? 'snapshot'}`} series={series} compact={compact} range={range} /> : !pending && <p className={styles.empty}>No price history was returned for {symbol}. Try another ticker.</p>}
           </>
         }}
       </QueryView>}
       <ContextHelp title="How do I read this chart?"><p>The line shows the price of one share over time. Choose 1Y, 5Y or 10Y to change the period. A rising line means the share price increased during that period; it does not tell you what happens next.</p><p>Price return is the percentage change between the first and last available prices. Volatility describes how much prices moved around. Neither tells you whether a company earns a profit.</p></ContextHelp>
       <div className={styles.footer}>
         <span>Prices are in the security’s quote currency. This is not your account’s performance.</span>
-        {symbol && <Link to={`/advisor?q=${encodeURIComponent(`Explain ${symbol} and the risks of holding it in a portfolio.`)}`}>Ask about {symbol}</Link>}
+        {symbol && <Link to={`/advisor?symbol=${symbol}&range=${range}&q=${encodeURIComponent(`Explain ${symbol} and the risks of holding it in a portfolio.`)}`}>Ask about {symbol}</Link>}
       </div>
     </section>
   )
@@ -128,9 +133,15 @@ function useExplainer(symbol: string, enabled: boolean) {
   }
 }
 
-function PriceHistory({ series, compact }: { series: HistorySeries; compact: boolean }) {
+function PriceHistory({ series, compact, range }: { series: HistorySeries; compact: boolean; range: HistoryRange }) {
   const points = useMemo(() => historyPoints(series.points), [series.points])
-  const [selected, setSelected] = useState<number | null>(null)
+  const context = useScoutContext()
+  const requestedDate = context.symbol === series.symbol ? context.priceDate : undefined
+  const [selected, setSelected] = useState<number | null>(() => {
+    const index = points.findIndex(p => p.time === requestedDate)
+    return index < 0 ? null : index
+  })
+  const pinned = useRef(!!requestedDate)
   const [table, setTable] = useState(false)
   const host = useRef<HTMLDivElement>(null)
   const chart = useRef<IChartApi | null>(null)
@@ -162,10 +173,15 @@ function PriceHistory({ series, compact }: { series: HistorySeries; compact: boo
     line.setData(points)
     instance.timeScale().fitContent()
     instance.subscribeCrosshairMove((event) => {
-      if (!event.point || event.time === undefined) { setSelected(null); return }
+      if (pinned.current || !event.point || event.time === undefined) return
       const datum = event.seriesData.get(line)
       const index = points.findIndex((point) => point.time === datum?.time)
-      setSelected(index < 0 ? null : index)
+      if (index >= 0) setSelected(index)
+    })
+    instance.subscribeClick(event => {
+      const datum = event.seriesData.get(line)
+      const index = points.findIndex(point => point.time === datum?.time)
+      if (index >= 0) { pinned.current = true; setSelected(index) }
     })
     chart.current = instance
     area.current = line
@@ -180,21 +196,25 @@ function PriceHistory({ series, compact }: { series: HistorySeries; compact: boo
     const index = Math.max(0, Math.min(points.length - 1, (selected ?? points.length - 1) + direction))
     const point = points[index]
     if (!point) return
+    pinned.current = true
     setSelected(index)
     if (chart.current && area.current) chart.current.setCrosshairPosition(point.value, point.time, area.current)
   }
   if (!displayed || !first || !last) return <p className={styles.empty}>No usable price observations for {series.symbol}. Try another range.</p>
   return (
     <>
-      <div className={styles.quote}>
+      <ScoutTarget name="price" selected={context.symbol === series.symbol}><div className={styles.quote}>
         <div><span className={styles.symbol}>{series.symbol}</span><span className="t-caption c-tertiary">Closing price</span><p className={styles.price}>{marketPrice(displayed.value)}</p></div>
         <div className={styles.return}><strong className={series.returnPct > 0 ? 'c-gain' : series.returnPct < 0 ? 'c-loss' : 'c-secondary'}>{percentFromFraction(series.returnPct, { signed: true, digits: 2 })}</strong><span className="t-caption c-tertiary">Price return over available history</span></div>
       </div>
       <p className="t-caption c-tertiary" aria-live="polite">{date(displayed.time)}{selected === null ? ' · Latest available close' : ` · ${marketPrice(displayed.value)}`}</p>
-      <p id={summaryId} className="sr-only">{series.symbol} price history from {date(first.time)} to {date(last.time)}. Price return {percentFromFraction(series.returnPct, { signed: true, digits: 2 })}. Use left and right arrow keys to inspect observations or view the data table.</p>
+      <ExplainThis context={{ page: context.page, symbol: series.symbol, range, metric: 'price', priceDate: displayed.time }} question={`Explain the closing price for ${series.symbol} on ${displayed.time} in simple words. What can and can't this observation tell me?`} label="Explain this price" />
+      {requestedDate && !points.some(p => p.time === requestedDate) && <p role="status">The saved observation for {requestedDate} is not in this chart. Showing the latest available close.</p>}
+      </ScoutTarget>
+      <p id={summaryId} className="sr-only">{series.symbol} price history from {date(first.time)} to {date(last.time)}. Price return {percentFromFraction(series.returnPct, { signed: true, digits: 2 })}. Use left and right arrow keys to inspect observations, click to keep a selection, or view the data table.</p>
       {table ? (
         <div className={styles.tableWrap} tabIndex={0} aria-label="Scrollable price history">
-          <table className={styles.table}><caption>{series.symbol} closing prices</caption><thead><tr><th scope="col">Date</th><th scope="col">Close</th></tr></thead><tbody>{points.map((point) => <tr key={point.time}><th scope="row">{date(point.time)}</th><td>{marketPrice(point.value)}</td></tr>)}</tbody></table>
+          <table className={styles.table}><caption>{series.symbol} closing prices</caption><thead><tr><th scope="col">Date</th><th scope="col">Close</th></tr></thead><tbody>{points.map((point) => <tr key={point.time}><th scope="row">{date(point.time)}</th><td>{marketPrice(point.value)} <ExplainThis label="Explain" context={{ page: context.page, symbol: series.symbol, range, metric: 'price', priceDate: point.time }} question={`Explain ${series.symbol} closing price on ${point.time} in simple words.`} /></td></tr>)}</tbody></table>
         </div>
       ) : (
         <div ref={host} className={styles.chart} role="group" aria-label={`${series.symbol} interactive price chart`} aria-describedby={summaryId} tabIndex={0} onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); move(event.key === 'ArrowLeft' ? -1 : 1) } }} />

@@ -1,12 +1,21 @@
 import json
 
+import pytest
 from advisor.app import handler
 from clearvest import db
 from clearvest.errors import UpstreamError
-from clearvest.providers import bedrock
+from clearvest.providers import bedrock, guardrails
 
 from tests.contract import assert_matches
 from tests.helpers import USER, call
+
+
+@pytest.fixture(autouse=True)
+def screened_input():
+    # These tests cover context/format/routes; real policy handling lives in test_guardrails.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(guardrails, "mask_input", lambda text: text)
+        yield
 
 
 def test_chat(aws, monkeypatch):
@@ -78,3 +87,10 @@ def test_retirement_goals_render_as_none_when_empty(aws, monkeypatch):
     db.put(db.user_pk(USER), "PROFILE", {"age": 30, "horizon": "long", "goals": [], "riskTolerance": "medium"})
     call(handler, "GET", "/advisor/retirement-accounts")
     assert "goals: none" in captured["user"]
+
+
+def test_grounded_flag_is_strictly_boolean(aws):
+    assert call(handler, "POST", "/advisor/chat", {"message": "Explain my portfolio", "grounded": "true"})[0] == 400
+    status, body = call(handler, "POST", "/advisor/chat", {"message": "Explain my portfolio", "grounded": True})
+    assert status == 200 and body["safety"]["grounding"] == "unavailable"
+    assert_matches("/advisor/chat", "post", 200, body)

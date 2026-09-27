@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, MessageCircle, RotateCcw, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { useFunds, useHoldings } from '../../api/queries'
 import { Button, ButtonLink } from '../../components/ui/Button'
 import { currencyWhole, date, percentFromFraction } from '../../lib/format'
@@ -26,6 +26,8 @@ function MissingLesson() {
 }
 
 function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof findLesson>>) {
+  const [params] = useSearchParams()
+  const fromScout = params.get('from') === 'scout'
   // A "play" lesson swaps the quiz for the fund's decisions; everything else (cards, progress) is the same.
   const play = lesson.play
   const questions = play?.decisions ?? lesson.quiz
@@ -58,6 +60,7 @@ function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof fin
   const advisorLink = `/advisor?q=${encodeURIComponent(lesson.askPrompt)}`
 
   return <div className={styles.lessonShell}>
+    {fromScout && <ButtonLink to="/advisor?chat=1" icon={<ArrowLeft size={16} aria-hidden />}>Back to your Scout conversation</ButtonLink>}
     <div className={styles.lessonTop}>
       <Link to="/learn" className={styles.exit} aria-label="Exit lesson and return to Learn"><X size={20} aria-hidden /></Link>
       <div className={styles.progressTrack} role="progressbar" aria-label="Lesson progress" aria-valuemin={0} aria-valuemax={total} aria-valuenow={Math.min(step, total)}>

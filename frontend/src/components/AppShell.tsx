@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { House, BookOpen, ChartLine, CircleUser, Search, MessageSquareText, Wallet } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router'
+import { Link, NavLink, Outlet, useLocation, useNavigation } from 'react-router'
 import { useChat } from '../features/advisor/chatContext'
 import { resetUserId } from '../lib/userId'
 import styles from './AppShell.module.css'
+import { ScoutCompanion } from './companion/ScoutCompanion'
 import { Badge } from './ui/Badge'
 import { ConfirmDialog } from './ui/ConfirmDialog'
 
@@ -27,12 +28,13 @@ export function Wordmark() {
 
 export function AppShell() {
   const { pathname } = useLocation()
+  const navigation = useNavigation()
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }) }, [pathname])
 
   // Learning, research and general advisor questions work without a saved profile.
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-advisor={pathname === '/advisor'}>
       <a href="#main" className={styles.skip}>
         Skip to content
       </a>
@@ -54,11 +56,12 @@ export function AppShell() {
         </div>
       </header>
 
-      <div className={styles.workspaceBar}><span>Learn a little. Explore at your pace.</span><span>No trading in ClearVest</span></div>
-
-      <main id="main" className={styles.main} key={pathname}>
+      <div className={styles.routeStatus} role="status">{navigation.state !== 'idle' ? 'Opening page…' : ''}</div>
+      <main id="main" className={styles.main} key={pathname} aria-busy={navigation.state !== 'idle'}>
         <Outlet />
       </main>
+
+      <ScoutCompanion />
 
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
@@ -148,7 +151,7 @@ function ProfileMenu() {
           <Link to="/welcome?edit=1" state={{ returnTo: location.pathname + location.search }} className={styles.menuItem} onClick={() => setOpen(false)}>
             Edit profile
           </Link>
-          <button type="button" className={styles.menuItem} onClick={() => {
+          <button type="button" className={styles.menuItem} disabled={chat.busy} onClick={() => {
               setOpen(false)
               setConfirm('chat')
             }}>
