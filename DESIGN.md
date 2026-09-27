@@ -427,11 +427,17 @@ $1 to $1,000,000. Showing $1,000.” in the field-error style, and the figures k
 state only, no URL state.
 
 **The sentence is the answer.** At 17/26 medium (16/24 on phones), in a polite live region:
-“Adding $1,000 of NVDA: your NVDA exposure goes from 17% to 21% (counting what your funds hold), and
-your risk score from 34 to 35 (Moderate).” Not held: “you'd go from owning no ORCL to 9%”. The risk
-label is repeated on both sides only when it changes. Whole percents; a sliver reads “under 1%”, never
-“0%”. For a stock or crypto the exposure is its look-through company share; for an ETF or mutual fund it
-is the fund's own share of the account.
+“Adding $1,000 of NVDA: your NVDA exposure goes from 17% to 21% (counting your funds' top 10
+holdings), and your risk score from 34 to 35 (Moderate).” Starting from 0% in an account with funds:
+“you'd go from no ORCL we can see to 9%”; with no funds, where nothing is unseen: “you'd go from owning
+no ORCL to 9%”. The risk label is repeated on both sides only when it changes. Whole percents; a sliver
+reads “under 1%”, never “0%”. For a stock or crypto the exposure is its look-through company share; for
+an ETF or mutual fund it is the fund's own share of the account.
+
+**A lower bound.** Funds are looked through their top 10 holdings only (§4.14), so the exposure figure
+never counts a company sitting deeper in a fund, and the copy never claims it does. A company outside
+the look-through's top 10 companies counts its direct weight. The figure can jump when a company enters
+a fund's top 10 on the “after” side (adding a fund brings its top holdings in with it).
 
 **Figures.** Two compact before → after pairs, side by side on desktop, stacked on phones, as a `dl`:
 “Risk score 34 → 35” with the band label in 12px tertiary (“Moderate → Aggressive” when it crosses), over

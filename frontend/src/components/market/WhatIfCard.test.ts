@@ -34,7 +34,7 @@ describe('WhatIfCard', () => {
     const t = text(html)
     expect(html).toContain('data-what-if="NVDA"')
     expect(t).toContain('What would this do to my portfolio?')
-    expect(t).toMatch(/Adding \$1,000 of NVDA: your NVDA exposure goes from \d+% to \d+% \(counting what your funds hold\), and your risk score from \d+ to \d+/)
+    expect(t).toMatch(/Adding \$1,000 of NVDA: your NVDA exposure goes from \d+% to \d+% \(counting your funds' top 10 holdings\), and your risk score from \d+ to \d+/)
     expect(t).toMatch(/Risk score \d+ → \d+/)
     expect(t).toMatch(/NVDA exposure \d+% → \d+%/)
     expect(t).toContain("Counting each fund's top 10 holdings (3 of 3 funds checked). Educational, not a recommendation.")
@@ -56,7 +56,7 @@ describe('WhatIfCard', () => {
     const vti = { ...VOO, symbol: 'VTI', name: 'Vanguard Total Stock Market ETF' }
     const t = text(render('VTI', ok(vti), linked))
     expect(t).toContain('(4 of 4 funds checked)')
-    expect(t).toContain("you'd go from owning no VTI to")
+    expect(t).toContain("you'd go from no VTI we can see to")
   })
 
   it('renders nothing when the account is not linked', () => {
@@ -74,6 +74,15 @@ describe('WhatIfCard', () => {
       seedApiError(c, ['profile'], new ApiError(404, 'NOT_FOUND', 'No profile'))
     })
     expect(text(html)).toContain('Adding $1,000 of NVDA')
+  })
+
+  it('renders nothing when the profile fails for any reason other than "no profile saved"', () => {
+    const html = render('NVDA', ok(NVDA), (c) => {
+      c.setQueryData(['holdings'], sampleHoldings())
+      seedFunds(c)
+      seedApiError(c, ['profile'], new ApiError(502, 'UPSTREAM_UNAVAILABLE', 'Upstream unavailable'))
+    })
+    expect(html).toBe('')
   })
 
   it('renders nothing while loading, for an index, for a failed fund lookup, or an empty account', () => {
