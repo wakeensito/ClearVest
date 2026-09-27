@@ -45,7 +45,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Beginner "what is this?" explainer for an ETF, mutual fund or stock. */
+        /** Beginner "what is this?" explainer for an ETF, mutual fund, stock, index or cryptocurrency. */
         get: operations["getFund"];
         put?: never;
         post?: never;
@@ -443,11 +443,11 @@ export interface components {
             symbol: string;
             name: string;
             /** @enum {string} */
-            kind: "etf" | "mutual_fund" | "stock" | "other";
+            kind: "etf" | "mutual_fund" | "stock" | "index" | "crypto" | "other";
             isIndexFund: boolean;
+            leveraged: boolean;
             tracks: string | null;
             expenseRatio: number | null;
-            holdingsCount: number | null;
             topHoldings: components["schemas"]["FundHolding"][];
             fundFamily: string | null;
             category: string | null;
@@ -902,7 +902,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Every number (expenseRatio, holdingsCount, topHoldings weights) comes from the data provider, never the model. summary is a one-sentence beginner explanation; summarySource says whether it was rewritten by the model or is the plain template. */
+            /** @description Every number (expenseRatio, topHoldings weights) comes from the data provider, never the model. summary is a one-sentence beginner explanation; summarySource says whether it was rewritten by the model or is the plain template (always template for a leveraged fund, an index, a cryptocurrency, or an unrecognized kind). */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -914,9 +914,9 @@ export interface operations {
                      *       "name": "Vanguard S&P 500 ETF",
                      *       "kind": "etf",
                      *       "isIndexFund": true,
+                     *       "leveraged": false,
                      *       "tracks": "Standard & Poor's 500 Index",
                      *       "expenseRatio": 0.0003,
-                     *       "holdingsCount": 504,
                      *       "topHoldings": [
                      *         {
                      *           "symbol": "NVDA",
