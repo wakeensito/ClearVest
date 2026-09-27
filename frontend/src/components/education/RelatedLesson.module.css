@@ -1,0 +1,6 @@
+.related { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 8px; padding: 6px 12px; border: 1px solid var(--cv-border); border-radius: var(--cv-radius); background: var(--cv-surface); color: var(--cv-text); font-size: 14px; line-height: 20px; text-decoration: none; transition: border-color var(--cv-motion-fast) var(--cv-ease), background-color var(--cv-motion-fast) var(--cv-ease); }
+.related:hover { border-color: var(--cv-accent); background: var(--cv-accent-subtle); }
+.related svg { color: var(--cv-accent); flex-shrink: 0; }
+.label { font-weight: 600; color: var(--cv-accent); }
+.label::after { content: ':'; }
+@media (prefers-reduced-motion: reduce) { .related { transition: none; } }

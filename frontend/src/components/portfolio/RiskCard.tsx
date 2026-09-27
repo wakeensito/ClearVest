@@ -1,8 +1,13 @@
 import { useRisk } from '../../api/queries'
+import { ExplainText } from '../education/Term'
+import { RelatedLesson } from '../education/RelatedLesson'
+import { findLesson } from '../../lib/lessons'
 import { QueryView } from '../QueryView'
 import { Card } from '../ui/Card'
 import { Skeleton } from '../ui/Skeleton'
 import styles from './RiskCard.module.css'
+
+const DIVERSIFICATION_TITLE = findLesson('diversification')?.lesson.title ?? 'Don’t put all your eggs in one basket'
 
 const BANDS = [
   { label: 'Conservative', from: 0, to: 33 },
@@ -38,7 +43,7 @@ export function RiskCard({ hideDetails = false }: { hideDetails?: boolean }) {
               </div>
             </div>
 
-            <p className="t-body">{hideDetails ? 'Show portfolio values to read your account-specific risk explanation.' : risk.summary}</p>
+            <p className="t-body">{hideDetails ? 'Show portfolio values to read your account-specific risk explanation.' : <ExplainText text={risk.summary} />}</p>
 
             {!hideDetails && <details className={styles.details}>
             <summary>What shapes this score</summary>
@@ -46,11 +51,12 @@ export function RiskCard({ hideDetails = false }: { hideDetails?: boolean }) {
               {risk.factors.map((f) => (
                 <div key={f.name}>
                   <dt className="t-body-strong">{f.name}</dt>
-                  <dd className="t-body-sm c-secondary">{f.detail}</dd>
+                  <dd className="t-body-sm c-secondary"><ExplainText text={f.detail} /></dd>
                 </div>
               ))}
             </dl>
             </details>}
+            <RelatedLesson text={hideDetails ? '' : risk.summary} fallback={{ id: 'diversification', title: DIVERSIFICATION_TITLE }} />
           </div>
         )}
       </QueryView>
