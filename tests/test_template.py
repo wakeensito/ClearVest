@@ -184,7 +184,10 @@ def test_refresh_queue_visibility_and_leases_cover_worker_deadline():
     assert queue["RedrivePolicy"]["maxReceiveCount"] == refresh.MAX_RECEIVES
     assert event["BatchSize"] == 1
     assert event["FunctionResponseTypes"] == ["ReportBatchItemFailures"]
-    assert event["ScalingConfig"]["MaximumConcurrency"] <= worker["ReservedConcurrentExecutions"]
+    # Concurrency is bounded by the event source, not reserved concurrency: the account's Lambda
+    # limit is 10 and Lambda keeps 10 unreserved, so any reservation fails the deploy.
+    assert "ReservedConcurrentExecutions" not in worker
+    assert 1 <= event["ScalingConfig"]["MaximumConcurrency"] <= 2
     assert queue["SqsManagedSseEnabled"] is True
     assert res["MarketRefreshDeadLetterQueue"]["Properties"]["MessageRetentionPeriod"] > queue["MessageRetentionPeriod"]
 
