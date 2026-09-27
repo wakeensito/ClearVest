@@ -1,10 +1,10 @@
 import { ArrowLeft, Check, MessageCircle, RotateCcw, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { useHoldings } from '../../api/queries'
+import { useFunds, useHoldings } from '../../api/queries'
 import { Button, ButtonLink } from '../../components/ui/Button'
 import { currencyWhole, date, percentFromFraction } from '../../lib/format'
-import { heldFund } from '../../lib/fundPlay'
+import { floorShare, fromLiveFund, FUND_SNAPSHOTS, heldFunds, lookthrough, spotlight, type Exposure, type FundData } from '../../lib/lookthrough'
 import { LEARNING_SOURCE } from '../../lib/learning'
 import { findLesson, ALL_LESSONS, type FundPlay } from '../../lib/lessons'
 import { completeLesson, loadProgress, saveProgress } from '../../lib/learnProgress'
@@ -127,21 +127,57 @@ function LessonPlayer({ lesson, unit, index }: NonNullable<ReturnType<typeof fin
   </div>
 }
 
+/** True only when the words are: "picked" needs direct shares, "never picked" needs none. */
+function pickedLine(top: readonly Exposure[]): string {
+  const them = top.length === 1 ? 'it' : 'them'
+  if (top.every((c) => c.direct > 0)) return `You picked ${them} once and got ${them} again inside your funds.`
+  if (top.every((c) => c.direct === 0)) return `You never picked ${them}. ${top.length === 1 ? 'It' : 'They'} came with your funds.`
+  return 'Some of it you picked; the rest came with your funds.'
+}
+
 /**
  * Ties the fund back to the user. The generic line shows at once; it becomes personal only when the
- * holdings query resolves and includes the fund. Loading, errors, no account: the generic line stays.
+ * holdings query resolves with something to count. Loading, errors, no account: the generic line stays.
  * Mounted only on the score screen, so the lesson itself never calls the API.
+ *
+ * Each fund the user holds is opened up with `GET /market/fund` (live weights, cached a day). Until a
+ * fund's call lands, or if it fails, the bundled snapshot for that fund stands in; a fund with neither
+ * is left out, which the "at least" already covers. So the numbers show immediately and only move by
+ * whatever the live weights differ from the snapshot, which is little.
  */
 function FundPayoff({ play }: { play: FundPlay }) {
   const { data } = useHoldings()
-  const held = heldFund(play, data?.holdings)
+  const symbols = useMemo(() => heldFunds(data?.holdings), [data])
+  const live = useFunds(symbols)
+  // A handful of rows; recomputing on every render is cheaper than tracking the query results as deps.
+  const funds: Record<string, NonNullable<FundData[string]>> = {}
+  symbols.forEach((symbol, i) => {
+    const fund = fromLiveFund(live[i]?.data) ?? FUND_SNAPSHOTS[symbol]
+    if (fund) funds[symbol] = fund
+  })
+  const result = data?.holdings.length ? lookthrough(data.holdings, funds) : null
+  const top = result ? spotlight(result) : []
   const company = play.holdings.find((h) => h.symbol === play.spotlight)?.name ?? play.spotlight
-  const weight = percentFromFraction(held?.weight ?? play.holdings.find((h) => h.symbol === play.spotlight)?.weight)
+  const weight = percentFromFraction(play.holdings.find((h) => h.symbol === play.spotlight)?.weight)
+  const asOf = result?.asOf ?? play.asOf
   return <div className={styles.cardExample}>
     <strong>What this means for you</strong>
-    {held
-      ? <span>You hold {currencyWhole(held.held)} of {play.fund}. About {currencyWhole(held.inside)} of that is {company}, whether you chose it or not.</span>
-      : <span>If you own {play.fund}, about {weight} of that money is {company}, whether you chose it or not.</span>}
-    <span className={styles.asOf}>Weights as of {date(play.asOf)}, from the fund’s published top ten.</span>
+    {!result
+      ? <span>If you own {play.fund}, about {weight} of that money is {company}, whether you chose it or not.</span>
+      : top.length === 0
+        ? <span>No single company is more than {percentFromFraction(0.1, { digits: 0 })} of your money, counting what sits inside your funds.</span>
+        : <>
+          <span>At least {percentFromFraction(floorShare(top), { digits: 0 })} of your money is {top.length === 1 ? 'one company' : 'two companies'}: {top.map((c) => c.name).join(' and ')}. {pickedLine(top)}</span>
+          <ul className={styles.lookthrough} aria-label="Where that money sits">
+            {top.map((c) => <li key={c.symbol}>
+              <strong>{c.name}</strong> {currencyWhole(c.total)}
+              <span className={styles.lookthroughParts}>
+                {c.direct > 0 && <span>{currencyWhole(c.direct)} held directly</span>}
+                {c.viaFunds.filter((v) => v.dollars >= 0.5).map((v) => <span key={v.fund}>{currencyWhole(v.dollars)} in {v.fund}</span>)}
+              </span>
+            </li>)}
+          </ul>
+        </>}
+    <span className={styles.asOf}>{result && result.funds.length ? `Counted from each fund’s published top ten, so the real number is higher. Weights as of ${date(asOf)}.` : `Weights as of ${date(play.asOf)}, from the fund’s published top ten.`}</span>
   </div>
 }

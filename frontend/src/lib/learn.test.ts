@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { currencyWhole } from './format'
 import { FAQ } from './faq'
 import { TERMS } from './learning'
-import { heldFund } from './fundPlay'
 import { completeLesson, currentStreak, EMPTY_PROGRESS, growth, localDay, parseProgress } from './learnProgress'
 import { ALL_LESSONS, findLesson, nextLesson, PLAY_LESSON, UNITS } from './lessons'
 
@@ -54,16 +53,6 @@ describe('be the fund', () => {
     expect(sum).toBeCloseTo(play.topShare, 2)
     expect(sum).toBeLessThan(1)
     expect(play.asOf).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-  })
-  it('ties the fund back to what the user holds, or nothing', () => {
-    if (!play) throw new Error('no play block')
-    expect(heldFund(play, undefined)).toBeNull()
-    expect(heldFund(play, [])).toBeNull()
-    expect(heldFund(play, [{ symbol: 'QQQ', value: 100 }, { symbol: 'VOO', value: 0 }])).toBeNull()
-    const held = heldFund(play, [{ symbol: 'VOO', value: 10000 }, { symbol: 'AAPL', value: 500 }, { symbol: 'VOO', value: 662 }])
-    expect(held?.held).toBe(10662)
-    expect(held?.weight).toBe(0.07)
-    expect(held?.inside).toBeCloseTo(746.34, 2)
   })
 })
 
