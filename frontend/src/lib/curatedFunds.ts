@@ -254,18 +254,24 @@ export function recipeOf(symbol: string, tracks?: string | null): Recipe | null 
 
 /** Glossary terms with a real-fund illustration, and the query that finds them. */
 const TERM_QUERIES: Record<string, string> = {
-  ETF: 'etf', 'Index fund': 'index fund', 'Mutual fund': 'mutual fund', Bond: 'bonds', Dividend: 'dividend',
+  ETF: 'etf', 'Index fund': 'index fund', 'Mutual fund': 'mutual fund', Bond: 'bonds', Dividend: 'dividend', 'Market index': 's&p 500',
 }
+/** Terms about an index itself: the index leads, then funds that copy it. */
+const INDEX_TERMS = new Set(['Market index'])
 
 /** Up to three examples for a Learn glossary term, one per fund family ("VOO · Vanguard"). */
 export function examplesFor(term: string, limit = 3): CuratedFund[] {
   const query = TERM_QUERIES[term]
   if (!query) return []
+  const index = INDEX_TERMS.has(term)
+  const matches = curatedMatches(query, CURATED_FUNDS.length)
+  const ordered = index ? [...matches].sort((a, b) => Number(b.fund.kind === 'index') - Number(a.fund.kind === 'index')) : matches
   const seen = new Set<string>()
   const out: CuratedFund[] = []
-  for (const { fund } of curatedMatches(query, CURATED_FUNDS.length)) {
-    if (!fund.family || seen.has(fund.family)) continue
-    seen.add(fund.family)
+  for (const { fund } of ordered) {
+    const key = fund.family ?? (index ? fund.symbol : null)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
     out.push(fund)
     if (out.length === limit) break
   }

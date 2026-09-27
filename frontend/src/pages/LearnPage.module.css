@@ -20,6 +20,8 @@
 .terms details > div { padding: 0 0 20px; font-size: 14px; line-height: 23px; }
 .example { color: var(--cv-text-secondary); margin-block: 8px; }
 .terms a { display: inline-block; min-height: 44px; padding-block: 10px; }
+.termExamples { display: grid; gap: 4px; margin-block: 4px; }
+.termExamples ul { display: flex; flex-wrap: wrap; gap: 0 16px; margin: 0; padding: 0; list-style: none; }
 .empty { padding: 24px 0; font-size: 14px; }
 .empty button { min-height: 44px; margin-top: 12px; padding: 0 16px; border: 1px solid var(--cv-border-strong); background: var(--cv-surface); }
 .heroStats { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--cv-text-secondary); margin-top: 20px; }

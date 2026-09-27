@@ -143,6 +143,16 @@ describe('examplesFor (Learn glossary)', () => {
 
   it('returns nothing for terms that are not about funds', () => {
     expect(examplesFor('Roth IRA')).toEqual([])
+    expect(examplesFor('Index fund').length).toBe(3)
     expect(examplesFor('Volatility')).toEqual([])
+  })
+})
+
+describe('examplesFor (Market index)', () => {
+  it('leads with the index itself, then funds that copy it from other families', () => {
+    const symbols = examplesFor('Market index').map(fund => fund.symbol)
+    expect(symbols[0]).toBe('^GSPC')
+    expect(symbols).toHaveLength(3)
+    expect(new Set(examplesFor('Market index').slice(1).map(fund => fund.family)).size).toBe(2)
   })
 })
