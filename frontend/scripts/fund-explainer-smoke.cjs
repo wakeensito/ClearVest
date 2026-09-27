@@ -137,7 +137,7 @@ const FUNDS = {
     // Changing the ticker keeps the explainer open for the new security.
     await page.getByRole('button', { name: 'What is this?' }).click();
     await explainer.waitFor();
-    const search = page.getByLabel('Research a ticker symbol');
+    const search = page.getByLabel('Search a ticker or company');
     await search.fill('VFIAX'); await search.press('Enter');
     await page.locator('[data-fund-explainer="VFIAX"]').waitFor();
     assert.equal(new URL(page.url()).searchParams.get('explain'), '1');
@@ -173,7 +173,7 @@ const FUNDS = {
     // Compare securities: compact explainers and the difference strip.
     await page.goto(`${previewUrl}/markets?symbol=VOO`);
     await page.getByRole('button', { name: 'Compare securities' }).click();
-    const second = page.getByRole('region', { name: 'Second security' }).getByLabel('Research a ticker symbol');
+    const second = page.getByRole('region', { name: 'Second security' }).getByLabel('Search a ticker or company');
     await second.fill('VFIAX'); await second.press('Enter');
     await page.getByText('What’s the real difference?').waitFor();
     await page.locator('[data-compact-explainer="VFIAX"]').waitFor();
