@@ -4,23 +4,27 @@
 - **Author:** @wakeensito
 - **Team:** frontend
 - **Status:** done
-- **PR / issue:** not opened yet
-- **Branch:** `task/7b` (worktree `/Users/wakeensito/ClearVest-t7b`, integration branch for tasks 1–7a; unmerged)
+- **PR / issue:** #50
+- **Branch:** `feat/advisor-grade`
 - **Follows:** [Fund explainer: "What is this?" in security research](2026-09-27-frontend-fund-explainer.md), [Company research: dividend yield, market cap, beta, next earnings date, P/E vs its own history](2026-09-27-data-research-advisor-fields.md)
 
 ## What changed
 
-This is the consolidated handoff for everything merged into this integration branch across tasks
-1–7a (no per-task handoff was written along the way). Someone picking this up should be able to
+This is the consolidated handoff for everything on `feat/advisor-grade` (PR #50), including the
+final review's fixes (no per-task handoff was written along the way). Someone picking this up should be able to
 demo the whole thing without reading the commit history.
 
 - **What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, DESIGN.md
   §4.14): opens the Portfolio main column, above Security research. Opens each ETF/mutual fund's
   top 10 holdings (`lib/useFundMap.ts`, capped at 8 funds/account) and folds them into the
   account's direct stock positions (`lib/portfolioXray.ts`) to say who the money is really in —
-  "Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT." — plus a "What it
-  costs" fee panel (blended expense ratio, dollars/year, 10-year projection, a cheapest-fund
-  comparison, and a Fund/Expense ratio/Per year table). Every degraded state (no funds looked
+  "Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT." Share classes are
+  one company (GOOG folds into GOOGL, BRK-B into BRK-A) through the `company()` helper exported from
+  main's `lib/lookthrough.ts`. A company no fund's top 10 holds reads "held directly (none in your
+  funds' top 10 holdings)" when the account holds funds, "all of it held directly" only when it holds
+  none. Plus a "What it costs" fee panel (blended expense ratio, dollars/year, "That's about $8 a year
+  on every $10,000." — a rate, so it survives Hide portfolio values — a 10-year projection, a
+  cheapest-fund comparison, and a Fund/Expense ratio/Per year table). Every degraded state (no funds looked
   through, a fund still loading, an empty account) has its own honest sentence instead of a wrong
   number.
 - **Your plan vs. today** (`components/portfolio/PlanVsActual.tsx`, `[data-plan-vs-actual]`, in the
@@ -28,15 +32,24 @@ demo the whole thing without reading the commit history.
   mix (`lib/targetMix.ts`) against one of five bundled model portfolios (`GET /market/templates`,
   mirrored from `src/market/market/data/templates.json`) picked automatically from the user's
   profile (`suggestTemplate`), with a "Suggested for you" badge, a one-sentence gap description
-  (`drift()`), and a prefilled (never auto-sent) link into the advisor.
+  (`drift()`, always both percents: "Stocks: 94% today vs 60% in the Classic 60/40 plan."), and a
+  prefilled (never auto-sent) link into the advisor that follows the sentence. With no profile
+  (404) it asks the three profile questions; any other profile error just shows the default plan.
 - **What would this do to my portfolio?** (`components/market/WhatIfCard.tsx`,
   `[data-what-if="SYMBOL"]`, under the ticker page's identity row, DESIGN.md §4.15): before adding
   money to a security, shows how the account's exposure to it and its risk score
   (`lib/risk.ts`, a TS port of the backend `risk.py`) would move, for $500 / $1,000 / $5,000 or a
-  typed amount. Nothing is sold; every weight renormalizes. Renders nothing at all while anything
-  needed is loading, for an unlinked/empty account or an index — the Portfolio page already invites
-  linking, so this card doesn't repeat that invitation (see **Gotchas** for a related smoke-test
-  finding).
+  typed amount. Nothing is sold; every weight renormalizes. The sentence: "Adding $1,000 of NVDA:
+  NVDA would be about 20% of your money instead of 17% (counting your funds' top 10 holdings), and
+  your risk score would go from 34 to 35 out of 100 (Moderate)." — the "(counting …)" caveat only
+  when the account holds funds and a company is being added. The figure beside the risk score reads
+  "NVDA's share of your money 17% → 20%" ("none" on the before side at 0%). Renders nothing while
+  anything needed is loading, for an empty account or an index; once every fund failed or was never
+  checked it renders anyway, with "0 of 3 funds checked" in its data line. **Unlinked (409):** on
+  Markets, one line links to `/portfolio` ("Link an account, or try the sample one, to see what
+  adding NVDA would do to your mix →", `[data-what-if-invite]`); on Portfolio, `SecurityResearch`
+  gets `invite={false}` and shows nothing, since the page already has the link card and the line
+  would link to itself.
 - **One search box with type-ahead** (`components/market/SymbolSearch.tsx`): a single ticker/company
   text box replaces the old separate search affordances, listing up to eight `/market/search`
   results after a 300ms debounce; Enter follows `resolveSubmit` (exact ticker match wins over a
@@ -72,16 +85,17 @@ npx vite --port 5174 --strictPort --host 127.0.0.1 &
 npm run test:browser            # full-app desktop + phone regression (theme, onboarding, holdings, ...)
 npm run test:fund-explainer     # "What is this?" security research explainer (DESIGN.md §4.13)
 npm run test:markets-advisor    # markets discovery: watchlist, search, company financials
-npm run test:portfolio-xray     # NEW: what you really own, plan vs. today, ticker what-if (§4.14–§4.15)
+npm run test:portfolio-xray     # what you really own, plan vs. today, ticker what-if, unlinked invite (§4.14–§4.15)
 npm run test:history-refresh    # background market-history refresh polling
 kill %1                         # stop the dev server
 ```
 
 Measured with `frontend/scripts/portfolio-xray-smoke.cjs` at 320/375/393px: no horizontal overflow
 in any state (base card, hidden values, plan switch, degraded/pending fund states, ticker what-if,
-unlinked). Screenshots land in `frontend/node_modules/.cache/clearvest-review/` (git-ignored).
-`npm test` is 369/369 passing at the time of writing; `npm run build` succeeds (pre-existing
-`>500kB` chunk-size warning, unrelated to this work).
+unlinked invite). Screenshots land in `frontend/node_modules/.cache/clearvest-review/` (git-ignored).
+At the time of writing: `npm test` 399/399 (34 files), `pytest -q` 338 passed, all four smokes
+(`test:browser`, `test:fund-explainer`, `test:markets-advisor`, `test:portfolio-xray`) pass;
+`npm run build` succeeds (pre-existing `>500kB` chunk-size warning, unrelated to this work).
 
 ## Decisions & why
 
@@ -93,10 +107,14 @@ unlinked). Screenshots land in `frontend/node_modules/.cache/clearvest-review/` 
 - **Fees never name a fund as "the cheapest" beyond the comparison sentence.** No fund is ever
   recommended (`feeCopy` in `lib/xrayCopy.ts`); the "if every fund cost what your cheapest one
   does" sentence only fires when it would save at least $1, so it never nags over noise.
-- **Unchecked funds count as stocks in the plan comparison.** `targetMix.classify()` defaults an
-  ETF/mutual fund with no loaded `category` yet to `'stocks'`, and the caption says "assumes
-  unchecked funds hold stocks" — an honest default that also happens to be right most of the time,
-  rather than blocking the whole card on every fund resolving first.
+- **Unchecked funds count as stocks in the plan comparison, so the sentence gets unsure.**
+  `targetMix.classify()` classes the template tickers (VTI, BND, SHV, …) from a static map first;
+  any other ETF/mutual fund with no loaded `category` yet is `'stocks'`, and the caption says
+  "assumes unchecked funds hold stocks". Because that fund might really hold bonds, `drift()` takes
+  `{ unsure }` (true while any fund is pending, failed or unchecked) and then never says either
+  "Nothing in …" form — only the "X: A% today vs B% in the plan" comparison. A category counts as
+  bonds on bond/treasury/fixed income/muni(cipal)/aggregate; "income" alone doesn't ("Derivative
+  Income" JEPI and "Equity Income" funds stay stocks).
 - **`lib/risk.ts` is a hand-maintained TypeScript port of `src/layer/clearvest/risk.py`**, not a
   network call — the what-if card needs a synchronous "before vs. after" score, and calling the
   backend twice per keystroke wasn't worth it. The two implementations are tested against the same
@@ -105,7 +123,13 @@ unlinked). Screenshots land in `frontend/node_modules/.cache/clearvest-review/` 
 - **The drift sentence leads with the biggest over-gap, then falls back to the biggest under-gap,**
   except when the single biggest gap is bonds or cash the account holds *none* of while the plan
   keeps 10%+ there — then "Nothing in bonds, where the … plan keeps 40%" leads instead, because an
-  empty asset class is the more actionable story than "you're 6 points overweight in cash."
+  empty asset class is the more actionable story than "you're 6 points overweight in cash." (Not
+  when unsure, above.)
+- **`lib/lookThrough.ts` was renamed `lib/portfolioXray.ts`.** main (#48) added `lib/lookthrough.ts`
+  (the lesson's fund strip); the two names differ only by case, so on macOS they are one file and
+  main's version overwrote ours in the working tree. Both modules now live side by side:
+  `lookthrough.ts` (main's, unchanged behaviour, exports `company()`) and `portfolioXray.ts` (the
+  X-ray and what-if math, which maps symbols through `company()`).
 - **Unlinked accounts still let their fetches run and fail naturally** (a 409 `NOT_LINKED`) rather
   than gating on a separate "is linked" flag — `hasCode(error, 'NOT_LINKED')` is checked at each
   call site, so a card degrades independently instead of a whole-page linked/unlinked branch.
@@ -120,27 +144,12 @@ unlinked). Screenshots land in `frontend/node_modules/.cache/clearvest-review/` 
   `/market/fund` + `/market/templates` routes added to `frontend/scripts/browser-smoke.cjs` in this
   same change both route the real five-template array explicitly — copy that pattern rather than
   the generic fallback wherever `PlanVsActual` needs to render in a test.
-- **`browser-smoke.cjs`'s "hide portfolio values removes every $" check had to be scoped to exclude
-  `[data-what-if]`.** The what-if card's $500/$1,000/$5,000 amount presets are hypothetical
-  add-amount labels, not the account's own figures, and DESIGN.md §4.15 never couples them to the
-  "Hide portfolio values" toggle — `WhatIfCard.test.ts` doesn't test that interaction either. This
-  is existing, intentional behavior; the smoke script's assertion was simply out of date once the
-  what-if card started rendering on `/portfolio` by default (its `SecurityResearch` panel defaults
-  to symbol `VOO`).
-- **`task-7b-brief.md`'s smoke-script spec has three small inaccuracies against the code actually
-  merged here** (documented in `task-7b-report.md` for the controller, and reflected honestly in
-  `portfolio-xray-smoke.cjs` rather than asserted falsely):
-  1. There is **no separate "invite line" linking to `/portfolio`** anywhere on `/markets` for an
-     unlinked account. `WhatIfCard.test.ts` ("an unlinked account sees the research card exactly as
-     before") and DESIGN.md §4.15 ("the portfolio page already invites linking") both confirm the
-     what-if card is meant to render nothing there, full stop. The smoke script asserts that instead.
-  2. The X-ray fee panel's copy never says **"every $10,000"** — that phrase belongs to the fund
-     explainer's own fee sentence (§4.13, `feeSentence()` in `lib/fundExplainer.ts`), a different
-     card. The X-ray panel's real copy is "Your funds cost about $13 a year (0.08% of the money in
-     them)." (`lib/xrayCopy.ts`); the smoke script checks for `$` and `a year` instead.
-  3. The what-if sentence never contains the literal phrase **"of your money"** — that phrase
-     belongs to the X-ray headline (a different card, on `/portfolio`, not `/markets`). The
-     what-if sentence does always mention "risk score"; the smoke script checks for that instead.
+- **Hide portfolio values keeps one `$` in the X-ray: the "every $10,000" fee rate line.** It is a
+  rate, not the client's dollars. `OwnershipXray.test.ts`, `portfolio-xray-smoke.cjs` and
+  `browser-smoke.cjs` all strip that line before asserting no `$` (and the X-ray smoke asserts it is
+  there). `browser-smoke.cjs` also excludes `[data-what-if]`: the $500/$1,000/$5,000 presets are
+  hypothetical add-amount labels, not account figures (the card renders on `/portfolio` because its
+  `SecurityResearch` panel defaults to `VOO`).
 - The sample account numbers in `frontend/scripts/portfolio-xray-smoke.cjs` (VOO 15×$710.79, QQQ
   6×$744.50, VGT 8×$126.17, NVDA 12×$225.07, AAPL 10×$341.07, $1,500 cash) reproduce DESIGN.md
   §4.14's own worked fee example ($13/year, 0.08% blended) almost to the dollar — that's
@@ -150,22 +159,13 @@ unlinked). Screenshots land in `frontend/node_modules/.cache/clearvest-review/` 
 
 ## Next steps
 
-1. Open the PR for this integration branch with `team:frontend` (and `team:data` for the research
-   field additions); require green `ci-ok` before merge per `AGENTS.md`.
-2. Decide whether the three brief/DESIGN mismatches above (invite line, "$10,000" fee copy, "of your
-   money" what-if copy) are worth reconciling — either update `task-7b-brief.md`/DESIGN.md wording,
-   or, if an unlinked-account invite on `/markets` is actually wanted, scope that as new work (it
-   does not exist today).
-3. Run `npm run test:portfolio-xray` again against the real deployed backend (not just fixtures)
+1. Run `npm run test:portfolio-xray` again against the real deployed backend (not just fixtures)
    once it's live, the same way the fund-explainer handoff asked for `test:fund-explainer` — fund
    category/sector strings from the real provider can still miss `targetMix.classify()`'s regexes.
-4. Cost basis + performance vs. S&P (via Plaid `cost_basis`), ARKK in the sample account, "$3.4
+2. Cost basis + performance vs. S&P (via Plaid `cost_basis`), ARKK in the sample account, "$3.4
    trillion" long-form formatting, and the what-if card's height on phones remain open from the
    fund-explainer handoff and haven't been revisited here.
 
 ## Open questions / blockers
 
-- Owner: should `/markets` show something for an unlinked account near the what-if card's spot
-  (e.g. "Link your account to see what this would do to your portfolio"), or is "the portfolio page
-  already invites linking" (DESIGN.md §4.15) the final word? See **Gotchas** #1 above — right now
-  there is nothing there by design, but `task-7b-brief.md` reads as if there should be.
+- None.

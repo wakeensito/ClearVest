@@ -71,7 +71,7 @@ export function classify(holding: Holding, fund?: Fund | null): MixClass {
 
 /**
  * Long-only (value > 0), weighted by value. An empty (or all short/zero) account is all zeros.
- * `funds` is keyed by uppercase symbol (lookThrough's FundMap); holdings are looked up the same way.
+ * `funds` is keyed by uppercase symbol (portfolioXray's FundMap); holdings are looked up the same way.
  */
 export function actualMix(holdings: readonly Holding[], funds: Record<string, Fund | undefined>): Mix {
   const totals = zeroMix()
