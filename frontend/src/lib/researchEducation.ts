@@ -5,7 +5,8 @@ type CompanyResearch = components['schemas']['CompanyResearch']
 
 export function financialAmount(value: number | null | undefined, currency?: string | null, compact = false): string {
   if (value == null || !Number.isFinite(value)) return 'Not available'
-  const options: Intl.NumberFormatOptions = { maximumFractionDigits: compact ? 1 : 2, notation: compact ? 'compact' : 'standard' }
+  // minimumFractionDigits is explicit: Node 22 and 25 disagree on the currency default in compact notation ("5.0T" vs "5T").
+  const options: Intl.NumberFormatOptions = { ...(compact && { minimumFractionDigits: 0 }), maximumFractionDigits: compact ? 1 : 2, notation: compact ? 'compact' : 'standard' }
   if (currency && /^[A-Z]{3}$/.test(currency)) Object.assign(options, { style: 'currency', currency, currencyDisplay: 'code' })
   return new Intl.NumberFormat('en-US', options).format(value)
 }
