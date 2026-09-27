@@ -12,7 +12,7 @@ import styles from './CompanyFinancials.module.css'
 const steps = ['The business', 'Sales & profit', 'Price & value']
 export function CompanyFinancials({ symbol }: { symbol: string }) {
   const query = useCompanyResearch(symbol)
-  return <section className={styles.panel} aria-label={`${symbol} company financials`}>
+  return <section className={styles.panel} aria-label={`${symbol} company financials`} data-company-financials={symbol} tabIndex={-1}>
     <QueryView query={query} label={`Loading ${symbol} company financials`} noun={`${symbol} company financials`}>
       {data => <FinancialStory key={symbol} data={data} retry={() => void query.refetch()} retrying={query.isFetching} />}
     </QueryView>
