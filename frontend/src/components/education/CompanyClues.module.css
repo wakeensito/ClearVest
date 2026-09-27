@@ -1,0 +1,22 @@
+.clues { margin-top: 12px; padding: 24px; background: var(--cv-surface); border: 1px solid var(--cv-accent); border-radius: var(--cv-radius-panel); display: grid; gap: 12px; }
+.eyebrow { font-size: 12px; font-weight: 600; color: var(--cv-accent); }
+.clues h3 { font-size: 22px; line-height: 30px; font-weight: 600; letter-spacing: -0.01em; }
+.lead { color: var(--cv-text-secondary); font-size: 15px; line-height: 24px; max-width: 70ch; }
+.grid { list-style: none; padding: 0; margin: 4px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.grid li { display: grid; gap: 4px; align-content: start; padding: 16px; border-radius: var(--cv-radius); background: var(--cv-surface-sunken); }
+.grid strong { font-size: 15px; line-height: 22px; font-weight: 600; }
+.grid p { font-size: 13px; line-height: 20px; color: var(--cv-text-secondary); }
+.number { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--cv-accent); color: var(--cv-on-accent); font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.term { font-size: 12px; font-weight: 600; color: var(--cv-accent); }
+.caution { font-size: 13px; line-height: 20px; color: var(--cv-text-secondary); padding-left: 12px; border-left: 3px solid var(--cv-warning); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.lesson { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-top: 1px solid var(--cv-border); margin-top: 4px; color: var(--cv-text); text-decoration: none; }
+.lesson > svg { color: var(--cv-accent); flex-shrink: 0; }
+.lesson:hover .lessonTitle svg { transform: translateX(3px); }
+.lessonText { display: grid; gap: 2px; }
+.lessonLabel { font-size: 12px; color: var(--cv-text-tertiary); }
+.lessonTitle { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; line-height: 24px; font-weight: 600; }
+.lessonTitle svg { color: var(--cv-accent); flex-shrink: 0; transition: transform var(--cv-motion-fast) var(--cv-ease); }
+@media (max-width: 1023px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .clues { padding: 20px 16px; } .clues h3 { font-size: 19px; line-height: 26px; } .grid { grid-template-columns: minmax(0, 1fr); } .actions { display: grid; } .actions a { white-space: normal; } .lesson { padding-inline: 0; } }
+@media (prefers-reduced-motion: reduce) { .lessonTitle svg { transition: none; } }
