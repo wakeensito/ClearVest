@@ -190,7 +190,8 @@ def test_advisor_fields_are_normalized(aws, monkeypatch):
     (0.0239, 0.0239),
     (2.39, None),  # percent-shaped (239% as a fraction) is bad data, never divided or shown
     (0.3, None),  # over 25% yield is almost certainly a unit bug
-    (0, None), (-0.01, None), (None, None), (True, None), ("0.01", None), (float("nan"), None)])
+    (0, 0),  # a reported zero is "pays no dividend", distinct from unknown
+    (-0.01, None), (None, None), (True, None), ("0.01", None), (float("nan"), None)])
 def test_dividend_yield_percent_vs_fraction_units(aws, monkeypatch, raw, expected):
     def payload(symbol, section):
         if section == "valuation":
@@ -243,3 +244,14 @@ def test_next_earnings_picks_the_nearest_future_date(aws, monkeypatch):
         return provider(symbol, section)
     monkeypatch.setattr(fmp, "research_section", dates)
     assert request()[1]["profile"]["nextEarningsDate"] == "2999-03-01"
+
+
+def test_cached_earnings_date_in_the_past_is_dropped_on_read(aws, monkeypatch):
+    monkeypatch.setattr(fmp, "research_section", provider)
+    assert request()[1]["profile"]["nextEarningsDate"] == "2999-10-29"
+    row = db.get("CACHE#fmp", "research:v2:AAPL:profile")
+    row["value"]["value"]["nextEarningsDate"] = "2020-01-30"
+    db.put("CACHE#fmp", "research:v2:AAPL:profile", row)
+    body = request()[1]
+    assert body["profile"]["nextEarningsDate"] is None and body["profile"]["name"] == "Example company"
+    assert_matches("/market/company-research", "get", 200, body)

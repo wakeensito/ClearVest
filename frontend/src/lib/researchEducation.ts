@@ -34,14 +34,21 @@ export function usablePE(pe: number | null | undefined, eps?: number | null): nu
 export function peVersusUsual(pe: number | null | undefined, median: number | null | undefined, years = 5): string | null {
   const today = usablePE(pe), usual = usablePE(median)
   if (today === null || usual === null) return null
-  if (today >= usual * 1.15) return `Investors are paying more than usual for each dollar of profit: ${multiple(today)} today vs about ${multiple(usual)} over the last ${years} years.`
-  if (today <= usual * 0.85) return `Investors are paying less than usual for each dollar of profit: ${multiple(today)} today vs about ${multiple(usual)} over the last ${years} years.`
+  if (today >= usual * 1.15) return `Investors are paying more than usual for each dollar of profit: ${multiple(today)} today vs about ${multiple(usual)} across ${years} recent years.`
+  if (today <= usual * 0.85) return `Investors are paying less than usual for each dollar of profit: ${multiple(today)} today vs about ${multiple(usual)} across ${years} recent years.`
   return `About the same as its usual ${multiple(usual)}.`
 }
 
-/** `dividendYield` arrives as a fraction (0.0045 = 0.45%). */
+/** `dividendYield` arrives as a fraction (0.0045 = 0.45%). 0 is a reported "no dividend";
+ *  null (or anything unusable) is unknown and must never be read as "pays nothing". */
+export function dividendYieldLabel(dividendYield: number | null | undefined): string {
+  if (dividendYield == null || !Number.isFinite(dividendYield) || dividendYield < 0) return 'Not available'
+  return dividendYield === 0 ? 'No dividend' : percentFromFraction(dividendYield, { digits: 2 })
+}
+
 export function dividendSentence(dividendYield: number | null | undefined): string {
-  if (dividendYield == null || !Number.isFinite(dividendYield) || dividendYield <= 0) return 'No dividend'
+  if (dividendYield == null || !Number.isFinite(dividendYield) || dividendYield < 0) return 'Dividend information isn’t available for this company.'
+  if (dividendYield === 0) return 'This company has not paid a cash dividend over the last 12 months. Any return would come from the share price changing.'
   return `Each year the company pays out about ${percentFromFraction(dividendYield, { digits: 2 })} of its share price in cash.`
 }
 
