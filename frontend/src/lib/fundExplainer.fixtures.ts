@@ -140,6 +140,7 @@ export const NVDA: Fund = {
   name: 'NVIDIA Corp',
   sector: 'Technology',
   summary: 'NVIDIA designs graphics chips used for gaming, data centers and artificial intelligence.',
+  summarySource: 'template',
 }
 
 export const VTI: Fund = {
