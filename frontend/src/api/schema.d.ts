@@ -385,6 +385,15 @@ export interface components {
             industry: string | null;
             currency: string | null;
             isFund: boolean;
+            /** @description Volatility relative to the market (1 moves with it). Data only. */
+            beta: number | null;
+            /** @description Market value of all shares, in the profile currency. Null when missing or not positive. */
+            marketCap: number | null;
+            /**
+             * Format: date
+             * @description Next scheduled earnings report on or after today (UTC); null for funds or when unknown.
+             */
+            nextEarningsDate: string | null;
         } | null;
         AnnualIncome: {
             /** Format: date */
@@ -402,6 +411,8 @@ export interface components {
             pe: number | null;
             eps: number | null;
             ps: number | null;
+            /** @description Trailing-12-month dividend yield as a FRACTION (0.0045 = 0.45%). Null when there is no dividend or the provider value is missing or implausible (over 0.25). */
+            dividendYield: number | null;
         } | null;
         AnnualValuation: {
             /** Format: date */
@@ -754,7 +765,10 @@ export interface operations {
                      *         "sector": "Technology",
                      *         "industry": "Consumer electronics",
                      *         "currency": "USD",
-                     *         "isFund": false
+                     *         "isFund": false,
+                     *         "beta": 1.1,
+                     *         "marketCap": 3400000000000,
+                     *         "nextEarningsDate": "2026-10-29"
                      *       },
                      *       "income": [
                      *         {
@@ -794,7 +808,8 @@ export interface operations {
                      *       "valuation": {
                      *         "pe": 20,
                      *         "eps": 5,
-                     *         "ps": 4
+                     *         "ps": 4,
+                     *         "dividendYield": 0.0045
                      *       },
                      *       "history": [
                      *         {

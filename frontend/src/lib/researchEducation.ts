@@ -1,4 +1,5 @@
 import type { components } from '../api/schema'
+import { multiple, percentFromFraction } from './format'
 type AnnualIncome = components['schemas']['AnnualIncome']
 type CompanyResearch = components['schemas']['CompanyResearch']
 
@@ -26,4 +27,25 @@ export function historicalPE(rows: CompanyResearch['history']): { median: number
 
 export function usablePE(pe: number | null | undefined, eps?: number | null): number | null {
   return pe != null && Number.isFinite(pe) && pe > 0 && !(eps != null && eps <= 0) ? pe : null
+}
+
+/** Neutral comparison of today's trailing P/E with its own multi-year middle value. No verdicts.
+ *  `years` is how many annual observations the median uses, so the sentence never claims more history than it has. */
+export function peVersusUsual(pe: number | null | undefined, median: number | null | undefined, years = 5): string | null {
+  const today = usablePE(pe), usual = usablePE(median)
+  if (today === null || usual === null) return null
+  if (today >= usual * 1.15) return `Investors are paying more than usual for each dollar of profit: ${multiple(today)} today vs about ${multiple(usual)} over the last ${years} years.`
+  if (today <= usual * 0.85) return `Investors are paying less than usual for each dollar of profit: ${multiple(today)} today vs about ${multiple(usual)} over the last ${years} years.`
+  return `About the same as its usual ${multiple(usual)}.`
+}
+
+/** `dividendYield` arrives as a fraction (0.0045 = 0.45%). */
+export function dividendSentence(dividendYield: number | null | undefined): string {
+  if (dividendYield == null || !Number.isFinite(dividendYield) || dividendYield <= 0) return 'No dividend'
+  return `Each year the company pays out about ${percentFromFraction(dividendYield, { digits: 2 })} of its share price in cash.`
+}
+
+export function marketCapSentence(marketCap: number | null | undefined, currency?: string | null): string | null {
+  if (marketCap == null || !Number.isFinite(marketCap) || marketCap <= 0) return null
+  return `Worth about ${financialAmount(marketCap, currency, true)} on the market`
 }
