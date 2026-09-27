@@ -1,23 +1,29 @@
+import { Fragment, type ReactNode } from 'react'
+import { Term } from '../../components/education/Term'
+import { explainPieces } from '../../lib/explainTerms'
 import styles from './Markdown.module.css'
 import { parseBlocks, splitBold, type Block } from './parseMarkdown'
 
 // Rendered as React nodes, never innerHTML, so model output can't inject markup.
-function Inline({ text }: { text: string }) {
-  return (
-    <>
-      {splitBold(text).map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part))}
-    </>
-  )
+// Investing terms become tap-to-explain buttons, each only the first time it appears in a reply.
+// `seen` is null when explanations are off (the default), which renders plain text exactly as before.
+// Plain functions, not components: the whole reply is planned in one render pass, so React's double
+// render in development can't spend the shared `seen` set twice.
+function inline(text: string, seen: Set<string> | null): ReactNode {
+  const render = (part: string): ReactNode =>
+    seen ? explainPieces(part, seen).map((piece, k) => (typeof piece === 'string' ? piece : <Term key={k} text={piece.text} explainer={piece.explainer} />)) : part
+  return splitBold(text).map((part, i) => (i % 2 ? <strong key={i}>{render(part)}</strong> : <Fragment key={i}>{render(part)}</Fragment>))
 }
 
 /** Up to three columns fit a 320px phone; wider tables scroll inside their own region. */
 const FITTED_COLUMNS = 3
 
-function Table({ block }: { block: Extract<Block, { kind: 'table' }> }) {
+function table(key: number, block: Extract<Block, { kind: 'table' }>, seen: Set<string> | null) {
   const wide = block.head.length > FITTED_COLUMNS
   return (
     // A focusable, labelled region so keyboard and screen-reader users can reach and scroll it.
     <div
+      key={key}
       className={`${styles.tableWrap} ${wide ? styles.wide : ''}`}
       role="region"
       aria-label="Comparison table"
@@ -28,7 +34,7 @@ function Table({ block }: { block: Extract<Block, { kind: 'table' }> }) {
           <tr>
             {block.head.map((cell, j) => (
               <th key={j} scope="col">
-                <Inline text={cell} />
+                {inline(cell, seen)}
               </th>
             ))}
           </tr>
@@ -39,11 +45,11 @@ function Table({ block }: { block: Extract<Block, { kind: 'table' }> }) {
               {row.map((cell, j) =>
                 j === 0 ? (
                   <th key={j} scope="row">
-                    <Inline text={cell} />
+                    {inline(cell, seen)}
                   </th>
                 ) : (
                   <td key={j}>
-                    <Inline text={cell} />
+                    {inline(cell, seen)}
                   </td>
                 ),
               )}
@@ -55,7 +61,10 @@ function Table({ block }: { block: Extract<Block, { kind: 'table' }> }) {
   )
 }
 
-export function Markdown({ text }: { text: string }) {
+/** `explain` turns investing terms into tap-to-explain buttons (the advisor page opts in). */
+export function Markdown({ text, explain = false }: { text: string; explain?: boolean }) {
+  // Rebuilt every render, so the same reply always underlines the same first occurrences.
+  const seen = explain ? new Set<string>() : null
   return (
     <>
       {parseBlocks(text).map((block, i) => {
@@ -63,25 +72,25 @@ export function Markdown({ text }: { text: string }) {
           case 'p':
             return (
               <p key={i}>
-                <Inline text={block.text} />
+                {inline(block.text, seen)}
               </p>
             )
           case 'h':
             // A bold lead-in, not an h1–h6: replies sit inside the page's own heading outline.
             return (
               <p key={i} className={styles.lead}>
-                <Inline text={block.text} />
+                {inline(block.text, seen)}
               </p>
             )
           case 'table':
-            return <Table key={i} block={block} />
+            return table(i, block, seen)
           default: {
             const List = block.kind
             return (
               <List key={i}>
                 {block.items.map((item, j) => (
                   <li key={j}>
-                    <Inline text={item} />
+                    {inline(item, seen)}
                   </li>
                 ))}
               </List>

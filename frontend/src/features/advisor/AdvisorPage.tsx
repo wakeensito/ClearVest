@@ -10,6 +10,7 @@ import { ContextRail } from './ContextRail'
 import styles from './AdvisorPage.module.css'
 import { SUGGESTED_PROMPTS, useChat } from './chatContext'
 import { Markdown } from './Markdown'
+import { RelatedLesson } from '../../components/education/RelatedLesson'
 import { useVoiceTurn } from './useVoiceTurn'
 import { VoiceButton, VoiceStatus } from './VoiceButton'
 
@@ -115,8 +116,9 @@ export function AdvisorPage() {
                 <article key={m.id} className={styles.advisor}>
                   <p className="t-overline c-tertiary">ClearVest</p>
                   <div className={styles.reply}>
-                    <Markdown text={m.text} />
+                    <Markdown text={m.text} explain />
                   </div>
+                  <RelatedLesson text={m.text} />
                 </article>
               ),
             )}

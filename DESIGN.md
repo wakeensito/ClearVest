@@ -323,6 +323,20 @@ All targets are 44px. The explainer is a labelled `section`; the chips are a lab
 `aria-expanded`/`aria-controls`; answers are in a polite live region. No new colors, badges or
 illustrations beyond the strip.
 
+### 4.14 Tap-to-explain jargon and related lessons
+
+Investing terms in running text get a dotted blue underline and become buttons. Tapping one opens a
+small overlay (the only shadowed element) with the term’s plain-language meaning and a link to the
+lesson that teaches it, or to guided research for company terms (P/E, revenue, net income, EPS).
+Meanings come from the glossary in `lib/learning.ts`; the term list and lesson mapping live in
+`lib/explainTerms.ts`. Each term is marked once per reply. Acronyms (ETF, TSP, EPS) only match in
+capitals. The overlay sits below the word, or above it in the lower part of the screen, and stays
+inside the viewport at 320px. Escape, the close button or an outside tap closes it and returns focus.
+
+Where it appears: advisor replies (`<Markdown explain />`; plain `<Markdown />` renders exactly as
+before) and the Portfolio risk explanation and factors. Advisor replies that mention a lesson term,
+and the risk card, show one “Related lesson: …” link.
+
 ## 5. Layout and routes
 
 Desktop: 76px navigation, slim workspace information row, centered content up to 1440px with 40px
