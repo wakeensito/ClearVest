@@ -6,6 +6,7 @@ import type { HistoryRange, HistorySeries } from '../../api/client'
 import { useHistory } from '../../api/queries'
 import { marketPrice, date, percentFromFraction, quantity } from '../../lib/format'
 import { historyPoints } from '../../lib/history'
+import { historyRefreshInterval } from '../../lib/historyRefresh'
 import { QueryView } from '../QueryView'
 import { Badge } from '../ui/Badge'
 import { SegmentedControl } from '../ui/SegmentedControl'
@@ -49,7 +50,18 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
       {!symbol ? <div className={styles.empty}>Enter a ticker above to load its chart and key figures.</div> : <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
         {(data) => {
           const series = data.series.find((item) => item.symbol.toUpperCase() === symbol)
-          return series ? <PriceHistory key={`${symbol}:${range}:${query.dataUpdatedAt}`} series={series} compact={compact} /> : <p className={styles.empty}>No price history was returned for {symbol}. Try another ticker.</p>
+          const refresh = data.refresh?.find(item => item.symbol === symbol)
+          const pending = refresh?.status === 'pending'
+          const polling = historyRefreshInterval(data, query.dataUpdatedAt) !== false
+          return <>
+            {refresh?.fetchedAt && <p className="t-caption c-tertiary">Data retrieved {new Date(refresh.fetchedAt).toLocaleString()}</p>}
+            {pending && <p role="status" className={styles.empty}>
+              {polling ? (series ? 'Updating prices. You can keep exploring the saved chart.' : `Preparing ${symbol} price history. This usually takes a moment.`) : 'Prices are taking longer to update. Check again in a moment.'}
+              {!polling && <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching}>Check again</button>}
+            </p>}
+            {refresh?.status === 'failed' && <p role="status" className={styles.empty}>Prices could not be updated. Showing the last saved chart. <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching}>Check again</button></p>}
+            {series ? <PriceHistory key={`${symbol}:${range}:${refresh?.fetchedAt ?? 'snapshot'}`} series={series} compact={compact} /> : !pending && <p className={styles.empty}>No price history was returned for {symbol}. Try another ticker.</p>}
+          </>
         }}
       </QueryView>}
       <CompanyNameSearch onSelect={select} />

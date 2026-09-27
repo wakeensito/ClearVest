@@ -48,7 +48,7 @@ def _reset_caches():
 @pytest.fixture
 def aws():
     """Moto-backed AWS with the stack's table, bucket and SSM params."""
-    with mock_aws():
+    with mock_aws(), pytest.MonkeyPatch.context() as env:
         _reset_caches()
         ddb = boto3.client("dynamodb")
         ddb.create_table(
@@ -61,6 +61,8 @@ def aws():
             BillingMode="PAY_PER_REQUEST",
         )
         boto3.client("s3").create_bucket(Bucket=os.environ["AUDIO_BUCKET"])
+        queue = boto3.client("sqs").create_queue(QueueName="market-refresh-test")["QueueUrl"]
+        env.setenv("MARKET_REFRESH_QUEUE_URL", queue)
         ssm = boto3.client("ssm")
         for name, value in PARAMS.items():
             ssm.put_parameter(Name=name, Value=value, Type="SecureString")

@@ -390,7 +390,12 @@ paths:
     get:
       operationId: getMarketHistory
       tags: [Market]
-      description: Takes 1 to 5 symbols; fewer or more is a 400.
+      description: >-
+        Takes 1 to 5 symbols; fewer or more is a 400. Reads shared snapshots without
+        calling providers. Missing or expired histories queue an asynchronous refresh.
+        A 200 may contain stale data; 202 contains available series while others are pending.
+        Poll every 5 seconds while refreshing, for at most 2 minutes per refresh request.
+        A missing snapshot with a failed refresh returns 502. No shared HTTP caching.
       parameters:
         - $ref: "#/components/parameters/UserId"
         - $ref: "#/components/parameters/Symbols"
@@ -424,6 +429,24 @@ paths:
                         close: 492.33
                     returnPct: 0.0245
                     volatility: 0.198
+        "202":
+          description: One or more histories are not cached yet; refresh is pending.
+          headers:
+            Retry-After:
+              schema: {type: integer, const: 5}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/History"
+              example:
+                series: []
+                stale: false
+                refreshing: true
+                refresh:
+                  - symbol: VOO
+                    status: pending
+                    fetchedAt: null
+                    requestedAt: "2026-09-26T12:00:00+00:00"
         "400":
           $ref: "#/components/responses/BadRequest"
         "502":
@@ -1157,6 +1180,25 @@ components:
             $ref: "#/components/schemas/HistorySeries"
         stale:
           type: boolean
+        refreshing:
+          type: boolean
+          description: At least one requested symbol has a refresh queued or running.
+        refresh:
+          type: array
+          items:
+            type: object
+            required: [symbol, status, fetchedAt, requestedAt]
+            properties:
+              symbol: {type: string}
+              status: {type: string, enum: [ready, pending, failed]}
+              fetchedAt:
+                type: [string, 'null']
+                format: date-time
+                description: Snapshot retrieval time, not the last price observation date.
+              requestedAt:
+                type: [string, 'null']
+                format: date-time
+                description: Start of this refresh; bounds automatic client polling.
 
     MarketNews:
       type: object

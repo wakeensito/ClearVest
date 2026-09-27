@@ -159,7 +159,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Takes 1 to 5 symbols; fewer or more is a 400. */
+        /** @description Takes 1 to 5 symbols; fewer or more is a 400. Reads shared snapshots without calling providers. Missing or expired histories queue an asynchronous refresh. A 200 may contain stale data; 202 contains available series while others are pending. Poll every 5 seconds while refreshing, for at most 2 minutes per refresh request. A missing snapshot with a failed refresh returns 502. No shared HTTP caching. */
         get: operations["getMarketHistory"];
         put?: never;
         post?: never;
@@ -469,6 +469,23 @@ export interface components {
         History: {
             series: components["schemas"]["HistorySeries"][];
             stale?: boolean;
+            /** @description At least one requested symbol has a refresh queued or running. */
+            refreshing?: boolean;
+            refresh?: {
+                symbol: string;
+                /** @enum {string} */
+                status: "ready" | "pending" | "failed";
+                /**
+                 * Format: date-time
+                 * @description Snapshot retrieval time, not the last price observation date.
+                 */
+                fetchedAt: string | null;
+                /**
+                 * Format: date-time
+                 * @description Start of this refresh; bounds automatic client polling.
+                 */
+                requestedAt: string | null;
+            }[];
         };
         MarketNews: {
             articles: components["schemas"]["NewsArticle"][];
@@ -1219,6 +1236,31 @@ export interface operations {
                      *           ],
                      *           "returnPct": 0.0245,
                      *           "volatility": 0.198
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["History"];
+                };
+            };
+            /** @description One or more histories are not cached yet; refresh is pending. */
+            202: {
+                headers: {
+                    "Retry-After"?: 5;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "series": [],
+                     *       "stale": false,
+                     *       "refreshing": true,
+                     *       "refresh": [
+                     *         {
+                     *           "symbol": "VOO",
+                     *           "status": "pending",
+                     *           "fetchedAt": null,
+                     *           "requestedAt": "2026-09-26T12:00:00+00:00"
                      *         }
                      *       ]
                      *     }

@@ -2,6 +2,7 @@ import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/re
 import { api, type Profile, type HistoryRange, type MarketCategory } from './client'
 import { isApiError } from './errors'
 import { symbolsError } from '../lib/compare'
+import { historyRefreshInterval } from '../lib/historyRefresh'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,7 +55,9 @@ export const useHistory = (symbol: string, range: HistoryRange) => useQuery({
   enabled: /^[A-Z0-9.^-]{1,12}$/.test(symbol),
   queryKey: ['history', symbol, range],
   queryFn: () => api.getHistory(symbol, range),
-  staleTime: 15 * 60_000,
+  staleTime: query => query.state.data?.refreshing ? 0 : 15 * 60_000,
+  refetchInterval: query => query.state.error ? false : historyRefreshInterval(query.state.data),
+  refetchIntervalInBackground: false,
 })
 
 /** Pass normalized tickers (lib/compare.ts). Disabled outside 2–4 symbols, so an incomplete set never hits the API. */

@@ -16,7 +16,7 @@ dev = [
   "requests==2.34.2",
   "yfinance==1.7.0",
   "boto3==1.43.103",
-  "moto[dynamodb,s3,ssm]==5.2.3",
+  "moto[dynamodb,s3,ssm,sqs]==5.2.3",
   "responses",
   "jsonschema",
   "pyyaml",
