@@ -1,5 +1,6 @@
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, type Profile, type HistoryRange, type MarketCategory } from './client'
+import { QueryClient, useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { api, type Fund, type Profile, type HistoryRange, type MarketCategory } from './client'
+import type { FundState } from '../lib/fundExplainer'
 import { isApiError } from './errors'
 import { symbolsError } from '../lib/compare'
 import { historyRefreshInterval } from '../lib/historyRefresh'
@@ -96,3 +97,16 @@ export const useCompanySearch = (query: string) => useQuery({
   enabled: query.trim().length > 0,
   staleTime: 15 * 60_000,
 })
+
+/** What a security is (kind, index, fees, top holdings). Fund facts change slowly, so keep them a day. */
+export const useFund = (symbol: string) => useQuery({
+  queryKey: ['fund', symbol],
+  queryFn: () => api.getFund(symbol),
+  enabled: /^[A-Z0-9.^-]{1,12}$/.test(symbol),
+  staleTime: 24 * 60 * 60_000,
+  gcTime: 24 * 60 * 60_000,
+})
+
+/** Error wins over stale data so a failed refetch hides the identity line rather than lying. */
+export const toFundState = (query: UseQueryResult<Fund>): FundState =>
+  query.isError ? { status: 'error' } : query.data ? { status: 'success', fund: query.data } : { status: 'pending' }

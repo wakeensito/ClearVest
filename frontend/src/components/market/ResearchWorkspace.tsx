@@ -1,13 +1,15 @@
 import { ArrowLeftRight, Minimize2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { toFundState, useFund } from '../../api/queries'
 import { Button } from '../ui/Button'
 import { CompanyNameSearch } from './CompanyNameSearch'
 import { CompanyFinancials } from './CompanyFinancials'
+import { CompactFundExplainer, RealDifference } from './FundExplainer'
 import { MarketNews } from './MarketNews'
 import { SecurityResearch } from './ResearchPanel'
 import styles from './ResearchWorkspace.module.css'
 
-export function ResearchWorkspace({ symbol, onSymbolChange, guided = false }: { symbol: string; onSymbolChange: (symbol: string) => void; guided?: boolean }) {
+export function ResearchWorkspace({ symbol, onSymbolChange, onCompareCompanies, guided = false }: { symbol: string; onSymbolChange: (symbol: string) => void; onCompareCompanies?: (a: string, b: string) => void; guided?: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const focusHeading = useRef<HTMLHeadingElement>(null)
   const compareButton = useRef<HTMLButtonElement>(null)
@@ -15,6 +17,9 @@ export function ResearchWorkspace({ symbol, onSymbolChange, guided = false }: { 
   const [comparing, setComparing] = useState(false)
   const [left, setLeft] = useState(symbol)
   const [right, setRight] = useState('')
+  // Same query keys as the research panels, so these reuse their cache.
+  const leftFund = toFundState(useFund(comparing ? left : ''))
+  const rightFund = toFundState(useFund(comparing ? right : ''))
   const open = () => {
     setLeft(symbol); setComparing(true)
     dialog.current?.showModal()
@@ -37,9 +42,11 @@ export function ResearchWorkspace({ symbol, onSymbolChange, guided = false }: { 
     <dialog ref={dialog} className={styles.dialog} aria-labelledby="research-comparison-title" onClose={() => { setComparing(false); compareButton.current?.focus() }}>
       {comparing && <div className={styles.focusWorkspace}>
         <header className={styles.focusHeader}><div><h2 id="research-comparison-title" ref={focusHeading} tabIndex={-1}>Compare securities</h2><p>Two independent charts. Explore the same period on each for a clearer comparison.</p></div><Button variant="secondary" icon={<Minimize2 size={16} aria-hidden />} onClick={close}>Exit comparison</Button></header>
+        {/* Close through the dialog first, so its onClose restores focus before the view changes. */}
+        <RealDifference left={leftFund} right={rightFund} onCompareCompanies={(a, b) => { close(); onCompareCompanies?.(a, b) }} />
         <div className={styles.pair}>
-          <div className={styles.first}><SecurityResearch initialSymbol={symbol} title="First security" onSymbolChange={setLeft} /><CompanyFinancials key={left} symbol={left} /></div>
-          <div className={styles.second}><SecurityResearch initialSymbol={right} title="Second security" onSymbolChange={setRight} />{right && <CompanyFinancials key={right} symbol={right} />}</div>
+          <div className={styles.first}><SecurityResearch initialSymbol={symbol} title="First security" onSymbolChange={setLeft} explainable={false} /><CompactFundExplainer symbol={left} state={leftFund} /><CompanyFinancials key={left} symbol={left} /></div>
+          <div className={styles.second}><SecurityResearch initialSymbol={right} title="Second security" onSymbolChange={setRight} explainable={false} />{right && <CompactFundExplainer symbol={right} state={rightFund} />}{right && <CompanyFinancials key={right} symbol={right} />}</div>
         </div>
         <p className={styles.context}>Each chart has its own price scale and range. Returns describe each security’s available price history; dividends and data adjustments vary by source.</p>
         <MarketNews symbols={[left, right]} />

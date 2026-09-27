@@ -40,12 +40,17 @@ def test_api_functions_and_refresh_worker_share_layer():
     assert res["SharedLayer"]["Metadata"]["BuildMethod"] == "python3.12"
 
 
-def test_only_advisor_and_voice_can_call_bedrock():
+def test_only_advisor_voice_and_market_fund_can_call_bedrock():
     res = load()["Resources"]
-    for name in ("PortfolioFn", "MarketFn"):
+    for name in ("PortfolioFn", "MarketRefreshFn"):
         assert "bedrock" not in yaml.dump(res[name]["Properties"]["Policies"])
     for name in ("AdvisorFn", "VoiceFn"):
         assert "bedrock:InvokeModel" in yaml.dump(res[name]["Properties"]["Policies"])
+    # MarketFn may invoke ONLY the fund-explainer's Nova Micro model, never Advisor/Voice's model.
+    market_policies = yaml.dump(res["MarketFn"]["Properties"]["Policies"])
+    assert "bedrock:InvokeModel" in market_policies
+    assert "FundModelId" in market_policies and "FundFoundationModelId" in market_policies
+    assert "${ModelId}" not in market_policies and "${FoundationModelId}" not in market_policies
 
 
 def test_only_portfolio_reads_plaid_secrets():

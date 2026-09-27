@@ -1,5 +1,7 @@
 """Tests for clearvest.db (single-table DynamoDB access) and clearvest.cache (stale-on-failure cache)."""
 
+import time
+
 import pytest
 from clearvest import cache, db
 from clearvest.errors import UpstreamError
@@ -77,6 +79,17 @@ def test_cache_raises_when_no_row_and_provider_fails(aws):
 
     with pytest.raises(UpstreamError):
         cache.get_or_fetch("p", "nothing", 60, boom)
+
+
+def test_ttl_for_overrides_ttl_seconds_for_the_cached_row(aws):
+    cache.get_or_fetch("p", "k", 60, lambda: {"v": 1}, ttl_for=lambda value: 5)
+    row = db.get("CACHE#p", "k")
+    assert row["expiresAt"] - time.time() <= 5 + 1
+
+    # Without ttl_for, the plain ttl_seconds is used, same as before this param existed.
+    cache.get_or_fetch("p", "k2", 60, lambda: {"v": 2})
+    row2 = db.get("CACHE#p", "k2")
+    assert row2["expiresAt"] - time.time() > 30
 
 
 def test_oversized_value_is_returned_but_not_cached(aws):

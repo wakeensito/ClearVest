@@ -22,6 +22,9 @@ export type Companies = Schemas['Companies']
 export type UploadUrl = Schemas['UploadUrl']
 export type VoiceTurn = Schemas['VoiceTurn']
 export type Speech = Schemas['Speech']
+export type Fund = Schemas['Fund']
+export type FundHolding = Schemas['FundHolding']
+export type FundKind = Fund['kind']
 
 /** The Prism mock by default; set VITE_API_BASE_URL to the stack's ApiUrl for the real backend. */
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4010').replace(/\/+$/, '')
@@ -74,6 +77,9 @@ export const api = {
 
   getMarketMovers: (category: MarketCategory) =>
     unwrap(client.GET('/market/movers', { params: { ...user(), query: { category } } })),
+
+  getFund: (symbol: string) =>
+    unwrap(client.GET('/market/fund', { params: { ...user(), query: { symbol } } })),
 
   getMacro: () => unwrap(client.GET('/market/macro', { params: user() })),
   getHistory: (symbol: string, range: HistoryRange) =>

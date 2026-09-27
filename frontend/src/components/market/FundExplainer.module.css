@@ -1,0 +1,143 @@
+/* "What is this?" fund explainer (DESIGN.md §4.13). Tokens only. */
+
+/* ---------- Identity line ---------- */
+
+.identity { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; min-height: 44px; margin-bottom: 16px; }
+.identityText { display: grid; gap: 2px; min-width: 0; flex: 1 1 14em; }
+.identity[data-fund-identity='loading'] { display: grid; align-content: center; gap: 8px; }
+.kind { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--cv-text); overflow-wrap: anywhere; }
+.ticker { font-weight: 600; }
+.risk { color: var(--cv-loss); font-weight: 600; }
+.tracks { font-size: 13px; line-height: 20px; color: var(--cv-text-secondary); overflow-wrap: anywhere; }
+.what {
+  flex-shrink: 0; min-height: 44px; padding: 0 14px;
+  border: 1px solid var(--cv-border-strong); border-radius: var(--cv-radius); background: var(--cv-surface);
+  color: var(--cv-accent); font-size: 14px; font-weight: 600; white-space: nowrap;
+  transition: background-color var(--cv-motion-fast) var(--cv-ease), border-color var(--cv-motion-fast) var(--cv-ease);
+}
+.what:hover { border-color: var(--cv-accent); }
+.what[aria-expanded='true'] { background: var(--cv-accent-subtle); border-color: var(--cv-accent); }
+
+/* ---------- Explainer region ---------- */
+
+/* `overflow: clip` (not hidden) rounds the corners without breaking the sticky bar. */
+.explainer { margin-bottom: 20px; border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); background: var(--cv-surface); overflow: clip; min-width: 0; }
+
+/* Sticks just below the app top bar (76px + 1px rule; 56px + 1px on phones). */
+.bar {
+  position: sticky; top: 77px; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 6px 6px 6px 16px; background: var(--cv-surface); border-bottom: 1px solid var(--cv-border);
+}
+.bar h3 { font-size: 15px; line-height: 24px; font-weight: 600; overflow-wrap: anywhere; min-width: 0; scroll-margin-top: 140px; }
+.bar h3:focus { outline: none; }
+.bar h3:focus-visible { outline: 2px solid var(--cv-accent); outline-offset: 2px; }
+
+.body { display: grid; gap: 12px; padding: 0 0 16px; }
+.padded { padding: 16px; }
+
+.sentence { font-size: 15px; line-height: 24px; color: var(--cv-text); max-width: 62ch; overflow-wrap: anywhere; }
+
+/* ---------- Numbered steps ---------- */
+
+.steps { list-style: none; margin: 0; padding: 0; }
+.steps > li { display: grid; gap: 8px; padding: 16px; min-width: 0; }
+.steps > li + li { border-top: 1px solid var(--cv-border); }
+.steps h4 { display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 20px; font-weight: 600; color: var(--cv-text-secondary); }
+.steps h4 span { display: grid; place-items: center; min-width: 24px; height: 24px; border-radius: 50%; background: var(--cv-accent-subtle); color: var(--cv-accent); font-size: 12px; }
+
+/* ---------- The dollar strip (signature) ---------- */
+
+/*
+ * One bar is $1. Slices are a sequential ramp of the accent, deepest for the largest holding;
+ * holdings 4–10 share one light tint. Not viz-1..8: those are fixed to asset categories, and every
+ * slice here is the same category. The 2px surface gaps separate slices without borders.
+ */
+.strip { display: flex; gap: 2px; height: 32px; border-radius: var(--cv-radius); overflow: hidden; background: var(--cv-surface); }
+.slice { min-width: 3px; flex-basis: 0; }
+.slice[data-rank='0'], .cents i[data-rank='0'] { background: var(--cv-accent); }
+.slice[data-rank='1'], .cents i[data-rank='1'] { background: color-mix(in srgb, var(--cv-accent) 72%, var(--cv-surface)); }
+.slice[data-rank='2'], .cents i[data-rank='2'] { background: color-mix(in srgb, var(--cv-accent) 50%, var(--cv-surface)); }
+.slice[data-rank='3'] { background: color-mix(in srgb, var(--cv-accent) 24%, var(--cv-surface)); }
+.rest {
+  display: flex; align-items: center; justify-content: flex-end; flex-basis: 0; min-width: 0; padding-inline: 8px;
+  background: var(--cv-surface-sunken); color: var(--cv-text-secondary); font-size: 12px; line-height: 16px; white-space: nowrap; overflow: hidden;
+}
+.cents { white-space: nowrap; }
+.cents i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 2px; vertical-align: 1px; }
+
+/* ---------- Fee translation ---------- */
+
+.term { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-secondary); white-space: nowrap; }
+
+/* ---------- Keep learning: one question chip open at a time ---------- */
+
+/* Outlined chips, no icons; the open one borrows the accent. The answer sits on a sunken band. */
+.learn { margin: 0 16px; padding-top: 12px; border-top: 1px solid var(--cv-border); display: grid; gap: 12px; min-width: 0; }
+/* One line on every width: `contain` keeps the row's width out of the page; it scrolls in place. */
+.chips { display: flex; gap: 8px; min-width: 0; contain: inline-size; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.fade { mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.chip {
+  flex-shrink: 0; min-height: 44px; padding: 0 14px; border: 1px solid var(--cv-border-strong); border-radius: var(--cv-radius);
+  background: var(--cv-surface); color: var(--cv-text); font-size: 14px; line-height: 20px; font-weight: 500; white-space: nowrap;
+  transition: background-color var(--cv-motion-fast) var(--cv-ease), border-color var(--cv-motion-fast) var(--cv-ease);
+}
+.chip:hover { border-color: var(--cv-accent); }
+/* Inset ring: the scrolling row would clip an outside one at its edges. */
+.chip:focus-visible { outline-offset: -4px; }
+.chip[aria-expanded='true'] { background: var(--cv-accent-subtle); border-color: var(--cv-accent); color: var(--cv-accent); }
+.answerSlot:empty { display: none; }
+.answer { display: grid; gap: 4px; padding: 12px 16px 0; border-left: 3px solid var(--cv-accent); background: var(--cv-surface-sunken); border-radius: 0 var(--cv-radius) var(--cv-radius) 0; min-width: 0; }
+.answer .tableWrap { margin-top: 4px; }
+
+/* Same phone-safe approach as advisor reply tables (§4.12): fixed layout, wrapping cells. */
+.tableWrap { contain: inline-size; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--cv-border); border-radius: var(--cv-radius); background: var(--cv-surface); }
+.tableWrap:focus-visible { outline: 2px solid var(--cv-accent); outline-offset: 2px; }
+.table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13px; line-height: 20px; text-align: left; }
+.table th, .table td { padding: 8px; vertical-align: top; overflow-wrap: break-word; hyphens: auto; hyphenate-limit-chars: 7 3 3; }
+.table thead th { color: var(--cv-text); font-weight: 600; border-bottom: 1px solid var(--cv-border-strong); }
+.table tbody th { padding-bottom: 0; color: var(--cv-text-secondary); font-size: 12px; line-height: 16px; font-weight: 500; }
+.table tbody + tbody th { border-top: 1px solid var(--cv-border); padding-top: 10px; }
+.table td { color: var(--cv-text); }
+.table td + td { border-left: 1px solid var(--cv-border); }
+
+/* ---------- Links and the data line ---------- */
+
+.link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; justify-self: start; padding: 0; border: 0; background: none; color: var(--cv-accent); font-size: 14px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.link:hover { color: var(--cv-accent-hover); }
+.source { padding-inline: 16px; font-size: 12px; line-height: 18px; color: var(--cv-text-tertiary); overflow-wrap: anywhere; }
+
+/* A single step (stocks, "other") needs no number. */
+.single h4 span { display: none; }
+
+/* ---------- Compare securities ---------- */
+
+.compact { display: grid; gap: 8px; margin-top: 16px; border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); background: var(--cv-surface); min-width: 0; }
+.compactHead { padding: 16px 16px 0; }
+.difference { display: grid; gap: 6px; margin-bottom: 20px; padding: 16px 20px; border-left: 3px solid var(--cv-accent); background: var(--cv-surface); border-radius: 0 var(--cv-radius) var(--cv-radius) 0; }
+.difference h3 { font-size: 15px; line-height: 24px; font-weight: 600; }
+.difference p { font-size: 15px; line-height: 24px; max-width: 72ch; overflow-wrap: anywhere; }
+
+@media (max-width: 767px) {
+  .bar { top: 57px; }
+}
+
+@media (max-width: 639px) {
+  .sentence { font-size: 16px; }
+  .steps > li { padding: 12px; }
+  .bar { padding-left: 12px; }
+  .learn { margin-inline: 12px; }
+  /* The table gets the band's full width: three answer columns stay whole words at 320px. */
+  .answer { padding: 12px 12px 0; }
+  .answer:has(.tableWrap) { padding-inline: 0; border-left-width: 0; border-top: 3px solid var(--cv-accent); border-radius: 0 0 var(--cv-radius) var(--cv-radius); }
+  .answer:has(.tableWrap) > :not(.tableWrap) { margin-inline: 12px; }
+  .table th, .table td { padding: 6px; }
+  .compactHead { padding: 12px 12px 0; }
+  .difference { padding: 12px 16px; }
+  .source { padding-inline: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .what, .chip { transition: none; }
+}

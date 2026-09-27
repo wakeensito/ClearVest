@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/market/fund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Beginner "what is this?" explainer for an ETF, mutual fund, stock, index or cryptocurrency. */
+        get: operations["getFund"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -415,6 +432,31 @@ export interface components {
                 name: string;
                 exchange: string | null;
             }[];
+            stale: boolean;
+        };
+        FundHolding: {
+            symbol: string | null;
+            name: string;
+            weight: number;
+        };
+        Fund: {
+            symbol: string;
+            name: string;
+            /** @enum {string} */
+            kind: "etf" | "mutual_fund" | "stock" | "index" | "crypto" | "other";
+            isIndexFund: boolean;
+            leveraged: boolean;
+            tracks: string | null;
+            expenseRatio: number | null;
+            topHoldings: components["schemas"]["FundHolding"][];
+            fundFamily: string | null;
+            category: string | null;
+            sector: string | null;
+            summary: string;
+            /** @enum {string} */
+            summarySource: "model" | "template";
+            /** Format: date */
+            asOf: string;
             stale: boolean;
         };
         Error: {
@@ -840,6 +882,68 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["CompanySearch"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            502: components["responses"]["Upstream"];
+        };
+    };
+    getFund: {
+        parameters: {
+            query: {
+                symbol: string;
+            };
+            header: {
+                /** @description The user's id. Required on every route except /health. */
+                "X-User-Id": components["parameters"]["UserId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every number (expenseRatio, topHoldings weights) comes from the data provider, never the model. summary is a one-sentence beginner explanation; summarySource says whether it was rewritten by the model or is the plain template (always template for a leveraged fund, an index, a cryptocurrency, or an unrecognized kind). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "symbol": "VOO",
+                     *       "name": "Vanguard S&P 500 ETF",
+                     *       "kind": "etf",
+                     *       "isIndexFund": true,
+                     *       "leveraged": false,
+                     *       "tracks": "Standard & Poor's 500 Index",
+                     *       "expenseRatio": 0.0003,
+                     *       "topHoldings": [
+                     *         {
+                     *           "symbol": "NVDA",
+                     *           "name": "NVIDIA Corp",
+                     *           "weight": 0.08082
+                     *         },
+                     *         {
+                     *           "symbol": "AAPL",
+                     *           "name": "Apple Inc",
+                     *           "weight": 0.070339
+                     *         },
+                     *         {
+                     *           "symbol": "MSFT",
+                     *           "name": "Microsoft Corp",
+                     *           "weight": 0.056958
+                     *         }
+                     *       ],
+                     *       "fundFamily": "Vanguard",
+                     *       "category": "Large Blend",
+                     *       "sector": null,
+                     *       "summary": "This fund spreads your money across hundreds of well-known American companies in a single investment.",
+                     *       "summarySource": "model",
+                     *       "asOf": "2026-09-27",
+                     *       "stale": false
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Fund"];
                 };
             };
             400: components["responses"]["BadRequest"];

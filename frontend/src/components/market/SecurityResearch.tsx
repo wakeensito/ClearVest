@@ -1,9 +1,10 @@
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
 import { AreaSeries, ColorType, CrosshairMode, createChart, type IChartApi, type ISeriesApi } from 'lightweight-charts'
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import type { HistoryRange, HistorySeries } from '../../api/client'
-import { useHistory } from '../../api/queries'
+import { toFundState, useFund, useHistory } from '../../api/queries'
+import { isExplainOpen, withExplain } from '../../lib/fundExplainer'
 import { marketPrice, date, percentFromFraction, quantity } from '../../lib/format'
 import { historyPoints } from '../../lib/history'
 import { historyRefreshInterval } from '../../lib/historyRefresh'
@@ -13,15 +14,29 @@ import { SegmentedControl } from '../ui/SegmentedControl'
 import { CompanyNameSearch } from './CompanyNameSearch'
 import { ContextHelp } from '../education/ContextHelp'
 import { CompanyLogo } from './CompanyLogo'
+import { FundExplainer, FundIdentity } from './FundExplainer'
 import styles from './SecurityResearch.module.css'
 
-export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange }: { initialSymbol?: string; compact?: boolean; title?: string; onSymbolChange?: (symbol: string) => void }) {
+export interface SecurityResearchProps {
+  initialSymbol?: string
+  compact?: boolean
+  title?: string
+  onSymbolChange?: (symbol: string) => void
+  /**
+   * The identity line and URL-synced "What is this?" explainer. Off where two panels share one URL
+   * (Compare securities), which shows a compact explainer under each side instead.
+   */
+  explainable?: boolean
+}
+
+export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title = 'Security research', onSymbolChange, explainable = true }: SecurityResearchProps) {
   const [symbol, setSymbol] = useState(initialSymbol)
   const [input, setInput] = useState(initialSymbol)
   const [range, setRange] = useState<HistoryRange>('1y')
   const [error, setError] = useState('')
   const query = useHistory(symbol, range)
   const inputId = useId()
+  const { id: explainId, open: explainOpen, state: fundState, inputRef, headingRef, show, close, retry, seeFinancials } = useExplainer(symbol, explainable)
   const select = (next: string) => { setError(''); setSymbol(next); setInput(next); onSymbolChange?.(next) }
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -41,12 +56,14 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
       <div className={styles.toolbar}>
         <form onSubmit={submit} className={styles.search}>
           <label htmlFor={inputId} className="sr-only">Research a ticker symbol</label>
-          <input id={inputId} value={input} onChange={(event) => setInput(event.target.value)} maxLength={12} spellCheck={false} autoCapitalize="characters" aria-invalid={!!error} aria-describedby={error ? `${inputId}-error` : undefined} />
+          <input ref={inputRef} id={inputId} value={input} onChange={(event) => setInput(event.target.value)} maxLength={12} spellCheck={false} autoCapitalize="characters" aria-invalid={!!error} aria-describedby={error ? `${inputId}-error` : undefined} />
           <button type="submit" aria-label="Research symbol"><Search size={17} aria-hidden /></button>
         </form>
         <SegmentedControl label="History range" value={range} onChange={setRange} options={[{ value: '1y', label: '1Y' }, { value: '5y', label: '5Y' }, { value: '10y', label: '10Y' }]} />
       </div>
       {error && <p id={`${inputId}-error`} role="alert" className="t-body-sm c-loss">{error}</p>}
+      {symbol && explainable && <FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} />}
+      {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} onResearch={select} headingRef={headingRef} />}
       {!symbol ? <div className={styles.empty}>Enter a ticker above to load its chart and key figures.</div> : <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
         {(data) => {
           const series = data.series.find((item) => item.symbol.toUpperCase() === symbol)
@@ -72,6 +89,55 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
       </div>
     </section>
   )
+}
+
+/**
+ * Explainer open state lives in the URL (`explain=1`) so the phone Back button closes it. Opening
+ * pushes a history entry; Done pops it when we pushed it, otherwise it replaces the URL, so a
+ * symbol change made in between (a replace) is never undone.
+ */
+const liveParams = () => new URLSearchParams(window.location.search)
+
+function useExplainer(symbol: string, enabled: boolean) {
+  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const fund = useFund(enabled ? symbol : '')
+  const id = useId()
+  const open = enabled && isExplainOpen(params)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const focusHeading = useRef(false)
+  const focusSearch = useRef(false)
+  const wasOpen = useRef(open)
+  useEffect(() => {
+    if (open && !wasOpen.current && focusHeading.current) headingRef.current?.focus()
+    // Done asks for the search; Back or Esc leaves focus on a removed node, so recover it too.
+    if (!open && wasOpen.current && (focusSearch.current || document.activeElement === document.body)) inputRef.current?.focus()
+    focusHeading.current = false
+    focusSearch.current = false
+    wasOpen.current = open
+  }, [open])
+  const state = toFundState(fund)
+  const pushed = (location.state as { explainOpened?: boolean } | null)?.explainOpened === true
+  return {
+    id, open, state, inputRef, headingRef,
+    // Read the live URL, not the render's params: a ticker change in the same frame must not drop explain=1.
+    show: () => { focusHeading.current = true; setParams(withExplain(liveParams(), true), { state: { explainOpened: true } }) },
+    close: () => {
+      focusSearch.current = true
+      if (pushed) void navigate(-1)
+      else setParams(withExplain(liveParams(), false), { replace: true })
+    },
+    retry: () => void fund.refetch(),
+    /** Company financials sit elsewhere on Markets; Portfolio has none, so go to Markets for them. */
+    seeFinancials: () => {
+      const target = document.querySelector<HTMLElement>(`[data-company-financials="${CSS.escape(symbol)}"]`)
+      if (!target) { void navigate(`/markets?symbol=${encodeURIComponent(symbol)}`); return }
+      target.scrollIntoView({ block: 'start' })
+      target.focus({ preventScroll: true })
+    },
+  }
 }
 
 function PriceHistory({ series, compact }: { series: HistorySeries; compact: boolean }) {

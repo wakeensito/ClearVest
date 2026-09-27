@@ -1,4 +1,5 @@
-.panel { background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); padding: 24px; min-width: 0; }
+/* The fund explainer's "See what this company earns" scrolls here and focuses the section. */
+.panel { scroll-margin-top: 90px; background: var(--cv-surface); border: 1px solid var(--cv-border); border-radius: var(--cv-radius-panel); padding: 24px; min-width: 0; }
 .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
 .header > div { min-width: 0; }
 .header h2 { font-size: 20px; line-height: 28px; font-weight: 600; overflow-wrap: anywhere; }

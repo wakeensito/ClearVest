@@ -20,6 +20,10 @@ Parameters:
   # Cross-region inference profile + the foundation model it routes to.
   ModelId: {Type: String, Default: us.amazon.nova-2-lite-v1:0}
   FoundationModelId: {Type: String, Default: amazon.nova-2-lite-v1:0}
+  # MarketFn's only Bedrock permission (fund explainer summaries, #42): a cheaper model, scoped
+  # separately from ModelId/FoundationModelId so Advisor/Voice can't be swapped by editing this.
+  FundModelId: {Type: String, Default: us.amazon.nova-micro-v1:0}
+  FundFoundationModelId: {Type: String, Default: amazon.nova-micro-v1:0}
 
 Globals:
   Function:
@@ -145,6 +149,11 @@ Resources:
           FMP_KEY_PARAM: !Ref FmpKeyParam
           ALPHAVANTAGE_KEY_PARAM: !Ref AlphaVantageKeyParam
           SEC_USER_AGENT_PARAM: !Ref SecUserAgentParam
+          FUND_MODEL_ID: !Ref FundModelId
+          # One attempt, short read timeout: a fund summary always has a template fallback, so a
+          # slow/throttled Bedrock call should fail fast rather than eat into the 29s budget.
+          BEDROCK_MAX_ATTEMPTS: '1'
+          BEDROCK_READ_TIMEOUT: '6'
       Policies:
         - DynamoDBCrudPolicy: {TableName: !Ref Table}
         - SQSSendMessagePolicy: {QueueName: !GetAtt MarketRefreshQueue.QueueName}
@@ -155,6 +164,12 @@ Resources:
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${FmpKeyParam}'
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AlphaVantageKeyParam}'
                 - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SecUserAgentParam}'
+            # Fund explainer summaries only (#42): scoped to Nova Micro, never the Advisor/Voice model.
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${FundModelId}'
+                - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/${FundFoundationModelId}'
       Events:
         Market: {Type: HttpApi, Properties: {ApiId: !Ref ClearVestApi, Path: '/market/{proxy+}', Method: ANY}}
 
