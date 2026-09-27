@@ -390,6 +390,57 @@ figure (sentences drop the dollar clause, table cells read “Hidden”) and kee
 the fee table is fixed-layout within the card, the plan name on its bar truncates with an ellipsis
 (the select and legend still carry it in full).
 
+### 4.15 What-if ("What would this do to my portfolio?")
+
+The ticker-page moment: before anyone adds money to a security, show what it would do to the account
+they already have. Math lives in `lib/whatIf.ts` (a hypothetical "holdings after" fed to `lookThrough()`
+and the `riskScore()` port of `risk.py`; nothing is sold, every weight renormalizes); copy and the
+amount rules in `lib/whatIfCopy.ts`; the view is `components/market/WhatIfCard.tsx`
+(`[data-what-if="NVDA"]`). Fund facts come from `useFundMap` (§4.14), so the portfolio cards and this
+one share one request per fund.
+
+**Where.** Inside the research card, under the identity row (§4.13); an open explainer keeps its
+place directly under the identity line and pushes this card down. Only when `explainable`, the
+fund lookup succeeded, holdings loaded (linked) and the kind can be bought: stock, ETF, mutual fund or
+crypto. Never for an index or “other”, never in Compare securities.
+
+**Card.** The explainer's inner surface: white, 1px rule, 10px radius, 16px padding. A 13px secondary
+heading “What would this do to my portfolio?”. An amount row: `SegmentedControl` “Amount to add”
+$500 / $1,000 / $5,000 (default $1,000), then “Other amount”, a 44px `$`-prefixed text box
+(`inputMode="decimal"`, accepts “2,500”, “$2,500”, “12.50”) that overrides the segment while it holds a
+valid amount (no segment pressed); a preset tap clears it. Outside $1–$1,000,000: “Enter an amount from
+$1 to $1,000,000. Showing $1,000.” in the field-error style, and the figures keep the preset. Component
+state only, no URL state.
+
+**The sentence is the answer.** At 17/26 medium (16/24 on phones), in a polite live region:
+“Adding $1,000 of NVDA: your NVDA exposure goes from 17% to 21% (counting what your funds hold), and
+your risk score from 34 to 35 (Moderate).” Not held: “you'd go from owning no ORCL to 9%”. The risk
+label is repeated on both sides only when it changes. Whole percents; a sliver reads “under 1%”, never
+“0%”. For a stock or crypto the exposure is its look-through company share; for an ETF or mutual fund it
+is the fund's own share of the account.
+
+**Figures.** Two compact before → after pairs, side by side on desktop, stacked on phones, as a `dl`:
+“Risk score 34 → 35” with the band label in 12px tertiary (“Moderate → Aggressive” when it crosses), over
+the risk card's three neutral bands (§4.6) with a short `text-secondary` tick for today, a tall `accent`
+tick for after, and a 2px `accent` line between them for the move; and “NVDA exposure 17% → 21%” over an
+8px sunken track out of the whole account: solid `accent` for today, a 45% `accent`/`surface` mix for the
+added part (the §4.13 ramp; never `viz-1..8`, never green or red). Both drawings are `aria-hidden`; the
+sentence and the numbers carry them. When the biggest single look-through company changes: “NVDA would
+become your biggest single company.” (13px medium).
+
+**Data line.** 12px tertiary: “Counting each fund's top 10 holdings (3 of 3 funds checked).
+Educational, not a recommendation.” A fund being added is looked inside too and joins the count; an
+account with no funds reads “Based on your holdings. Educational, not a recommendation.” No buy
+button, no link to a broker, no “you should”.
+
+**States.** Anything loading (fund, holdings, profile, the account's first fund) renders nothing, never
+a skeleton, so the research header never jumps or waits. Not linked (409), any error, an empty account,
+an index: nothing; the portfolio page already invites linking. No saved profile (404) scores without
+one, like the backend. Funds still arriving after the first: render with “N of M”.
+
+**Phone.** No overflow at 320/375/393px; the presets keep one row and the amount box takes the next
+full row below 640px. Measured at 375px: about 570px tall with the biggest-company line, 530px at 393px.
+
 ## 5. Layout and routes
 
 Desktop: 76px navigation, slim workspace information row, centered content up to 1440px with 40px
