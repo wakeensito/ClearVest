@@ -13,6 +13,18 @@ from tests.contract import assert_matches
 from tests.helpers import call
 
 
+@pytest.fixture(autouse=True)
+def _no_yahoo_fallback(monkeypatch):
+    """Tests here simulate FMP outages; the Yahoo fallback must never hit the network. Tests that
+    exercise the fallback monkeypatch yahoo.company_rows themselves."""
+    from market.providers import yahoo
+
+    def offline(symbol, section):
+        raise UpstreamError("yahoo", "disabled in tests")
+
+    monkeypatch.setattr(yahoo, "company_rows", offline)
+
+
 def statement(symbol="AAPL", **changes):
     return {"symbol": symbol, "date": "2025-09-27", "fiscalYear": "2025", "period": "FY",
             "reportedCurrency": "USD", "revenue": 100, "netIncome": 20, "epsDiluted": 2, **changes}
@@ -226,3 +238,49 @@ def test_cached_earnings_date_in_the_past_is_dropped_on_read(aws, monkeypatch):
     body = request()[1]
     assert body["profile"]["nextEarningsDate"] is None and body["profile"]["name"] == "Example company"
     assert_matches("/market/company-research", "get", 200, body)
+
+
+def test_fmp_quota_falls_back_to_yahoo(aws, monkeypatch):
+    """FMP's free tier hits a daily cap (429 "Limit Reach"); uncached tickers must still show data."""
+    from market.providers import yahoo
+
+    def fmp_down(symbol, section):
+        raise UpstreamError("fmp", "HTTP 429: Limit Reach")
+
+    rows = {
+        "profile": [{"symbol": "TSLA", "companyName": "Tesla, Inc.", "description": "Makes electric cars.",
+                     "sector": "Consumer Cyclical", "industry": "Auto Manufacturers", "currency": "USD",
+                     "isEtf": False, "isFund": False, "beta": 2.1, "marketCap": 1.0e12}],
+        "valuation": [{"symbol": "TSLA", "priceToEarningsRatioTTM": 180.0, "netIncomePerShareTTM": 2.2,
+                       "priceToSalesRatioTTM": 12.0, "dividendYieldTTM": 0.0}],
+        "income": [{"symbol": "TSLA", "date": "2025-12-31", "fiscalYear": "2025", "period": "FY",
+                    "reportedCurrency": "USD", "revenue": 9.7e10, "costOfRevenue": 8.0e10, "grossProfit": 1.7e10,
+                    "operatingIncome": 7.0e9, "netIncome": 7.1e9, "epsDiluted": 2.2}],
+    }
+
+    def yahoo_rows(symbol, section):
+        if section not in rows:
+            raise UpstreamError("yahoo", f"no {section} fallback")
+        return rows[section]
+
+    monkeypatch.setattr(fmp, "research_section", fmp_down)
+    monkeypatch.setattr(yahoo, "company_rows", yahoo_rows)
+    status, body = call(handler, "GET", "/market/company-research", query={"symbol": "TSLA"})
+    assert status == 200
+    assert body["profile"]["name"] == "Tesla, Inc." and body["valuation"]["pe"] == 180.0
+    assert body["income"][0]["year"] == "2025"
+    assert body["unavailable"] == ["history"]
+    assert {s["section"]: s["provider"] for s in body["sources"]} == {
+        "profile": "Yahoo Finance", "valuation": "Yahoo Finance", "income": "Yahoo Finance"}
+    assert_matches("/market/company-research", "get", 200, body)
+
+
+def test_both_providers_down_is_still_502(aws, monkeypatch):
+    from market.providers import yahoo
+
+    def down(symbol, section):
+        raise UpstreamError("x", "down")
+
+    monkeypatch.setattr(fmp, "research_section", down)
+    monkeypatch.setattr(yahoo, "company_rows", down)
+    assert call(handler, "GET", "/market/company-research", query={"symbol": "TSLA"})[0] == 502

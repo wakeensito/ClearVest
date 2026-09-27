@@ -9,7 +9,7 @@ from aws_lambda_powertools.event_handler.api_gateway import Router
 from clearvest import api, cache
 from clearvest.errors import UpstreamError
 
-from market.providers import fmp
+from market.providers import fmp, yahoo
 from market.routes.history import parse_symbols
 
 router = Router()
@@ -107,14 +107,19 @@ def _normalize(symbol, section, rows):
 
 def _section(symbol, section):
     def fetch():
-        value = _normalize(symbol, section, fmp.research_section(symbol, section))
+        try:
+            value, provider = _normalize(symbol, section, fmp.research_section(symbol, section)), "FMP"
+        except UpstreamError:
+            # FMP's free tier has a daily cap (429 "Limit Reach"); Yahoo keeps profile, valuation
+            # and income working. Its rows go through the same _normalize validation.
+            value, provider = _normalize(symbol, section, yahoo.company_rows(symbol, section)), "Yahoo Finance"
         if section == "profile" and value and not value["isFund"]:
             # Folded into the profile snapshot: an optional extra, so its failure never costs the profile.
             try:
                 value["nextEarningsDate"] = _next_earnings(symbol, fmp.research_section(symbol, "earnings"))
             except UpstreamError:
                 pass
-        return {"value": value, "fetchedAt": datetime.now(UTC).isoformat()}
+        return {"value": value, "fetchedAt": datetime.now(UTC).isoformat(), "provider": provider}
     try:
         snapshot, stale = cache.get_or_fetch("fmp", f"research:v2:{symbol}:{section}", TTL, fetch)
         return section, snapshot, stale
@@ -142,6 +147,6 @@ def research():
                 upcoming = snapshot["value"].get("nextEarningsDate")
                 body[section] = {**snapshot["value"],
                                  "nextEarningsDate": upcoming if upcoming and upcoming >= _today() else None}
-            body["sources"].append({"section": section, "provider": "FMP",
+            body["sources"].append({"section": section, "provider": snapshot.get("provider", "FMP"),
                                     "fetchedAt": snapshot["fetchedAt"], "stale": stale})
     return body
