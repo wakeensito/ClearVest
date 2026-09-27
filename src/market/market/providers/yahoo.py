@@ -230,3 +230,62 @@ def news(symbols: list[str]) -> list[dict]:
             })
     # Interleave the feeds so a comparison shows both companies; the route keeps only the first six.
     return [row for group in zip_longest(*feeds) for row in group if row is not None]
+
+
+_INCOME_ROWS = {"revenue": "Total Revenue", "costOfRevenue": "Cost Of Revenue", "grossProfit": "Gross Profit",
+                "operatingIncome": "Operating Income", "netIncome": "Net Income", "epsDiluted": "Diluted EPS"}
+
+
+def _finite(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def company_rows(symbol: str, section: str) -> list[dict]:
+    """FMP-shaped rows for routes/research.py when FMP is down or out of quota.
+
+    Only profile, valuation and income are available keylessly; anything else raises so the
+    caller keeps reporting that section as unavailable. Numbers pass through the route's own
+    validation (_normalize), exactly as FMP rows do.
+    """
+    if section not in {"profile", "valuation", "income"}:
+        raise UpstreamError("yahoo", f"no {section} fallback")
+    import yfinance as yf  # heavy (pandas); import only when a request needs it
+
+    yf.set_tz_cache_location("/tmp/yfinance")
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.info
+        statement = ticker.income_stmt if section == "income" else None
+    except Exception as err:  # yfinance raises many types; all mean "Yahoo failed"
+        raise UpstreamError("yahoo", f"{type(err).__name__}: {err}") from err
+    if not info or not (info.get("longName") or info.get("shortName")):
+        raise UpstreamError("yahoo", f"no company data for {symbol}")
+    if section == "profile":
+        quote = str(info.get("quoteType", "")).upper()
+        return [{"symbol": symbol, "companyName": info.get("longName") or info.get("shortName"),
+                 "description": info.get("longBusinessSummary"), "sector": info.get("sector"),
+                 "industry": info.get("industry"), "currency": info.get("currency"),
+                 "isEtf": quote == "ETF", "isFund": quote == "MUTUALFUND",
+                 "beta": _finite(info.get("beta")), "marketCap": _finite(info.get("marketCap"))}]
+    if section == "valuation":
+        # trailingAnnualDividendYield is a fraction; yfinance's dividendYield is a percent.
+        return [{"symbol": symbol, "priceToEarningsRatioTTM": _finite(info.get("trailingPE")),
+                 "netIncomePerShareTTM": _finite(info.get("trailingEps")),
+                 "priceToSalesRatioTTM": _finite(info.get("priceToSalesTrailing12Months")),
+                 "dividendYieldTTM": _finite(info.get("trailingAnnualDividendYield"))}]
+    rows = []
+    if statement is not None and not statement.empty:
+        for column in statement.columns:
+            when = getattr(column, "date", lambda: None)()
+            if when is None:
+                continue
+            row = {"symbol": symbol, "date": when.isoformat(), "fiscalYear": str(when.year), "period": "FY",
+                   "reportedCurrency": info.get("financialCurrency") or info.get("currency")}
+            for key, label in _INCOME_ROWS.items():
+                row[key] = _finite(statement.at[label, column]) if label in statement.index else None
+            rows.append(row)
+    return rows
