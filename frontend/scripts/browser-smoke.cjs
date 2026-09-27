@@ -94,6 +94,7 @@ fs.mkdirSync(output, { recursive: true });
   await page.screenshot({path:path.join(output,'markets-desktop.png'),fullPage:true});
   historyMode='error'; await page.reload();
   await page.getByRole('button',{name:'Retry',exact:true}).waitFor();
+  await page.getByText('Market activity: most active, gainers and losers',{exact:true}).click();
   await page.getByRole('heading',{name:'Top 10 most active',exact:true}).waitFor();
   historyMode='ok'; await page.getByRole('button',{name:'Retry',exact:true}).click();
   await page.getByRole('group',{name:'QQQ interactive price chart'}).waitFor();

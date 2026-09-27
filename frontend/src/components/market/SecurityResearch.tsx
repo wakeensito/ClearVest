@@ -15,6 +15,7 @@ import { CompanyNameSearch } from './CompanyNameSearch'
 import { ContextHelp } from '../education/ContextHelp'
 import { CompanyLogo } from './CompanyLogo'
 import { FundExplainer, FundIdentity } from './FundExplainer'
+import { WatchButton } from './Watchlist'
 import styles from './SecurityResearch.module.css'
 
 export interface SecurityResearchProps {
@@ -62,7 +63,7 @@ export function SecurityResearch({ initialSymbol = 'VOO', compact = false, title
         <SegmentedControl label="History range" value={range} onChange={setRange} options={[{ value: '1y', label: '1Y' }, { value: '5y', label: '5Y' }, { value: '10y', label: '10Y' }]} />
       </div>
       {error && <p id={`${inputId}-error`} role="alert" className="t-body-sm c-loss">{error}</p>}
-      {symbol && explainable && <FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} />}
+      {symbol && explainable && <div className={styles.identityRow} data-identity-row><FundIdentity symbol={symbol} state={fundState} open={explainOpen} onToggle={explainOpen ? close : show} controls={explainId} /><WatchButton symbol={symbol} /></div>}
       {symbol && explainOpen && <FundExplainer id={explainId} symbol={symbol} state={fundState} onDone={close} onRetry={retry} onSeeFinancials={seeFinancials} onResearch={select} headingRef={headingRef} />}
       {!symbol ? <div className={styles.empty}>Enter a ticker above to load its chart and key figures.</div> : <QueryView query={query} label={`Loading ${symbol} price history`} noun={`${symbol} price history`}>
         {(data) => {

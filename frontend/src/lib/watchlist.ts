@@ -48,6 +48,14 @@ export function toggleWatch(symbol: string): boolean {
   return watched
 }
 
+/** `/market/history` takes up to five symbols per call. */
+export const HISTORY_CHUNK = 5
+export function chunk<T>(items: readonly T[], size = HISTORY_CHUNK): T[][] {
+  const groups: T[][] = []
+  for (let i = 0; i < items.length; i += size) groups.push(items.slice(i, i + size))
+  return groups
+}
+
 export function useWatchlist(): { symbols: string[]; watched(symbol: string): boolean; toggle(symbol: string): boolean } {
   // Client-only app: the server snapshot is the same read, so static-render tests see seeded storage.
   const raw = useSyncExternalStore(subscribe, snapshot, snapshot)
