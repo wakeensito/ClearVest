@@ -70,6 +70,9 @@
 .today { background: var(--cv-accent); }
 .added { background: color-mix(in srgb, var(--cv-accent) 45%, var(--cv-surface)); }
 
+/* Unlinked: one quiet line to the portfolio page, a full 44px target. */
+.invite { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; line-height: 20px; font-weight: 500; overflow-wrap: anywhere; }
+
 .note { font-size: 13px; line-height: 20px; font-weight: 500; color: var(--cv-text); }
 .dataLine { font-size: 12px; line-height: 18px; color: var(--cv-text-tertiary); overflow-wrap: anywhere; }
 

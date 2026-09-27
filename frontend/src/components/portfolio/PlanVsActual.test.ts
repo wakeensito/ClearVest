@@ -26,7 +26,7 @@ describe('PlanVsActual', () => {
     expect(selected(html)).toBe('three-fund')
     expect(text(html)).toContain('Compare with')
     expect(text(html)).toContain(SUGGESTED)
-    expect(text(html)).toContain('Nothing in bonds, where the Bogleheads three-fund plan keeps 20%; 14 points more in stocks.')
+    expect(text(html)).toContain('Nothing in bonds, where the Bogleheads three-fund plan keeps 20%. Stocks: 94% today vs 80% in the plan.')
     expect(text(html)).toContain('US stocks, international stocks and US bonds in one example weighting.')
   })
 
@@ -45,8 +45,21 @@ describe('PlanVsActual', () => {
   it('links a prefilled advisor question, never auto-sent', () => {
     const href = /href="(\/advisor\?q=[^"]+)"/.exec(render())?.[1] ?? ''
     expect(decodeURIComponent(href.replace('/advisor?q=', '')))
-      .toBe('My mix has nothing in bonds, where the Bogleheads three-fund plan keeps 20%; 14 points more in stocks. What should a beginner understand about that?')
+      .toBe('My mix has nothing in bonds, where the Bogleheads three-fund plan keeps 20%. Stocks: 94% today vs 80% in the plan. What should a beginner understand about that?')
     expect(href).not.toContain('send=')
+  })
+
+  it('says where the suggested plan came from, under the select', () => {
+    const t = text(render())
+    expect(t).toContain('Picked from your answers (age, time horizon, risk comfort). A starting point, not advice.')
+    expect(t).not.toContain('Answer three questions')
+  })
+
+  it('without a profile, invites the three profile questions, linking to the profile editor', () => {
+    const html = render({ profile: null })
+    expect(text(html)).toContain('Answer three questions in your investment profile to get a suggested plan.')
+    expect(html).toMatch(/<a href="\/welcome\?edit=1"[^>]*>investment profile<\/a>/)
+    expect(text(html)).not.toContain('Picked from your answers')
   })
 
   it('suggests a plan from the profile', () => {

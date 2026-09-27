@@ -2,7 +2,7 @@ import { Search } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useId, useRef, useState, type FormEvent, type KeyboardEvent, type Ref } from 'react'
 import { companySearchQuery, useCompanySearch } from '../../api/queries'
-import { EMPTY_SEARCH_ERROR, MAX_SUGGESTIONS, moveHighlight, resolveSubmit, searchTerm, shouldAwaitSearch, TICKER, type Suggestion } from '../../lib/searchBox'
+import { EMPTY_SEARCH_ERROR, MAX_SUGGESTIONS, moveHighlight, normalizeQuery, resolveSubmit, searchTerm, shouldAwaitSearch, TICKER, type Suggestion } from '../../lib/searchBox'
 import { useDebounce } from '../../lib/useDebounce'
 import styles from './SymbolSearch.module.css'
 
@@ -78,7 +78,7 @@ export function SymbolSearch({ value = '', onSelect, inputRef, clearOnSelect = f
         // A failed search never blocks: a ticker-shaped draft goes straight to the chart.
         () => {
           if (edits.current !== edit) return
-          const upper = draft.trim().toUpperCase()
+          const upper = normalizeQuery(draft).toUpperCase()
           finish(TICKER.test(upper) ? { symbol: upper } : { error: EMPTY_SEARCH_ERROR })
         },
       )

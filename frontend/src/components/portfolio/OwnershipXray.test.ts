@@ -2,7 +2,7 @@ import { createElement as h } from 'react'
 import { describe, expect, it } from 'vitest'
 import type { Holdings } from '../../api/client'
 import { FEES_PENDING } from '../../lib/xrayCopy'
-import { FUNDS_UNAVAILABLE, NO_XRAY_DATA, OwnershipXray, OwnershipXraySkeleton } from './OwnershipXray'
+import { FUNDS_UNAVAILABLE, NO_XRAY_DATA, OwnershipXray, OwnershipXraySkeleton, XRAY_WHY } from './OwnershipXray'
 import { QQQ_FUND, renderSeeded, sampleHoldings, seedError, seedFunds, text } from './xray.fixtures'
 
 const render = (data: Holdings, seed: Parameters<typeof renderSeeded>[1], hideValues = false) =>
@@ -14,6 +14,17 @@ describe('OwnershipXray', () => {
     expect(html).toContain('id="xray"')
     expect(text(html)).toContain('What you really own')
     expect(text(html)).toContain('Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT.')
+  })
+
+  it('says why a company can show up more than once, right under the heading, in every state with something to show', () => {
+    expect(XRAY_WHY).toBe('Funds are baskets of companies, so the same company can sit in several of your funds.')
+    const full = text(render(sampleHoldings(), (c) => seedFunds(c)))
+    expect(full).toMatch(/^ ?What you really own Funds are baskets of companies, so the same company can sit in several of your funds\. Apple is about/)
+    expect(text(render(sampleHoldings(), () => {}))).toContain(XRAY_WHY)
+    expect(text(render(sampleHoldings(), (c) => { for (const s of ['VOO', 'QQQ', 'VGT']) seedError(c, ['fund', s]) }))).toContain(XRAY_WHY)
+    const cashOnly = sampleHoldings()
+    cashOnly.holdings = cashOnly.holdings.filter((x) => x.type === 'cash')
+    expect(text(render(cashOnly, () => {}))).not.toContain(XRAY_WHY)
   })
 
   it('lists five companies with a mono symbol, a 1-decimal share and a via line; bars are hidden from readers', () => {
@@ -34,6 +45,7 @@ describe('OwnershipXray', () => {
     const t = text(render(sampleHoldings(), (c) => seedFunds(c)))
     expect(t).toContain('What it costs')
     expect(t).toMatch(/Your funds cost about \$\d+ a year \(0\.\d\d% of the money in them\)\./)
+    expect(t).toMatch(/That's about \$\d+ a year on every \$10,000\./)
     expect(t).toMatch(/At the same balance that's about \$\d+ over 10 years\./)
     expect(t).toMatch(/If every fund cost what your cheapest one does \(0\.03%\), it would be about \$\d+ a year\./)
     expect(t).toMatch(/QQQ 0\.2% \$\d+\.\d\d/)
@@ -95,12 +107,14 @@ describe('OwnershipXray', () => {
     data.holdings = data.holdings.filter((x) => x.symbol === 'AAPL' || x.symbol === 'VGT' || x.symbol === 'QQQ')
     const bondish = { ...QQQ_FUND, topHoldings: [{ symbol: null, name: 'United States Treasury Notes', weight: 0.05 }] }
     const t = text(render(data, (c) => { c.setQueryData(['fund', 'QQQ'], bondish); seedError(c, ['fund', 'VGT']) }))
-    expect(t).toMatch(/^ ?What you really own Apple is about \d+% of your money, held directly \(we couldn't look inside 1 of your funds\)\./)
+    expect(t).toMatch(/^ ?What you really own Funds are baskets of companies, so the same company can sit in several of your funds\. Apple is about \d+% of your money, held directly \(we couldn't look inside 1 of your funds\)\./)
   })
 
   it('hides every dollar figure in hidden-values mode but keeps the percents', () => {
     const t = text(render(sampleHoldings(), (c) => seedFunds(c), true))
-    expect(t).not.toContain('$')
+    // The per-$10,000 line is a rate, not the client's dollars, so it is the only "$" left.
+    expect(t).toMatch(/That's about \$\d+ a year on every \$10,000\./)
+    expect(t.replace(/That's about \$\d+ a year on every \$10,000\./, '')).not.toContain('$')
     expect(t).toContain('Apple is about 20% of your money')
     expect(t).toMatch(/Your funds cost about 0\.\d\d% of the money in them each year\./)
     expect(t).toContain('Hidden')

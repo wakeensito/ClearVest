@@ -6,7 +6,6 @@ import {
   feeCopy,
   fundsCheckedCaption,
   joinList,
-  mixLead,
   ownershipHeadline,
   topCompaniesLine,
   viaLine,
@@ -145,6 +144,7 @@ describe('feeCopy', () => {
   it('says the yearly cost, ten years, and the cheapest-fund what-if', () => {
     expect(feeCopy(fees(), false)).toEqual({
       cost: 'Your funds cost about $13 a year (0.08% of the money in them).',
+      perTenThousand: "That's about $8 a year on every $10,000.",
       tenYear: "At the same balance that's about $130 over 10 years.",
       cheapest: 'If every fund cost what your cheapest one does (0.03%), it would be about $5 a year.',
       unknown: null,
@@ -161,7 +161,9 @@ describe('feeCopy', () => {
     expect(copy.cost).toBe('Your funds cost about 0.08% of the money in them each year.')
     expect(copy.tenYear).toBeNull()
     expect(copy.cheapest).toBe('If every fund cost what your cheapest one does (0.03%), you would pay less each year.')
-    expect(Object.values(copy).join(' ')).not.toContain('$')
+    // The per-$10,000 line is a rate, not the client's dollars, so it stays.
+    expect(copy.perTenThousand).toBe("That's about $8 a year on every $10,000.")
+    expect([copy.cost, copy.tenYear, copy.cheapest, copy.unknown, copy.notChecked].join(' ')).not.toContain('$')
   })
 
   it('names funds with no fee data, and says whose cost the sentence covers', () => {
@@ -181,6 +183,13 @@ describe('feeCopy', () => {
     expect(onlySkipped.cost).toMatch(/^The funds we could check cost about 0\.08%/)
   })
 
+  it('frames the blended rate per $10,000: "under $1" for a sliver, nothing without a rate', () => {
+    expect(feeCopy(fees({ blendedRatio: 0.0006 }), false)!.perTenThousand).toBe("That's about $6 a year on every $10,000.")
+    expect(feeCopy(fees({ blendedRatio: 0.00003 }), false)!.perTenThousand).toBe('Under $1 a year on every $10,000.')
+    expect(feeCopy(fees({ blendedRatio: 0.00003 }), true)!.perTenThousand).toBe('Under $1 a year on every $10,000.')
+    expect(feeCopy(fees({ perYear: 0, tenYear: 0, blendedRatio: 0, cheapestRatio: 0, ifAllCheapest: 0 }), false)!.perTenThousand).toBeNull()
+  })
+
   it('reads "under $1" for a tiny cost and "no yearly fee" at zero', () => {
     expect(feeCopy(fees({ perYear: 0.3, tenYear: 3, ifAllCheapest: 0.3 }), false)!.cost).toMatch(/^Your funds cost under \$1 a year/)
     expect(feeCopy(fees({ perYear: 0, tenYear: 0, blendedRatio: 0, cheapestRatio: 0, ifAllCheapest: 0 }), false))
@@ -189,29 +198,27 @@ describe('feeCopy', () => {
 
   it('says fees are unavailable when no fund has a ratio, and nothing when there are no funds', () => {
     const none = fees({ rows: [], unknown: ['ABCX'], fundValue: 0, perYear: 0, blendedRatio: null, cheapestRatio: null, ifAllCheapest: null, tenYear: 0 })
-    expect(feeCopy(none, false)).toEqual({ cost: "Fee information isn't available for your funds.", tenYear: null, cheapest: null, unknown: 'Fee not available: ABCX', notChecked: null })
+    expect(feeCopy(none, false)).toEqual({ cost: "Fee information isn't available for your funds.", perTenThousand: null, tenYear: null, cheapest: null, unknown: 'Fee not available: ABCX', notChecked: null })
     expect(feeCopy({ ...none, unknown: [] }, false)).toBeNull()
   })
 })
 
-describe('mixLead and advisorMixHref', () => {
-  it('gives the drift sentence a subject', () => {
-    expect(mixLead('34 points more in stocks than the Classic 60/40 plan; nothing in bonds.'))
-      .toBe('Your mix is 34 points more in stocks than the Classic 60/40 plan; nothing in bonds.')
-    expect(mixLead('Your mix is close to the Classic 60/40 plan.')).toBe('Your mix is close to the Classic 60/40 plan.')
-    expect(mixLead('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.'))
-      .toBe('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.')
-  })
-
-  it('prefills the advisor question in the first person', () => {
-    const href = advisorMixHref('34 points more in stocks than the Classic 60/40 plan; nothing in bonds.')
+describe('advisorMixHref', () => {
+  const ask = (sentence: string) => {
+    const href = advisorMixHref(sentence)
     expect(href.startsWith('/advisor?q=')).toBe(true)
-    expect(decodeURIComponent(href.slice('/advisor?q='.length)))
-      .toBe('My mix is 34 points more in stocks than the Classic 60/40 plan; nothing in bonds. What should a beginner understand about that?')
-    expect(decodeURIComponent(advisorMixHref('Your mix is close to the Classic 60/40 plan.').slice(11)))
+    return decodeURIComponent(href.slice('/advisor?q='.length))
+  }
+
+  it('prefills the advisor question in the first person, for every drift shape', () => {
+    expect(ask('Stocks: 94% today vs 60% in the Classic 60/40 plan; nothing in bonds.'))
+      .toBe('My mix has stocks at 94% today vs 60% in the Classic 60/40 plan; nothing in bonds. What should a beginner understand about that?')
+    expect(ask('Stocks: 54% today vs 90% in the Buffett 90/10 plan.'))
+      .toBe('My mix has stocks at 54% today vs 90% in the Buffett 90/10 plan. What should a beginner understand about that?')
+    expect(ask('Your mix is close to the Classic 60/40 plan.'))
       .toBe('My mix is close to the Classic 60/40 plan. What should a beginner understand about that?')
-    expect(decodeURIComponent(advisorMixHref('Nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks.').slice(11)))
-      .toBe('My mix has nothing in bonds, where the Classic 60/40 plan keeps 40%; 34 points more in stocks. What should a beginner understand about that?')
+    expect(ask('Nothing in bonds, where the Classic 60/40 plan keeps 40%. Stocks: 94% today vs 60% in the plan.'))
+      .toBe('My mix has nothing in bonds, where the Classic 60/40 plan keeps 40%. Stocks: 94% today vs 60% in the plan. What should a beginner understand about that?')
   })
 })
 

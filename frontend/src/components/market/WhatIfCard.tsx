@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Link } from 'react-router'
 import type { Fund, Holding } from '../../api/client'
 import { hasCode } from '../../api/errors'
 import { useHoldings, useProfile } from '../../api/queries'
@@ -27,8 +28,9 @@ const BANDS = [{ from: 0, to: 33 }, { from: 34, to: 66 }, { from: 67, to: 100 }]
 
 /**
  * "What would this do to my portfolio?" (DESIGN.md §4.15), under the ticker page's identity row.
- * Renders nothing until everything it needs has arrived, and nothing at all for an unlinked or
- * empty account, an index, or any failed query: the research card never waits on it.
+ * Renders nothing until everything it needs has arrived, and nothing at all for an empty account,
+ * an index, or any failed query: the research card never waits on it. An unlinked account (409)
+ * gets one line inviting it to the portfolio page instead.
  */
 export function WhatIfCard({ symbol, state }: { symbol: string; state: FundState }) {
   const holdings = useHoldings()
@@ -36,7 +38,15 @@ export function WhatIfCard({ symbol, state }: { symbol: string; state: FundState
   const fundMap = useFundMap(holdings.data?.holdings)
   const fund = state.status === 'success' ? state.fund : null
 
-  if (!fund || !ADDABLE.has(fund.kind) || !holdings.data) return null
+  if (!fund || !ADDABLE.has(fund.kind)) return null
+  if (holdings.isError && hasCode(holdings.error, 'NOT_LINKED')) {
+    return (
+      <Link to="/portfolio" className={styles.invite} data-what-if-invite>
+        {`Link an account, or try the sample one, to see what adding ${symbol.trim().toUpperCase()} would do to your mix →`}
+      </Link>
+    )
+  }
+  if (!holdings.data) return null
   // A 404 means no saved profile: score without it, like the backend. Any other error: nothing.
   if (profile.isPending) return null
   if (profile.isError && !hasCode(profile.error, 'NOT_FOUND')) return null

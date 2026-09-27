@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EMPTY_SEARCH_ERROR, moveHighlight, resolveSubmit, searchTerm, shouldAwaitSearch, type Suggestion } from './searchBox'
+import { EMPTY_SEARCH_ERROR, moveHighlight, normalizeQuery, resolveSubmit, searchTerm, shouldAwaitSearch, type Suggestion } from './searchBox'
 
 const apple: Suggestion = { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' }
 const voo: Suggestion = { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', exchange: 'NYSE Arca' }
@@ -86,5 +86,34 @@ describe('shouldAwaitSearch', () => {
   it('never waits on something that is never searched (empty or one character)', () => {
     expect(shouldAwaitSearch('', false, true, [])).toBe(false)
     expect(shouldAwaitSearch(' v ', false, true, [])).toBe(false)
+  })
+})
+
+describe('normalizeQuery', () => {
+  it('trims, drops one leading $, and drops a trailing "stock"/"shares"/"etf"-style word', () => {
+    expect(normalizeQuery('  $AAPL ')).toBe('AAPL')
+    expect(normalizeQuery('$$AAPL')).toBe('$AAPL')
+    expect(normalizeQuery('apple stock')).toBe('apple')
+    expect(normalizeQuery('nvidia shares')).toBe('nvidia')
+    expect(normalizeQuery('Vanguard ETF')).toBe('Vanguard')
+    expect(normalizeQuery('fidelity Fund ')).toBe('fidelity')
+    expect(normalizeQuery('msft Ticker')).toBe('msft')
+    expect(normalizeQuery('voo')).toBe('voo')
+  })
+
+  it('keeps a lone keyword and words that only contain one', () => {
+    expect(normalizeQuery('stock')).toBe('stock')
+    expect(normalizeQuery('stockx')).toBe('stockx')
+    expect(normalizeQuery('bitcoin fundamentals')).toBe('bitcoin fundamentals')
+  })
+
+  it('feeds both the ticker test and the search term', () => {
+    expect(resolveSubmit('$AAPL', [], -1)).toEqual({ symbol: 'AAPL' })
+    expect(resolveSubmit('apple stock', [apple], -1)).toEqual({ symbol: 'AAPL' })
+    expect(searchTerm('apple stock')).toBe('apple')
+    expect(searchTerm('nvidia shares')).toBe('nvidia')
+    expect(searchTerm('$AAPL')).toBe('AAPL')
+    expect(searchTerm('voo')).toBe('voo')
+    expect(shouldAwaitSearch('$voo', false, true, [voo])).toBe(false)
   })
 })

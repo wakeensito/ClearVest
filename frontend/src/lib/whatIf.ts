@@ -179,26 +179,23 @@ export function whatIf(input: WhatIfInput): WhatIfResult {
 
 // Whole percents; a positive sliver reads "under 1%", never "0%" (same rule as §4.14).
 const pct = wholePercent
+const about = (f: number) => (f > 0 && f < 0.005 ? 'under 1%' : `about ${pct(f)}`)
 
 /**
- * "Adding $1,000 of NVDA: your NVDA exposure goes from 19% to 22% (counting your funds' top 10 holdings),
- * and your risk score from 44 to 47 (Moderate)." Starting from 0%: "you'd go from owning no ORCL to 9%",
- * or, when the account holds funds (only their top 10 are counted), "you'd go from no ORCL we can see
- * to 9%". The risk label is repeated on both sides only when
- * it actually changes: "... from 44 (Moderate) to 68 (Aggressive)."
+ * "Adding $1,000 of NVDA: NVDA would be about 22% of your money instead of 19% (counting your funds'
+ * top 10 holdings), and your risk score would go from 44 to 47 out of 100 (Moderate)." Starting from
+ * 0%: "… instead of none today", or, when the account holds funds (only their top 10 are counted),
+ * "… instead of none we can see today". The risk label is repeated on both sides only when it
+ * actually changes: "… would go from 44 (Moderate) to 68 (Aggressive) out of 100."
  */
 export function whatIfSentence(r: WhatIfResult, symbol: string, dollars: number): string {
-  const exposurePart =
-    r.exposureBefore === 0
-      ? r.holdsFunds
-        ? `you'd go from no ${symbol} we can see to ${pct(r.exposureAfter)}`
-        : `you'd go from owning no ${symbol} to ${pct(r.exposureAfter)}`
-      : `your ${symbol} exposure goes from ${pct(r.exposureBefore)} to ${pct(r.exposureAfter)}`
+  const before = r.exposureBefore === 0 ? (r.holdsFunds ? 'none we can see today' : 'none today') : pct(r.exposureBefore)
+  const exposurePart = `${symbol} would be ${about(r.exposureAfter)} of your money instead of ${before}`
 
   const sameLabel = r.riskBefore.label === r.riskAfter.label
   const riskPart = sameLabel
-    ? `your risk score from ${r.riskBefore.score} to ${r.riskAfter.score} (${r.riskAfter.label})`
-    : `your risk score from ${r.riskBefore.score} (${r.riskBefore.label}) to ${r.riskAfter.score} (${r.riskAfter.label})`
+    ? `your risk score would go from ${r.riskBefore.score} to ${r.riskAfter.score} out of 100 (${r.riskAfter.label})`
+    : `your risk score would go from ${r.riskBefore.score} (${r.riskBefore.label}) to ${r.riskAfter.score} (${r.riskAfter.label}) out of 100`
 
   return `Adding ${currencyWhole(dollars)} of ${symbol}: ${exposurePart} (counting your funds' top 10 holdings), and ${riskPart}.`
 }

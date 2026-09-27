@@ -344,7 +344,8 @@ one-day cache as `useFund`, `retry: 1`, at most the 8 largest funds; a failed fu
 missing). Only shown when an account is linked.
 
 **What you really own** (`components/portfolio/OwnershipXray.tsx`, `section#xray`, the first thing in the
-Portfolio main column, above Security research; Holdings stays below research). The pitch opens here. A 13px secondary heading, then the headline sentence at 20/28 medium (18/26 on
+Portfolio main column, above Security research; Holdings stays below research). The pitch opens here. A 13px secondary heading, then one static `t-body-sm` secondary line, “Funds are baskets of companies, so
+the same company can sit in several of your funds.” (in every state except “no stocks or funds”), then the headline sentence at 20/28 medium (18/26 on
 phones): “Apple is about 20% of your money: 14% directly, 6% inside VOO, QQQ and VGT.” Whole percents;
 the fund part is the rounded total minus the rounded direct part, so the two parts add up on screen;
 “all of it inside VOO and QQQ.” with nothing direct, “all of it held directly.” with no fund (only once
@@ -362,7 +363,9 @@ under half the fund money is covered by those top holdings. Stock-only accounts 
 holdings as of …”.
 
 **What it costs** (inside the same card, under a rule, `t-h3` heading). “Your funds cost about $13 a
-year (0.08% of the money in them).” / “At the same balance that's about $130 over 10 years.” / only
+year (0.08% of the money in them).” / the same rate per $10,000 via `feePerTenThousand`: “That's about
+$8 a year on every $10,000.” (“Under $1 a year on every $10,000.”; none without a rate; kept when
+values are hidden, since it is a rate, not the client's dollars) / “At the same balance that's about $130 over 10 years.” / only
 when it saves at least $1: “If every fund cost what your cheapest one does (0.03%), it would be about $5
 a year.” A three-column table (Fund, Expense ratio, Per year; symbol, `expenseRatioLabel`, full
 currency). While any requested fund is loading, the panel shows only “Adding up fees…” with `Dots`, so a
@@ -376,17 +379,22 @@ yearly fee.”; no funds: no panel. No fund is ever recommended.
 “Your plan vs. today”, above “By investment type” §4.5). A labelled native `select` “Compare with” (44px,
 6px radius, `border-input`) lists `/market/templates` names; the default is `suggestTemplate(profile)`,
 the pick lives in component state only. Beside the label: `Badge` “Suggested for you” (accent tone)
-when the pick is the suggestion, “Pick a plan” (neutral) with no profile. Two `aria-hidden` 12px bars,
+when the pick is the suggestion, “Pick a plan” (neutral) with no profile. Under the select, a
+`t-body-sm` secondary line: “Picked from your answers (age, time horizon, risk comfort). A starting
+point, not advice.” when the pick is the suggestion; with no profile, “Answer three questions in your
+investment profile to get a suggested plan.” (“investment profile” links to `/welcome?edit=1`). Two `aria-hidden` 12px bars,
 “Today” and the plan name, slices in stocks/bonds/cash/other order coloured as their asset category
 (stocks `viz-1`, bonds `viz-4`, cash `viz-7`, other `viz-8`), then a small table: kind, Today, Plan at
-1 decimal. Under a rule, the lead sentence from `drift()`. When the biggest gap (3+ points) is bonds or
-cash that the account holds none of while the plan keeps 10%+, it leads with that: “Nothing in bonds,
-where the Classic 60/40 plan keeps 40%; 34 points more in stocks.” (the over-gap clause only when one of
-3+ points exists). Otherwise the largest over-gap leads, else the largest under-gap, given a subject:
-“Your mix is 30 points more in stocks than the Bogleheads three-fund plan.”, with a “; nothing in cash”
-tail that never repeats the lead class; all gaps under 3 read “Your mix is close to the … plan.” Then the
-plan description in tertiary and “Ask the advisor why this matters →”, a prefilled, never-sent
-`/advisor?q=` in the first person (“My mix is …” / “My mix has nothing in …”). While funds
+1 decimal. Under a rule, the lead sentence from `drift()`, which always says both whole percents, never
+a bare “N points” gap. When the biggest gap (3+ points) is bonds or cash that the account holds none of
+while the plan keeps 10%+, it leads with that: “Nothing in bonds, where the Classic 60/40 plan keeps
+40%. Stocks: 94% today vs 60% in the plan.” (the second sentence only when an over-gap of 3+ points
+exists). Otherwise the largest over-gap leads, else the largest under-gap: “Stocks: 94% today vs 60% in
+the Classic 60/40 plan; nothing in bonds.” / “Stocks: 54% today vs 90% in the Buffett 90/10 plan.”; the
+“; nothing in cash” tail never repeats the lead class; all gaps under 3 read “Your mix is close to the …
+plan.” Then the plan description in tertiary and “Ask the advisor why this matters →”, a prefilled,
+never-sent `/advisor?q=` in the first person (“My mix has stocks at 94% today vs 60% in the … plan.” /
+“My mix has nothing in …” / “My mix is close to …”). While funds
 load or fail: “2 of 3 funds checked · assumes unchecked funds hold stocks”.
 
 **States.** Holdings loading: the `#xray` surface with a skeleton. Funds all loading: skeleton;
@@ -427,11 +435,12 @@ $1 to $1,000,000. Showing $1,000.” in the field-error style, and the figures k
 state only, no URL state.
 
 **The sentence is the answer.** At 17/26 medium (16/24 on phones), in a polite live region:
-“Adding $1,000 of NVDA: your NVDA exposure goes from 17% to 21% (counting your funds' top 10
-holdings), and your risk score from 34 to 35 (Moderate).” Starting from 0% in an account with funds:
-“you'd go from no ORCL we can see to 9%”; with no funds, where nothing is unseen: “you'd go from owning
-no ORCL to 9%”. The risk label is repeated on both sides only when it changes. Whole percents; a sliver
-reads “under 1%”, never “0%”. For a stock or crypto the exposure is its look-through company share; for
+“Adding $1,000 of NVDA: NVDA would be about 21% of your money instead of 17% (counting your funds' top
+10 holdings), and your risk score would go from 34 to 35 out of 100 (Moderate).” Starting from 0% in an
+account with funds: “ORCL would be about 9% of your money instead of none we can see today”; with no
+funds, where nothing is unseen: “… instead of none today”. The risk label is repeated on both sides
+only when it changes (“from 34 (Moderate) to 68 (Aggressive) out of 100”). Whole percents; a sliver
+reads “under 1%” (“would be under 1% of your money”), never “0%”. For a stock or crypto the exposure is its look-through company share; for
 an ETF or mutual fund it is the fund's own share of the account.
 
 **A lower bound.** Funds are looked through their top 10 holdings only (§4.14), so the exposure figure
@@ -454,8 +463,10 @@ account with no funds reads “Based on your holdings. Educational, not a recomm
 button, no link to a broker, no “you should”.
 
 **States.** Anything loading (fund, holdings, profile, the account's first fund) renders nothing, never
-a skeleton, so the research header never jumps or waits. Not linked (409), any error, an empty account,
-an index: nothing; the portfolio page already invites linking. No saved profile (404) scores without
+a skeleton, so the research header never jumps or waits. Not linked (409), for an addable kind whose
+fund loaded: one 13px medium line, a `Link` to `/portfolio` with a 44px target, “Link an account, or
+try the sample one, to see what adding NVDA would do to your mix →”. Any other error, an empty account,
+an index: nothing. No saved profile (404) scores without
 one, like the backend. Funds still arriving after the first: render with “N of M”.
 
 **Phone.** No overflow at 320/375/393px; the presets keep one row and the amount box takes the next
