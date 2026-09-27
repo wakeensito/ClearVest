@@ -4,7 +4,7 @@
 - **Author:** @Mario-Recondo
 - **Team:** data
 - **Status:** done
-- **PR / issue:** (this PR)
+- **PR / issue:** #52
 - **Branch:** fix/market-news-yfinance
 - **Follows:** [2026-09-27-data-fund-explainer.md](2026-09-27-data-fund-explainer.md)
 

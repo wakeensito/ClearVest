@@ -193,7 +193,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Up to six publisher headlines from Yahoo Finance, cached for one hour. Omit symbols for market-wide stock news, where each article's symbol is an empty string. publishedAt is the provider's timestamp as given (Yahoo sends ISO 8601 in UTC); fetchedAt is API retrieval time. */
+        /** @description Up to six publisher headlines from Yahoo Finance, cached for one hour (five minutes when the provider returned no articles, since that may be a transient failure). Omit symbols for market-wide stock news, where each article's symbol is an empty string. publishedAt is the provider's timestamp as given (Yahoo sends ISO 8601 in UTC); fetchedAt is API retrieval time. */
         get: operations["getMarketNews"];
         put?: never;
         post?: never;
