@@ -74,7 +74,7 @@ function CompanyRow({ company: c, scale }: { company: Exposure; scale: number })
       <div className={styles.line}>
         <span className={styles.name}>
           {c.name || c.symbol}
-          {c.symbol && c.name && <span className={styles.symbol}>{c.symbol}</span>}
+          {c.symbol && c.name && <>{' '}<span className={styles.symbol}>{c.symbol}</span></>}
         </span>
         <span className={styles.share}>{percentFromFraction(c.share)}</span>
       </div>

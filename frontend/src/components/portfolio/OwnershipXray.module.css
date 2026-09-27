@@ -29,7 +29,7 @@
 .row { display: grid; gap: 6px; min-width: 0; }
 .line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
 .name { min-width: 0; font-size: 15px; line-height: 24px; font-weight: 500; overflow-wrap: anywhere; }
-.symbol { margin-left: 8px; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-tertiary); letter-spacing: 0.02em; }
+.symbol { margin-left: 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--cv-text-tertiary); letter-spacing: 0.02em; }
 .share { flex-shrink: 0; font-size: 15px; line-height: 24px; font-weight: 500; font-variant-numeric: lining-nums tabular-nums; }
 
 /* Solid accent: owned directly. Lighter accent: the same company reached through funds. */
