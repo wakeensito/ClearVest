@@ -1,7 +1,7 @@
 # Dev tooling only. Runtime deps live next to the code that ships:
 # src/layer/requirements.txt (shared) and src/market/requirements.txt (yfinance).
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=84.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
