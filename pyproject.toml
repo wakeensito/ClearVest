@@ -15,7 +15,7 @@ dev = [
   "pydantic==2.13.5",
   "requests==2.34.2",
   "yfinance==1.7.0",
-  "boto3==1.43.103",
+  "boto3==1.43.108",
   "moto[dynamodb,s3,ssm,sqs]==5.2.3",
   "responses",
   "jsonschema",
