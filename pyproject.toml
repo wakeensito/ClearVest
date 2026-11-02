@@ -11,16 +11,16 @@ requires-python = ">=3.12"
 
 [project.optional-dependencies]
 dev = [
-  "aws-lambda-powertools==3.35.0",
-  "pydantic==2.13.5",
+  "aws-lambda-powertools==3.38.0",
+  "pydantic==2.14.2",
   "requests==2.34.2",
   "yfinance==1.7.0",
-  "boto3==1.43.103",
-  "moto[dynamodb,s3,ssm,sqs]==5.2.3",
+  "boto3==1.43.123",
+  "moto[dynamodb,s3,ssm,sqs]==5.2.5",
   "responses",
   "jsonschema",
   "pyyaml",
-  "pytest==9.1.1",
+  "pytest==9.2.0",
 ]
 
 [tool.setuptools]
